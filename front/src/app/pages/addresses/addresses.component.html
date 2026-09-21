@@ -1,0 +1,343 @@
+<section class="addresses-page">
+  <header class="addresses-topbar">
+    <label class="global-search" aria-label="Busca de enderecos">
+      <span class="material-symbol" aria-hidden="true">search</span>
+      <input
+        type="search"
+        placeholder="Buscar por cidade, endereco, CEP..."
+        [value]="busca()"
+        (input)="busca.set($any($event.target).value)"
+      />
+      <kbd>Ctrl + K</kbd>
+    </label>
+
+    <div class="user-summary">
+      <button type="button" class="topbar-icon" aria-label="Notificacoes">
+        <span class="material-symbol" aria-hidden="true">notifications</span>
+      </button>
+      <div class="user-avatar" aria-hidden="true">{{ (auth.usuario()?.nome || 'U').slice(0, 1) }}</div>
+      <div>
+        <strong>{{ auth.usuario()?.nome || 'Usuario' }}</strong>
+        <span>{{ auth.usuario()?.email || 'Sessao ativa' }}</span>
+      </div>
+      <button type="button" class="topbar-icon" aria-label="Alternar tema">
+        <span class="material-symbol" aria-hidden="true">dark_mode</span>
+      </button>
+      <span class="material-symbol chevron" aria-hidden="true">expand_more</span>
+    </div>
+  </header>
+
+  <header class="addresses-hero">
+    <div class="hero-title">
+      <div class="title-icon">
+        <span class="material-symbol" aria-hidden="true">location_on</span>
+      </div>
+      <div>
+        <div class="back-line">
+          <span class="material-symbol" aria-hidden="true">arrow_back</span>
+          Fornecedores
+          <span aria-hidden="true">&gt;</span>
+          Enderecos
+        </div>
+        <h1>Enderecos</h1>
+        <p>Gerencie os locais de entrega, cobranca e operacao dos seus fornecedores.</p>
+      </div>
+    </div>
+    <button class="primary-action" type="button" (click)="abrirNovoEndereco()">
+      <span class="material-symbol" aria-hidden="true">add</span>
+      Novo endereco
+    </button>
+  </header>
+
+  <section class="metrics-grid" aria-label="Resumo de enderecos">
+    @for (metric of metrics(); track metric.label) {
+      <article class="metric-card">
+        <span class="metric-icon material-symbol" aria-hidden="true">{{ metric.icon }}</span>
+        <div>
+          <p>{{ metric.label }}</p>
+          <strong>{{ metric.value }}</strong>
+          <small><span class="material-symbol">arrow_upward</span>{{ metric.detail }}</small>
+        </div>
+      </article>
+    }
+  </section>
+
+  <section class="addresses-panel">
+    <div class="filters-bar">
+      <label class="search-control">
+        <span class="material-symbol" aria-hidden="true">search</span>
+        <input
+          type="search"
+          placeholder="Buscar por fornecedor, cidade, estado ou endereco..."
+          [value]="busca()"
+          (input)="busca.set($any($event.target).value)"
+        />
+      </label>
+      <label>
+        <span>Fornecedor</span>
+        <select disabled>
+          <option>Todos</option>
+        </select>
+      </label>
+      <label>
+        <span>Tipo de endereco</span>
+        <select [value]="tipoEnderecoFiltro()" (change)="tipoEnderecoFiltro.set($any($event.target).value)">
+          <option>Todos</option>
+          <option>Matriz</option>
+          <option>Entrega</option>
+          <option>Cobranca</option>
+        </select>
+      </label>
+      <label>
+        <span>Cidade</span>
+        <select [value]="cidadeFiltro()" (change)="cidadeFiltro.set($any($event.target).value)">
+          <option>Todas</option>
+          @for (cidade of cidades(); track cidade) {
+            <option>{{ cidade }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span>Status</span>
+        <select [value]="statusFiltro()" (change)="statusFiltro.set($any($event.target).value)">
+          <option>Todos</option>
+          <option>Ativo</option>
+          <option>Inativo</option>
+        </select>
+      </label>
+      <button class="filter-button" type="button" (click)="limparFiltros()">
+        <span class="material-symbol" aria-hidden="true">filter_alt</span>
+        Filtros
+      </button>
+    </div>
+
+    <div class="active-filters">
+      @if (cidadeFiltro() !== 'Todas') {
+        <span>Cidade: {{ cidadeFiltro() }} <button type="button" (click)="cidadeFiltro.set('Todas')">×</button></span>
+      }
+      @if (tipoEnderecoFiltro() !== 'Todos') {
+        <span>Tipo: {{ tipoEnderecoFiltro() }} <button type="button" (click)="tipoEnderecoFiltro.set('Todos')">×</button></span>
+      }
+      @if (statusFiltro() !== 'Todos') {
+        <span>Status: {{ statusFiltro() }} <button type="button" (click)="statusFiltro.set('Todos')">×</button></span>
+      }
+      @if (busca()) {
+        <span>Busca ativa <button type="button" (click)="busca.set('')">×</button></span>
+      }
+      @if (busca() || cidadeFiltro() !== 'Todas' || tipoEnderecoFiltro() !== 'Todos' || statusFiltro() !== 'Todos') {
+        <button class="clear-filters" type="button" (click)="limparFiltros()">
+          <span class="material-symbol" aria-hidden="true">delete</span>
+          Limpar filtros
+        </button>
+      }
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox" aria-label="Selecionar todos" /></th>
+            <th>Fornecedor</th>
+            <th>Tipo</th>
+            <th>Endereco</th>
+            <th>Cidade/UF</th>
+            <th>CEP</th>
+            <th>Principal</th>
+            <th>Status</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (endereco of enderecosFiltrados(); track endereco.id; let i = $index) {
+            <tr>
+              <td><input type="checkbox" aria-label="Selecionar endereco" /></td>
+              <td>
+                <div class="supplier-cell">
+                  <span class="supplier-avatar" aria-hidden="true">{{ endereco.nome.slice(0, 1) || '-' }}</span>
+                  <div>
+                    <strong>Nao vinculado</strong>
+                    <small>Fornecedor indisponivel</small>
+                  </div>
+                </div>
+              </td>
+              <td><span class="type-pill" [class.delivery]="tipoPorEndereco(endereco) === 'Entrega'" [class.billing]="tipoPorEndereco(endereco) === 'Cobranca'">{{ tipoPorEndereco(endereco) }}</span></td>
+              <td>
+                <strong>{{ endereco.logradouro }}, {{ endereco.numero }}</strong>
+                <small>{{ endereco.bairro }}</small>
+              </td>
+              <td>{{ endereco.municipio }} - {{ endereco.uf }}</td>
+              <td>{{ formatCep(endereco.cep) }}</td>
+              <td><span class="star material-symbol" [class.active]="isPrincipal(endereco)">star</span></td>
+              <td><span class="status-pill" [class.inactive]="!endereco.ativo">{{ endereco.ativo ? 'Ativo' : 'Inativo' }}</span></td>
+              <td><button class="row-action" type="button" aria-label="Acoes">...</button></td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="9">
+                <div class="empty-list">
+                  <span class="material-symbol" aria-hidden="true">map</span>
+                  <strong>Nenhum endereco cadastrado</strong>
+                  <small>Clique em Novo endereco para criar o primeiro cadastro.</small>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="table-footer">
+      <span>Mostrando {{ enderecosFiltrados().length }} de {{ enderecos().length }} enderecos</span>
+      <div class="pager">
+        <button class="active" type="button">1</button>
+        <button type="button"><span class="material-symbol">chevron_right</span></button>
+      </div>
+    </footer>
+  </section>
+
+  @if (showAddressModal()) {
+    <div class="modal-backdrop" role="presentation">
+      <section class="address-modal" role="dialog" aria-modal="true" aria-labelledby="address-modal-title">
+        <header class="modal-titlebar">
+          <span class="title-icon">
+            <span class="material-symbol" aria-hidden="true">add_location_alt</span>
+          </span>
+          <div>
+            <h2 id="address-modal-title">Novo endereco</h2>
+            <p>Preencha os dados para cadastrar um novo endereco.</p>
+          </div>
+          <button class="close-button" type="button" aria-label="Fechar" (click)="fecharNovoEndereco()">
+            <span class="material-symbol" aria-hidden="true">close</span>
+          </button>
+        </header>
+
+        <form [formGroup]="enderecoForm" (ngSubmit)="salvarEndereco()" class="address-form">
+          <label class="col-6">
+            <span>Fornecedor</span>
+            <input type="text" formControlName="fornecedor" placeholder="Informe o fornecedor" />
+          </label>
+          <label class="col-6">
+            <span>Tipo de endereco <b class="required">*</b></span>
+            <select formControlName="tipoEndereco" [class.invalid]="campoInvalido('tipoEndereco')">
+              <option value="">Selecione...</option>
+              <option>Matriz</option>
+              <option>Entrega</option>
+              <option>Cobranca</option>
+              <option>Centro de Distribuicao</option>
+            </select>
+            @if (campoInvalido('tipoEndereco')) {
+              <small class="field-error">Tipo de endereco e obrigatorio.</small>
+            }
+          </label>
+
+          <label class="col-3">
+            <span>CEP <b class="required">*</b></span>
+            <span class="input-action">
+              <input type="text" formControlName="cep" placeholder="00000-000" [class.invalid]="campoInvalido('cep')" />
+              <button type="button" aria-label="Pesquisar CEP"><span class="material-symbol">search</span></button>
+            </span>
+            @if (campoInvalido('cep')) {
+              <small class="field-error">CEP e obrigatorio.</small>
+            }
+          </label>
+          <label class="col-5">
+            <span>Logradouro <b class="required">*</b></span>
+            <input type="text" formControlName="logradouro" placeholder="Digite o logradouro" [class.invalid]="campoInvalido('logradouro')" />
+            @if (campoInvalido('logradouro')) {
+              <small class="field-error">Logradouro e obrigatorio.</small>
+            }
+          </label>
+          <label class="col-2">
+            <span>Numero <b class="required">*</b></span>
+            <input type="text" formControlName="numero" [class.invalid]="campoInvalido('numero')" />
+            @if (campoInvalido('numero')) {
+              <small class="field-error">Numero e obrigatorio.</small>
+            }
+          </label>
+          <label class="col-2">
+            <span>Complemento</span>
+            <input type="text" formControlName="complemento" />
+          </label>
+          <label class="col-4">
+            <span>Bairro <b class="required">*</b></span>
+            <input type="text" formControlName="bairro" placeholder="Digite o bairro" [class.invalid]="campoInvalido('bairro')" />
+            @if (campoInvalido('bairro')) {
+              <small class="field-error">Bairro e obrigatorio.</small>
+            }
+          </label>
+          <label class="col-5">
+            <span>Cidade <b class="required">*</b></span>
+            <input type="text" formControlName="municipio" placeholder="Digite a cidade" [class.invalid]="campoInvalido('municipio')" />
+            @if (campoInvalido('municipio')) {
+              <small class="field-error">Cidade e obrigatoria.</small>
+            }
+          </label>
+          <label class="col-3">
+            <span>UF <b class="required">*</b></span>
+            <select formControlName="uf" [class.invalid]="campoInvalido('uf')">
+              <option value="">Selecione...</option>
+              <option>RS</option>
+              <option>SC</option>
+              <option>PR</option>
+              <option>SP</option>
+            </select>
+            @if (campoInvalido('uf')) {
+              <small class="field-error">UF e obrigatoria.</small>
+            }
+          </label>
+          <label class="sr-only-field">
+            <span>Nome do endereco</span>
+            <input type="text" formControlName="nome" placeholder="Ex.: Matriz, centro de distribuicao" />
+          </label>
+
+          <section class="usage-section col-12">
+            <span>Utilizacao deste endereco</span>
+            <div>
+              <label class="check-option">
+                <input type="checkbox" formControlName="enderecoPrincipal" />
+                <span class="material-symbol">star</span>
+                Endereco principal
+              </label>
+              <label class="check-option">
+                <input type="checkbox" formControlName="recebimentoMercadorias" />
+                <span class="material-symbol">local_shipping</span>
+                Recebimento de mercadorias
+              </label>
+              <label class="check-option">
+                <input type="checkbox" formControlName="entrega" />
+                <span class="material-symbol">inventory_2</span>
+                Entrega
+              </label>
+              <label class="check-option">
+                <input type="checkbox" formControlName="correspondencias" />
+                <span class="material-symbol">mail</span>
+                Correspondencias
+              </label>
+            </div>
+          </section>
+
+          <label class="col-12 notes-field">
+            <span>Observacoes</span>
+            <textarea formControlName="referencia" maxlength="500" placeholder="Digite observacoes sobre o endereco..."></textarea>
+            <small>{{ enderecoForm.controls.referencia.value.length }}/500</small>
+          </label>
+
+          @if (mensagem()) {
+            <p class="message col-12">{{ mensagem() }}</p>
+          }
+
+          <footer class="col-12">
+            <label class="active-toggle">
+              <input type="checkbox" formControlName="ativo" />
+              <strong>Endereco ativo</strong>
+            </label>
+            <button class="cancel-button" type="button" (click)="fecharNovoEndereco()">Cancelar</button>
+            <button class="primary-action" type="submit" [disabled]="salvando()">
+              <span class="material-symbol">save</span>{{ salvando() ? 'Salvando...' : 'Salvar endereco' }}
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
+</section>

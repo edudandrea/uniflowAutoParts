@@ -1,0 +1,126 @@
+<section class="workspace-grid">
+  <article class="panel wide">
+    <div class="panel-header">
+      <div>
+        <p>Contratantes</p>
+        <h2>Cadastro da empresa</h2>
+      </div>
+    </div>
+
+    <form [formGroup]="empresaForm" (ngSubmit)="cadastrarEmpresa()" class="admin-form">
+      <label>
+        <span>Razao social</span>
+        <input type="text" formControlName="razaoSocial" />
+      </label>
+      <label>
+        <span>Nome fantasia</span>
+        <input type="text" formControlName="nomeFantasia" />
+      </label>
+      <label>
+        <span>CNPJ</span>
+        <input type="text" formControlName="cnpj" />
+      </label>
+      <label>
+        <span>Telefone</span>
+        <input type="text" formControlName="telefone" />
+      </label>
+      <label>
+        <span>E-mail</span>
+        <input type="email" formControlName="email" />
+      </label>
+      <label>
+        <span>E-mail fiscal</span>
+        <input type="email" formControlName="emailFiscal" />
+      </label>
+      <label>
+        <span>Endereco</span>
+        <input type="text" formControlName="endereco" />
+      </label>
+      <label>
+        <span>Numero</span>
+        <input type="text" formControlName="numero" />
+      </label>
+      <label>
+        <span>Complemento</span>
+        <input type="text" formControlName="complemento" />
+      </label>
+      <label>
+        <span>Bairro</span>
+        <input type="text" formControlName="bairro" />
+      </label>
+      <label>
+        <span>Cidade</span>
+        <input type="text" formControlName="cidade" />
+      </label>
+      <label>
+        <span>Estado</span>
+        <input type="text" formControlName="estado" maxlength="2" />
+      </label>
+      <label>
+        <span>CEP</span>
+        <input type="text" formControlName="cep" />
+      </label>
+      <label>
+        <span>Inscricao municipal</span>
+        <input type="text" formControlName="inscricaoMunicipal" />
+      </label>
+      <label>
+        <span>Inscricao estadual</span>
+        <input type="text" formControlName="inscricaoEstadual" />
+      </label>
+      <label>
+        <span>Logo URL</span>
+        <input type="url" formControlName="logoUrl" />
+      </label>
+      <label class="toggle-line">
+        <input type="checkbox" formControlName="utilizaAPAssistant" />
+        <span>Utiliza AP Assistant</span>
+      </label>
+
+      <div class="form-divider">Administrador da contratante</div>
+
+      <label>
+        <span>Nome do administrador</span>
+        <input type="text" formControlName="administradorNome" />
+      </label>
+      <label>
+        <span>E-mail do administrador</span>
+        <input type="email" formControlName="administradorEmail" />
+      </label>
+      <label>
+        <span>Senha inicial</span>
+        <input type="password" formControlName="administradorSenha" />
+      </label>
+
+      @if (message()) {
+        <p class="message admin-message">{{ message() }}</p>
+      }
+
+      <button class="primary-button form-action" type="submit" [disabled]="loading()">
+        {{ loading() ? 'Salvando...' : 'Cadastrar empresa' }}
+      </button>
+    </form>
+  </article>
+
+  <article class="panel">
+    <div class="panel-header">
+      <div>
+        <p>Empresas</p>
+        <h2>Contratantes recentes</h2>
+      </div>
+      <button type="button" class="icon-button" (click)="companiesStore.carregar()">R</button>
+    </div>
+
+    <div class="company-list">
+      @for (empresa of companiesStore.empresas(); track empresa.id) {
+        <div class="company-item">
+          <strong>{{ empresa.nomeFantasia }}</strong>
+          <span>{{ empresa.cnpj }}</span>
+          <small>{{ empresa.ativo ? 'Ativa' : 'Inativa' }}</small>
+        </div>
+      } @empty {
+        <p class="empty-text">Nenhuma empresa cadastrada.</p>
+      }
+    </div>
+  </article>
+</section>

@@ -1,0 +1,188 @@
+<section class="brands-page">
+  <header class="brands-hero">
+    <div class="hero-title">
+      <span class="title-icon material-symbol" aria-hidden="true">sell</span>
+      <div>
+        <div class="back-line">
+          <span class="material-symbol" aria-hidden="true">arrow_back</span>
+          Configuracoes
+          <span aria-hidden="true">&gt;</span>
+          Marcas
+        </div>
+        <h1>Marcas</h1>
+        <p>Cadastre fabricantes e marcas usadas no catalogo de produtos.</p>
+      </div>
+    </div>
+
+    <button class="primary-action" type="button" (click)="abrirNovaMarca()">
+      <span class="material-symbol" aria-hidden="true">add</span>
+      Nova marca
+    </button>
+  </header>
+
+  <section class="metrics-grid" aria-label="Resumo de marcas">
+    @for (metric of metrics(); track metric.label) {
+      <article class="metric-card">
+        <span class="metric-icon material-symbol" aria-hidden="true">{{ metric.icon }}</span>
+        <div>
+          <p>{{ metric.label }}</p>
+          <strong>{{ metric.value }}</strong>
+          <small>{{ metric.detail }}</small>
+        </div>
+      </article>
+    }
+  </section>
+
+  <section class="brand-grid" aria-label="Marcas cadastradas">
+    @for (marca of marcasFiltradas().slice(0, 8); track marca.id) {
+      <article class="brand-card">
+        @if (marca.logoUrl) {
+          <img [src]="marca.logoUrl" [alt]="marca.nome" />
+        } @else {
+          <span aria-hidden="true">{{ initials(marca.nome) }}</span>
+        }
+        <strong>{{ marca.nome }}</strong>
+        <small>{{ marca.produtos }} produtos</small>
+      </article>
+    } @empty {
+      <article class="brand-card empty-card">
+        <span aria-hidden="true">M</span>
+        <strong>Nenhuma marca cadastrada</strong>
+        <small>Crie marcas para usar no cadastro de produtos.</small>
+      </article>
+    }
+  </section>
+
+  <section class="brands-panel">
+    <div class="filters-bar">
+      <label class="search-control">
+        <span class="material-symbol" aria-hidden="true">search</span>
+        <input
+          type="search"
+          placeholder="Buscar por marca, codigo, descricao ou site..."
+          [value]="busca()"
+          (input)="busca.set($any($event.target).value)"
+        />
+      </label>
+      <button class="filter-button" type="button" (click)="busca.set('')">
+        <span class="material-symbol" aria-hidden="true">delete</span>
+        Limpar
+      </button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Marca</th>
+            <th>Codigo</th>
+            <th>Descricao</th>
+            <th>Site</th>
+            <th>Produtos</th>
+            <th>Status</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (marca of marcasFiltradas(); track marca.id) {
+            <tr>
+              <td>
+                <div class="brand-cell">
+                  @if (marca.logoUrl) {
+                    <img [src]="marca.logoUrl" [alt]="marca.nome" />
+                  } @else {
+                    <span aria-hidden="true">{{ initials(marca.nome) }}</span>
+                  }
+                  <strong>{{ marca.nome }}</strong>
+                </div>
+              </td>
+              <td>{{ marca.codigo || '-' }}</td>
+              <td>{{ marca.descricao || '-' }}</td>
+              <td>{{ marca.site || '-' }}</td>
+              <td>{{ marca.produtos }}</td>
+              <td><span class="status-pill" [class.inactive]="!marca.ativo">{{ marca.ativo ? 'Ativa' : 'Inativa' }}</span></td>
+              <td><button class="row-action" type="button" aria-label="Acoes">...</button></td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7">
+                <div class="empty-list">
+                  <span class="material-symbol" aria-hidden="true">sell</span>
+                  <strong>Nenhuma marca cadastrada</strong>
+                  <small>Clique em Nova marca para criar o primeiro cadastro.</small>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  @if (showBrandModal()) {
+    <div class="modal-backdrop" role="presentation">
+      <section class="brand-modal" role="dialog" aria-modal="true" aria-labelledby="brand-modal-title">
+        <header class="modal-titlebar">
+          <span class="modal-title-icon material-symbol" aria-hidden="true">sell</span>
+          <div>
+            <h2 id="brand-modal-title">Nova marca</h2>
+            <p>Cadastre a marca para vincular aos produtos do catalogo.</p>
+          </div>
+          <button class="close-button" type="button" aria-label="Fechar" (click)="fecharNovaMarca()">
+            <span class="material-symbol" aria-hidden="true">close</span>
+          </button>
+        </header>
+
+        <form [formGroup]="marcaForm" (ngSubmit)="salvarMarca()" class="brand-form">
+          <label>
+            <span>Nome <b class="required">*</b></span>
+            <input type="text" formControlName="nome" placeholder="Nome da marca" [class.invalid]="campoInvalido('nome')" />
+            @if (campoInvalido('nome')) {
+              <small class="field-error">Nome e obrigatorio.</small>
+            }
+          </label>
+
+          <label>
+            <span>Codigo</span>
+            <input type="text" formControlName="codigo" placeholder="BOSCH" />
+          </label>
+
+          <label class="full">
+            <span>Descricao</span>
+            <textarea formControlName="descricao" maxlength="500" placeholder="Fabricante ou linha comercial da marca."></textarea>
+          </label>
+
+          <label>
+            <span>Logo URL</span>
+            <input type="url" formControlName="logoUrl" placeholder="https://..." />
+          </label>
+
+          <label>
+            <span>Site</span>
+            <input type="url" formControlName="site" placeholder="https://www.marca.com.br" />
+          </label>
+
+          <label class="full">
+            <span>Observacao</span>
+            <textarea formControlName="observacao" maxlength="500" placeholder="Observacoes internas sobre a marca."></textarea>
+          </label>
+
+          <footer class="full">
+            <label class="active-toggle">
+              <input type="checkbox" formControlName="ativo" />
+              <strong>Marca ativa</strong>
+            </label>
+            @if (mensagem()) {
+              <p class="message">{{ mensagem() }}</p>
+            }
+            <button class="cancel-button" type="button" (click)="fecharNovaMarca()">Cancelar</button>
+            <button class="primary-action" type="submit" [disabled]="salvando()">
+              <span class="material-symbol" aria-hidden="true">save</span>
+              {{ salvando() ? 'Salvando...' : 'Salvar marca' }}
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
+</section>

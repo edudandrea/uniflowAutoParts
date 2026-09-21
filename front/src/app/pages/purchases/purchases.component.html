@@ -1,0 +1,186 @@
+<section class="purchases-page">
+  <header class="purchases-hero">
+    <div class="title-row">
+      <span class="title-icon material-symbol" aria-hidden="true">shopping_cart</span>
+      <div>
+        <h1>Compras</h1>
+        <p>Gerencie seus pedidos, recebimentos e reposicoes de forma simples e eficiente.</p>
+      </div>
+    </div>
+
+    <div class="hero-actions">
+      <button class="primary-action" type="button">
+        <span class="material-symbol" aria-hidden="true">add</span>
+        Nova compra
+        <span class="material-symbol" aria-hidden="true">expand_more</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="metrics-grid" aria-label="Resumo de compras">
+    @for (metric of metrics(); track metric.label) {
+      <article class="metric-card" [class.danger]="metric.tone === 'danger'">
+        <span class="metric-icon material-symbol" aria-hidden="true">{{ metric.icon }}</span>
+        <div>
+          <p>{{ metric.label }}</p>
+          <strong>{{ metric.value }}</strong>
+          <small [class.down]="metric.tone === 'danger'">{{ metric.detail }}</small>
+        </div>
+      </article>
+    }
+  </section>
+
+  <section class="purchases-workspace">
+    <article class="orders-panel">
+      <nav class="purchase-tabs" aria-label="Compras">
+        @for (tab of tabs; track tab) {
+          <button type="button" [class.active]="tab === activeTab()" (click)="activeTab.set(tab)">{{ tab }}</button>
+        }
+      </nav>
+
+      <div class="filters-bar">
+        <label class="search-control">
+          <span class="material-symbol" aria-hidden="true">search</span>
+          <input type="search" placeholder="Buscar por numero, fornecedor, produto..." />
+        </label>
+        <label>
+          <span>Status</span>
+          <select>
+            <option>Todos</option>
+          </select>
+        </label>
+        <label>
+          <span>Fornecedor</span>
+          <select>
+            <option>Todos</option>
+          </select>
+        </label>
+        <label>
+          <span>Periodo</span>
+          <select>
+            <option>Este mes</option>
+          </select>
+        </label>
+        <button class="filter-button" type="button">
+          <span class="material-symbol" aria-hidden="true">filter_alt</span>
+          Mais filtros
+        </button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th><input type="checkbox" aria-label="Selecionar todos" /></th>
+              <th># Pedido</th>
+              <th>Fornecedor</th>
+              <th>Emissao</th>
+              <th>Previsao</th>
+              <th>Itens</th>
+              <th>Total (R$)</th>
+              <th>Status</th>
+              <th>Acoes</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (order of orders; track order.numero) {
+              <tr>
+                <td><input type="checkbox" aria-label="Selecionar pedido" /></td>
+                <td>{{ order.numero }}</td>
+                <td>
+                  <div class="supplier-cell">
+                    <strong>{{ order.marca }}</strong>
+                    <span>{{ order.fornecedor }}</span>
+                  </div>
+                </td>
+                <td>{{ order.emissao }}</td>
+                <td>{{ order.previsao }}</td>
+                <td>{{ order.itens }}</td>
+                <td>{{ formatCurrency(order.total) }}</td>
+                <td><span class="status-pill" [class]="statusClass(order.status)">{{ order.status }}</span></td>
+                <td><button class="row-action" type="button" aria-label="Acoes">...</button></td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="9">
+                  <div class="empty-list">
+                    <span class="material-symbol" aria-hidden="true">shopping_cart</span>
+                    <strong>Nenhum pedido de compra</strong>
+                    <small>Os pedidos criados aparecerao aqui.</small>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="table-footer">
+        <span>Mostrando {{ orders.length }} pedidos</span>
+        <div class="pager">
+          <button class="active" type="button">1</button>
+          <button type="button" aria-label="Proximo"><span class="material-symbol">chevron_right</span></button>
+          <select aria-label="Itens por pagina">
+            <option>10 por pagina</option>
+          </select>
+        </div>
+      </footer>
+    </article>
+
+    <aside class="side-panel">
+      <article class="side-card quick-card">
+        <h2>Acoes rapidas</h2>
+        @for (action of quickActions; track action.title) {
+          <button type="button">
+            <span class="material-symbol" aria-hidden="true">{{ action.icon }}</span>
+            <div>
+              <strong>{{ action.title }}</strong>
+              <small>{{ action.detail }}</small>
+            </div>
+            <span class="material-symbol arrow" aria-hidden="true">chevron_right</span>
+          </button>
+        }
+      </article>
+
+      <article class="side-card">
+        <h2>Situacao de compras</h2>
+        <div class="purchase-status">
+          <div class="donut">{{ totalPedidos() }}<span>Pedidos</span></div>
+          <ul>
+            <li><i class="received"></i>Recebido <strong>{{ countByStatus('Recebido') }}</strong></li>
+            <li><i class="sent"></i>Em andamento <strong>{{ countByStatus('Enviado') }}</strong></li>
+            <li><i class="partial"></i>Parcial <strong>{{ countByStatus('Parcial') }}</strong></li>
+            <li><i class="late"></i>Em atraso <strong>{{ countByStatus('Em atraso') }}</strong></li>
+            <li><i class="canceled"></i>Cancelado <strong>{{ countByStatus('Cancelado') }}</strong></li>
+          </ul>
+        </div>
+      </article>
+
+      <article class="side-card">
+        <div class="panel-header">
+          <h2>Ultimos recebimentos</h2>
+          <a href="#">Ver todos</a>
+        </div>
+        <div class="receipt-list">
+          @for (receipt of receipts; track receipt.nf) {
+            <div class="receipt-row">
+              <span class="material-symbol" aria-hidden="true">description</span>
+              <div>
+                <strong>{{ receipt.nf }}</strong>
+                <small>{{ receipt.fornecedor }}</small>
+                <small>{{ receipt.data }}</small>
+              </div>
+              <b>{{ formatCurrency(receipt.valor) }}</b>
+            </div>
+          } @empty {
+            <div class="empty-list compact">
+              <span class="material-symbol" aria-hidden="true">description</span>
+              <strong>Nenhum recebimento</strong>
+              <small>Os recebimentos aparecerao aqui.</small>
+            </div>
+          }
+        </div>
+      </article>
+    </aside>
+  </section>
+</section>

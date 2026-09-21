@@ -1,0 +1,55 @@
+<main class="company-shell">
+  <aside class="company-sidebar">
+    <div class="sidebar-brand">
+      @if (!logoUnavailable()) {
+        <img src="/logo-uniflow-autoparts.png" alt="UniFlow AutoParts" (error)="logoUnavailable.set(true)" />
+      } @else {
+        <div class="mini-mark">UF</div>
+      }
+    </div>
+
+    <nav aria-label="Menu principal">
+      @for (item of menuItems; track item.label) {
+        <div class="nav-group" [class.expanded]="isExpanded(item.label)">
+          @if (item.children?.length) {
+            <button
+              class="nav-item nav-toggle"
+              type="button"
+              [class.active]="isExpanded(item.label)"
+              [attr.aria-expanded]="isExpanded(item.label)"
+              (click)="toggleMenu(item.label)"
+            >
+              <span class="material-symbol" aria-hidden="true">{{ item.icon }}</span>
+              <span>{{ item.label }}</span>
+              <span class="material-symbol expand-icon" aria-hidden="true">expand_more</span>
+            </button>
+            <div class="nav-children" [class.open]="isExpanded(item.label)">
+              @for (child of item.children; track child.label) {
+                <a class="nav-child" [routerLink]="child.path" routerLinkActive="active">
+                  <span class="material-symbol" aria-hidden="true">{{ child.icon }}</span>
+                  <span>{{ child.label }}</span>
+                </a>
+              }
+            </div>
+          } @else {
+            <a class="nav-item" [routerLink]="item.path" routerLinkActive="active">
+              <span class="material-symbol" aria-hidden="true">{{ item.icon }}</span>
+              <span>{{ item.label }}</span>
+            </a>
+          }
+        </div>
+      }
+    </nav>
+
+    <section class="support-card" aria-label="Suporte">
+      <span class="material-symbol" aria-hidden="true">headset_mic</span>
+      <strong>Precisa de ajuda?</strong>
+      <small>Nossa equipe esta pronta para te atender.</small>
+      <button type="button">Abrir suporte</button>
+    </section>
+  </aside>
+
+  <section class="company-content">
+    <router-outlet />
+  </section>
+</main>

@@ -1,0 +1,187 @@
+<section class="categories-page">
+  <header class="categories-hero">
+    <div class="hero-title">
+      <span class="title-icon material-symbol" aria-hidden="true">category</span>
+      <div>
+        <div class="back-line">
+          <span class="material-symbol" aria-hidden="true">arrow_back</span>
+          Configuracoes
+          <span aria-hidden="true">&gt;</span>
+          Categorias
+        </div>
+        <h1>Categorias</h1>
+        <p>Organize categorias e subcategorias usadas no cadastro de produtos.</p>
+      </div>
+    </div>
+
+    <button class="primary-action" type="button" (click)="abrirNovaCategoria()">
+      <span class="material-symbol" aria-hidden="true">add</span>
+      Nova categoria
+    </button>
+  </header>
+
+  <section class="metrics-grid" aria-label="Resumo de categorias">
+    @for (metric of metrics(); track metric.label) {
+      <article class="metric-card">
+        <span class="metric-icon material-symbol" aria-hidden="true">{{ metric.icon }}</span>
+        <div>
+          <p>{{ metric.label }}</p>
+          <strong>{{ metric.value }}</strong>
+          <small>{{ metric.detail }}</small>
+        </div>
+      </article>
+    }
+  </section>
+
+  <section class="category-grid" aria-label="Categorias principais">
+    @for (categoria of categoriasPai(); track categoria.id) {
+      <article class="category-card">
+        <span class="material-symbol" aria-hidden="true">{{ categoria.icone || 'category' }}</span>
+        <strong>{{ categoria.nome }}</strong>
+        <small>{{ categoria.subcategorias }} subcategorias · {{ categoria.produtos }} produtos</small>
+      </article>
+    } @empty {
+      <article class="category-card empty-card">
+        <span class="material-symbol" aria-hidden="true">category</span>
+        <strong>Nenhuma categoria principal</strong>
+        <small>Crie categorias como Freios, Motor, Filtros ou Suspensao.</small>
+      </article>
+    }
+  </section>
+
+  <section class="categories-panel">
+    <div class="filters-bar">
+      <label class="search-control">
+        <span class="material-symbol" aria-hidden="true">search</span>
+        <input
+          type="search"
+          placeholder="Buscar por categoria, descricao ou superior..."
+          [value]="busca()"
+          (input)="busca.set($any($event.target).value)"
+        />
+      </label>
+      <button class="filter-button" type="button" (click)="busca.set('')">
+        <span class="material-symbol" aria-hidden="true">delete</span>
+        Limpar
+      </button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Categoria</th>
+            <th>Categoria superior</th>
+            <th>Descricao</th>
+            <th>Ordem</th>
+            <th>Produtos</th>
+            <th>Status</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (categoria of categoriasFiltradas(); track categoria.id) {
+            <tr>
+              <td>
+                <div class="category-cell">
+                  <span class="material-symbol" aria-hidden="true">{{ categoria.icone || 'category' }}</span>
+                  <strong>{{ categoria.nome }}</strong>
+                </div>
+              </td>
+              <td>{{ categoria.categoriaPaiNome || '-' }}</td>
+              <td>{{ categoria.descricao || '-' }}</td>
+              <td>{{ categoria.ordem }}</td>
+              <td>{{ categoria.produtos }}</td>
+              <td><span class="status-pill" [class.inactive]="!categoria.ativo">{{ categoria.ativo ? 'Ativa' : 'Inativa' }}</span></td>
+              <td><button class="row-action" type="button" aria-label="Acoes">...</button></td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7">
+                <div class="empty-list">
+                  <span class="material-symbol" aria-hidden="true">category</span>
+                  <strong>Nenhuma categoria cadastrada</strong>
+                  <small>Clique em Nova categoria para criar a primeira categoria de produtos.</small>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  @if (showCategoryModal()) {
+    <div class="modal-backdrop" role="presentation">
+      <section class="category-modal" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
+        <header class="modal-titlebar">
+          <span class="modal-title-icon material-symbol" aria-hidden="true">category</span>
+          <div>
+            <h2 id="category-modal-title">Nova categoria</h2>
+            <p>Cadastre categorias principais ou subcategorias para produtos.</p>
+          </div>
+          <button class="close-button" type="button" aria-label="Fechar" (click)="fecharNovaCategoria()">
+            <span class="material-symbol" aria-hidden="true">close</span>
+          </button>
+        </header>
+
+        <form [formGroup]="categoriaForm" (ngSubmit)="salvarCategoria()" class="category-form">
+          <label class="full">
+            <span>Nome <b class="required">*</b></span>
+            <input type="text" formControlName="nome" placeholder="Pastilhas de freio" [class.invalid]="campoInvalido('nome')" />
+            @if (campoInvalido('nome')) {
+              <small class="field-error">Nome e obrigatorio.</small>
+            }
+          </label>
+
+          <label>
+            <span>Categoria superior</span>
+            <select formControlName="categoriaPaiId">
+              <option value="">Nenhuma</option>
+              @for (categoria of categoriasPai(); track categoria.id) {
+                <option [value]="categoria.id">{{ categoria.nome }}</option>
+              }
+            </select>
+          </label>
+
+          <label>
+            <span>Ordem de exibicao</span>
+            <input type="number" formControlName="ordem" min="0" />
+          </label>
+
+          <label class="full">
+            <span>Descricao</span>
+            <textarea formControlName="descricao" maxlength="500" placeholder="Componentes de friccao utilizados no sistema de freio."></textarea>
+          </label>
+
+          <section class="icon-picker full">
+            <span>Icone</span>
+            <div>
+              @for (icone of iconOptions; track icone) {
+                <label [class.active]="categoriaForm.controls.icone.value === icone">
+                  <input type="radio" formControlName="icone" [value]="icone" />
+                  <span class="material-symbol" aria-hidden="true">{{ icone }}</span>
+                </label>
+              }
+            </div>
+          </section>
+
+          <footer class="full">
+            <label class="active-toggle">
+              <input type="checkbox" formControlName="ativo" />
+              <strong>Categoria ativa</strong>
+            </label>
+            @if (mensagem()) {
+              <p class="message">{{ mensagem() }}</p>
+            }
+            <button class="cancel-button" type="button" (click)="fecharNovaCategoria()">Cancelar</button>
+            <button class="primary-action" type="submit" [disabled]="salvando()">
+              <span class="material-symbol" aria-hidden="true">save</span>
+              {{ salvando() ? 'Salvando...' : 'Salvar categoria' }}
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
+</section>

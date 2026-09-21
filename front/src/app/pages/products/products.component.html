@@ -1,0 +1,341 @@
+<section class="products-page">
+  <header class="products-hero">
+    <div class="title-row">
+      <span class="title-icon material-symbol" aria-hidden="true">deployed_code</span>
+      <div>
+        <h1>Produtos</h1>
+        <p>Cadastre e gerencie seus itens de forma simples e eficiente.</p>
+      </div>
+    </div>
+
+    <div class="hero-actions">
+      <button class="primary-action" type="button" (click)="abrirNovoProduto()">
+        <span class="material-symbol" aria-hidden="true">add</span>
+        Novo produto
+      </button>
+      <button class="secondary-action" type="button" (click)="abrirImportacao()">
+        <span class="material-symbol" aria-hidden="true">upload</span>
+        Importar arquivo
+        <span class="material-symbol" aria-hidden="true">expand_more</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="metrics-grid" aria-label="Resumo dos produtos">
+    @for (metric of metrics(); track metric.label) {
+      <article class="metric-card" [class.danger]="metric.tone === 'danger'">
+        <span class="metric-icon material-symbol" aria-hidden="true">{{ metric.icon }}</span>
+        <div>
+          <p>{{ metric.label }}</p>
+          <strong>{{ metric.value }}</strong>
+          <small [class.down]="metric.tone === 'danger'">
+            <b class="material-symbol">{{ metric.tone === 'danger' ? 'arrow_downward' : 'arrow_upward' }}</b>
+            {{ metric.delta }}
+          </small>
+        </div>
+      </article>
+    }
+  </section>
+
+  <section class="products-workspace">
+    <article class="catalog-panel">
+      <div class="filters-bar">
+        <label class="search-control">
+          <span class="material-symbol" aria-hidden="true">search</span>
+          <input type="search" placeholder="Buscar por codigo, descricao, codigo de fabrica..." />
+        </label>
+        <select aria-label="Marca">
+          <option>Todos</option>
+          @for (marca of marcas(); track marca.id) {
+            <option>{{ marca.nome }}</option>
+          }
+        </select>
+        <select aria-label="Categoria">
+          <option>Todas</option>
+        </select>
+        <select aria-label="Status">
+          <option>Todos</option>
+        </select>
+        <button class="filter-button" type="button">
+          <span class="material-symbol" aria-hidden="true">filter_alt</span>
+          Mais filtros
+        </button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th><input type="checkbox" aria-label="Selecionar todos" /></th>
+              <th>Codigo</th>
+              <th></th>
+              <th>Cod. fabrica</th>
+              <th>Descricao</th>
+              <th>Marca</th>
+              <th>Categoria</th>
+              <th>Compra</th>
+              <th>Venda</th>
+              <th>Status</th>
+              <th>Acoes</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (product of products(); track product.codigo) {
+              <tr>
+                <td><input type="checkbox" aria-label="Selecionar produto" /></td>
+                <td>{{ product.codigo }}</td>
+                <td>
+                  <span class="thumb">
+                    @if (product.imagemUrl) {
+                      <img [src]="product.imagemUrl" [alt]="product.descricao" />
+                    } @else {
+                      <span class="material-symbol" aria-hidden="true">image</span>
+                    }
+                  </span>
+                </td>
+                <td>{{ product.codigoFabricante }}</td>
+                <td>{{ product.descricao }}</td>
+                <td>{{ product.marca }}</td>
+                <td>{{ product.categoria }}</td>
+                <td>{{ formatCurrency(product.precoCompra) }}</td>
+                <td>{{ formatCurrency(product.precoVenda) }}</td>
+                <td><span class="status-pill" [class.inactive]="product.status === 'Inativo'">{{ product.status }}</span></td>
+                <td><button class="row-action" type="button" aria-label="Acoes">...</button></td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="11">
+                  <div class="empty-list">
+                    <span class="material-symbol" aria-hidden="true">deployed_code</span>
+                    <strong>Nenhum produto cadastrado</strong>
+                    <small>Cadastre um produto ou importe um arquivo para iniciar o catalogo.</small>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="table-footer">
+        <span>Mostrando {{ products().length }} produtos</span>
+        <div class="pager">
+          <button class="active" type="button">1</button>
+          <button type="button" aria-label="Proximo"><span class="material-symbol">chevron_right</span></button>
+        </div>
+      </footer>
+    </article>
+
+    <aside class="import-panel">
+      <article class="import-card">
+        <span class="panel-icon material-symbol" aria-hidden="true">cloud_upload</span>
+        <h2>Importacao de arquivo da fabrica</h2>
+        <p>Atualize ou cadastre seus produtos em lote a partir do arquivo oficial da montadora ou fabricante.</p>
+        <button class="drop-zone" type="button" (click)="abrirImportacao()">
+          <span class="material-symbol" aria-hidden="true">upload_file</span>
+          <strong>Arraste e solte o arquivo aqui</strong>
+          <small>ou clique para selecionar</small>
+          <em>Formatos aceitos: XLS, XLSX, CSV, TXT</em>
+        </button>
+        <button class="primary-action full" type="button" (click)="abrirImportacao()">Selecionar arquivo</button>
+        <a href="#"><span class="material-symbol">download</span>Baixar layout de exemplo</a>
+      </article>
+
+      <article class="import-card">
+        <div class="panel-header">
+          <h2>Ultimas importacoes</h2>
+          <a href="#">Ver todas</a>
+        </div>
+        <div class="import-list">
+          @for (item of imports; track item.arquivo) {
+            <div class="import-row" [class.error]="item.status === 'Erro'">
+              <span class="material-symbol">{{ item.status === 'Erro' ? 'cancel' : 'check_circle' }}</span>
+              <div>
+                <strong>{{ item.arquivo }} - {{ item.data }}</strong>
+                <small>{{ item.itens }}</small>
+              </div>
+              <em>{{ item.status }}</em>
+            </div>
+          } @empty {
+            <div class="empty-list compact">
+              <span class="material-symbol" aria-hidden="true">cloud_upload</span>
+              <strong>Nenhuma importacao realizada</strong>
+              <small>O historico aparecera apos o primeiro processamento.</small>
+            </div>
+          }
+        </div>
+      </article>
+    </aside>
+  </section>
+
+  @if (showProductModal()) {
+    <div class="modal-backdrop" role="presentation">
+      <section class="product-modal" role="dialog" aria-modal="true" aria-labelledby="new-product-title">
+        <header>
+          <div>
+            <p>Produto cadastral</p>
+            <h2 id="new-product-title">Novo produto</h2>
+          </div>
+          <button class="close-button" type="button" aria-label="Fechar" (click)="fecharNovoProduto()">
+            <span class="material-symbol" aria-hidden="true">close</span>
+          </button>
+        </header>
+
+        <form [formGroup]="productForm" (ngSubmit)="cadastrarProduto()" class="product-form">
+          <label>
+            <span>Codigo interno</span>
+            <input type="text" formControlName="codigo" />
+          </label>
+          <label>
+            <span>Codigo do fabricante</span>
+            <input type="text" formControlName="codigoFabricante" />
+          </label>
+          <label class="wide">
+            <span>Descricao</span>
+            <input type="text" formControlName="descricao" />
+          </label>
+          <label>
+            <span>Marca</span>
+            <select formControlName="marcaId">
+              <option value="">Selecione...</option>
+              @for (marca of marcas(); track marca.id) {
+                <option [value]="marca.id">{{ marca.nome }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>Categoria</span>
+            <select formControlName="categoriaPaiId" (change)="selecionarCategoriaPai()">
+              <option value="">Selecione...</option>
+              @for (categoria of categoriasPai(); track categoria.id) {
+                <option [value]="categoria.id">{{ categoria.nome }}</option>
+              }
+            </select>
+          </label>
+          <label>
+            <span>Subcategoria</span>
+            <select formControlName="categoriaId">
+              <option value="">Selecione...</option>
+              @if (subcategorias().length) {
+                @for (categoria of subcategorias(); track categoria.id) {
+                  <option [value]="categoria.id">{{ categoria.nome }}</option>
+                }
+              } @else {
+                @for (categoria of categoriasPai(); track categoria.id) {
+                  @if (categoria.id === +productForm.controls.categoriaPaiId.value) {
+                    <option [value]="categoria.id">{{ categoria.nome }}</option>
+                  }
+                }
+              }
+            </select>
+          </label>
+          <label>
+            <span>Preco de compra</span>
+            <input type="number" formControlName="precoCompra" min="0" step="0.01" />
+          </label>
+          <label>
+            <span>Preco de venda</span>
+            <input type="number" formControlName="precoVenda" min="0" step="0.01" />
+          </label>
+          <label>
+            <span>Status</span>
+            <select formControlName="status">
+              <option>Ativo</option>
+              <option>Inativo</option>
+            </select>
+          </label>
+          <label class="wide">
+            <span>URL da imagem</span>
+            <input type="url" formControlName="imagemUrl" placeholder="https://..." />
+          </label>
+
+          <footer>
+            <button class="cancel-button" type="button" (click)="fecharNovoProduto()">Cancelar</button>
+            <button class="primary-action" type="submit">Salvar produto</button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
+
+  @if (showImportModal()) {
+    <div class="modal-backdrop" role="presentation">
+      <section class="import-modal" role="dialog" aria-modal="true" aria-labelledby="import-title">
+        <header>
+          <span class="panel-icon material-symbol" aria-hidden="true">cloud_upload</span>
+          <div>
+            <h2 id="import-title">Importar produtos da fabrica</h2>
+            <p>Selecione o arquivo e defina as opcoes de importacao.</p>
+          </div>
+          <button class="close-button" type="button" aria-label="Fechar" (click)="fecharImportacao()">
+            <span class="material-symbol" aria-hidden="true">close</span>
+          </button>
+        </header>
+
+        <div class="steps">
+          <span class="active">1 Arquivo</span>
+          <i></i>
+          <span>2 Mapeamento</span>
+          <i></i>
+          <span>3 Validacao</span>
+          <i></i>
+          <span>4 Conclusao</span>
+        </div>
+
+        <div class="file-preview">
+          <span class="material-symbol" aria-hidden="true">description</span>
+          <div>
+            <strong>Nenhum arquivo selecionado</strong>
+            <small>Selecione um arquivo para iniciar a importacao.</small>
+          </div>
+          <button type="button" aria-label="Remover arquivo">×</button>
+        </div>
+
+        <section class="import-options">
+          <h3>Opcoes de importacao</h3>
+
+          <div class="import-mode-grid">
+            <label class="option-card active">
+              <input type="radio" name="mode" checked />
+              <span></span>
+              <strong>Inserir novos produtos e atualizar existentes</strong>
+              <small>Recomendado para manter o catalogo sincronizado.</small>
+            </label>
+            <label class="option-card">
+              <input type="radio" name="mode" />
+              <span></span>
+              <strong>Apenas inserir novos produtos</strong>
+              <small>Ignora itens ja cadastrados no sistema.</small>
+            </label>
+            <label class="option-card">
+              <input type="radio" name="mode" />
+              <span></span>
+              <strong>Apenas atualizar produtos existentes</strong>
+              <small>Nao cria novos cadastros no catalogo.</small>
+            </label>
+          </div>
+
+          <label class="price-toggle">
+            <input type="checkbox" checked />
+            <span></span>
+            <div>
+              <strong>Atualizar precos</strong>
+              <small>Quando ativado, o preco dos produtos existentes sera atualizado.</small>
+            </div>
+          </label>
+
+          <label class="margin-field">
+            <span>Margem de preco padrao (%)</span>
+            <input type="number" value="0" />
+            <small>Utilizada para calcular o preco de venda a partir do preco de fabrica.</small>
+          </label>
+        </section>
+
+        <footer>
+          <button class="cancel-button" type="button" (click)="fecharImportacao()">Cancelar</button>
+          <button class="primary-action" type="button">Avancar <span class="material-symbol">arrow_forward</span></button>
+        </footer>
+      </section>
+    </div>
+  }
+</section>

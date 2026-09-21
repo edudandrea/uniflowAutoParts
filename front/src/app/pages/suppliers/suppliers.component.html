@@ -1,0 +1,166 @@
+<section class="suppliers-page">
+  <header class="suppliers-hero">
+    <div class="title-row">
+      <span class="title-icon material-symbol" aria-hidden="true">local_shipping</span>
+      <div>
+        <h1>Fornecedores</h1>
+        <p>Gerencie fornecedores, condicoes comerciais e documentos fiscais.</p>
+      </div>
+    </div>
+    <div class="hero-actions">
+      <button class="primary-action" type="button" (click)="abrirNovoFornecedor()">
+        <span class="material-symbol" aria-hidden="true">add</span>
+        Novo fornecedor
+      </button>
+    </div>
+  </header>
+
+  <section class="metrics-grid">
+    @for (metric of metrics(); track metric.label) {
+      <article class="metric-card" [class.danger]="metric.tone === 'danger'">
+        <span class="metric-icon material-symbol">{{ metric.icon }}</span>
+        <div><p>{{ metric.label }}</p><strong>{{ metric.value }}</strong><small>{{ metric.detail }}</small></div>
+      </article>
+    }
+  </section>
+
+  <article class="suppliers-panel">
+    <div class="filters-bar">
+      <label class="search-control">
+        <span class="material-symbol">search</span>
+        <input type="search" placeholder="Buscar fornecedor..." />
+      </label>
+      <select><option>Todos os segmentos</option></select>
+      <select><option>Todos os status</option></select>
+      <button class="filter-button" type="button"><span class="material-symbol">filter_alt</span>Mais filtros</button>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th><input type="checkbox" /></th>
+            <th>Fornecedor</th>
+            <th>CNPJ/CPF</th>
+            <th>Segmento</th>
+            <th>Telefone</th>
+            <th>Cidade/UF</th>
+            <th>Prazo</th>
+            <th>Total comprado</th>
+            <th>Tipo</th>
+            <th>Status</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (supplier of suppliers(); track supplier.id) {
+            <tr>
+              <td><input type="checkbox" /></td>
+              <td><strong>{{ supplier.nome }}</strong></td>
+              <td>{{ supplier.documento }}</td>
+              <td>{{ supplier.segmento }}</td>
+              <td>{{ supplier.telefone }}</td>
+              <td>{{ supplier.cidade }}</td>
+              <td>{{ supplier.prazoEntrega }} dias</td>
+              <td>{{ formatCurrency(supplier.totalComprado) }}</td>
+              <td><span class="type-pill">{{ supplier.relacionamento }}</span></td>
+              <td><span class="status-pill" [class.inactive]="supplier.status === 'Inativo'">{{ supplier.status }}</span></td>
+              <td><button class="row-action" type="button">...</button></td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="11">
+                <div class="empty-list">
+                  <span class="material-symbol" aria-hidden="true">local_shipping</span>
+                  <strong>Nenhum fornecedor cadastrado</strong>
+                  <small>Clique em Novo fornecedor para criar o primeiro cadastro.</small>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </article>
+
+  @if (showSupplierModal()) {
+    <div class="modal-backdrop" role="presentation">
+      <section class="supplier-modal" role="dialog" aria-modal="true" aria-labelledby="supplier-title">
+        <header class="modal-titlebar">
+          <div class="modal-title-icon">
+            <span class="material-symbol">apartment</span>
+          </div>
+          <div>
+            <h2 id="supplier-title">Novo fornecedor</h2>
+            <p>Preencha os dados para cadastrar um novo fornecedor no sistema.</p>
+          </div>
+          <button class="close-button" type="button" (click)="fecharNovoFornecedor()">
+            <span class="material-symbol">close</span>
+          </button>
+        </header>
+
+        <nav class="modal-tabs">
+          <button class="active" type="button"><span class="material-symbol">person</span>Dados gerais</button>
+          <button type="button"><span class="material-symbol">location_on</span>Enderecos</button>
+          <button type="button"><span class="material-symbol">call</span>Contatos</button>
+          <button type="button"><span class="material-symbol">bar_chart</span>Condicoes comerciais</button>
+          <button type="button"><span class="material-symbol">description</span>Observacoes</button>
+          <button type="button"><span class="material-symbol">article</span>Documentos</button>
+        </nav>
+
+        <form [formGroup]="supplierForm" (ngSubmit)="salvarFornecedor()" class="supplier-form">
+          <section class="form-section full">
+            <h3>Tipo de pessoa</h3>
+            <div class="person-type-grid">
+              <label class="person-type-card" [class.active]="supplierForm.controls.tipo.value === 'PJ'">
+                <input type="radio" formControlName="tipo" value="PJ" />
+                <span class="material-symbol">apartment</span>
+                Pessoa Juridica
+                <i></i>
+              </label>
+              <label class="person-type-card" [class.active]="supplierForm.controls.tipo.value === 'PF'">
+                <input type="radio" formControlName="tipo" value="PF" />
+                <span class="material-symbol">person</span>
+                Pessoa Fisica
+                <i></i>
+              </label>
+            </div>
+          </section>
+
+          <label><span>CNPJ *</span><input type="text" formControlName="documento" placeholder="00.000.000/0000-00" /></label>
+          <label><span>Inscricao estadual</span><input type="text" formControlName="inscricaoEstadual" placeholder="Digite a inscricao estadual" /></label>
+          <label><span>Inscricao municipal</span><input type="text" formControlName="inscricaoMunicipal" placeholder="Digite a inscricao municipal" /></label>
+          <label class="span-2"><span>Razao social *</span><input type="text" formControlName="razaoSocial" placeholder="Digite a razao social" /></label>
+          <label class="span-2"><span>Nome fantasia</span><input type="text" formControlName="nomeFantasia" placeholder="Digite o nome fantasia" /></label>
+          <label><span>Codigo do fornecedor</span><input type="text" formControlName="codigoFornecedor" placeholder="Ex.: FOR-000123" /></label>
+          <label><span>Segmento</span><select formControlName="segmento"><option value="">Selecione...</option><option>Autopecas</option><option>Distribuidor</option><option>Industria</option></select></label>
+          <label class="switch-line"><span>Situacao</span><input type="checkbox" formControlName="ativo" /><i></i><strong>Ativo</strong></label>
+
+          <section class="form-section full"><h3>Informacoes comerciais</h3></section>
+          <label><span>Condicao de pagamento</span><select formControlName="condicaoPagamento"><option value="">Selecione...</option><option>30 dias</option><option>30/60 dias</option></select></label>
+          <label><span>Prazo medio de entrega (dias)</span><input type="number" formControlName="prazoEntrega" /></label>
+          <label class="switch-line"><span>Fornecedor preferencial</span><input type="checkbox" formControlName="preferencial" /><i></i><strong>Sim</strong></label>
+          <label><span>Limite de credito</span><input type="number" formControlName="limiteCredito" /></label>
+
+          <section class="form-section full"><h3>Dados fiscais</h3></section>
+          <label><span>Indicador de IE</span><select formControlName="indicadorIe"><option value="">Selecione...</option><option>Contribuinte</option><option>Isento</option></select></label>
+          <label><span>Regime tributario</span><select formControlName="regimeTributario"><option value="">Selecione...</option><option>Simples Nacional</option><option>Lucro Presumido</option></select></label>
+          <label><span>Suframa</span><input type="text" formControlName="suframa" placeholder="Digite o codigo Suframa" /></label>
+          <label class="switch-line"><span>Optante pelo Simples</span><input type="checkbox" formControlName="simples" /><i></i><strong>Sim</strong></label>
+
+          <label class="full"><span>Observacoes</span><textarea formControlName="observacoes" maxlength="500" placeholder="Digite observacoes sobre o fornecedor..."></textarea><small>0/500</small></label>
+
+          <footer>
+            <label class="footer-check">
+              <input type="checkbox" formControlName="tambemCliente" />
+              <span>Este fornecedor tambem e um cliente</span>
+              <small>Ao marcar, o cadastro estara disponivel no modulo de clientes.</small>
+            </label>
+            <button class="cancel-button" type="button" (click)="fecharNovoFornecedor()">Cancelar</button>
+            <button class="primary-action" type="submit"><span class="material-symbol">save</span>Salvar fornecedor</button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
+</section>

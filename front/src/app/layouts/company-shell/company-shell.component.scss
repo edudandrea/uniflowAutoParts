@@ -1,0 +1,231 @@
+.company-shell {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 244px minmax(0, 1fr);
+  background:
+    linear-gradient(135deg, rgba(19, 168, 106, 0.08), transparent 34%),
+    linear-gradient(315deg, rgba(18, 191, 210, 0.08), transparent 32%),
+    #f3f8fb;
+}
+
+.company-sidebar {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 18px;
+  padding: 20px 14px;
+  border-right: 1px solid rgba(11, 36, 56, 0.08);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(18px);
+}
+
+.sidebar-brand {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px 14px;
+}
+
+.sidebar-brand img {
+  width: 174px;
+  max-height: 64px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.mini-mark {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #fff;
+  background: var(--brand-gradient);
+  font-weight: 700;
+}
+
+nav {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+
+.nav-item {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 0 16px;
+  color: #365267;
+  font-size: 0.94rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.nav-toggle {
+  width: 100%;
+  justify-content: flex-start;
+  background: transparent;
+}
+
+.nav-toggle .expand-icon {
+  margin-left: auto;
+  color: #607789;
+  font-size: 1.2rem;
+  transition: transform 0.22s ease, color 0.22s ease;
+}
+
+.nav-group.expanded .expand-icon {
+  color: var(--brand-green-dark);
+  transform: rotate(180deg);
+}
+
+.nav-group {
+  display: grid;
+  gap: 0;
+}
+
+.nav-children {
+  display: grid;
+  gap: 4px;
+  max-height: 0;
+  overflow: hidden;
+  padding-left: 18px;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: max-height 0.24s ease, opacity 0.2s ease, transform 0.24s ease, padding-top 0.24s ease;
+}
+
+.nav-children.open {
+  max-height: 160px;
+  padding-top: 6px;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.nav-child {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-left: 2px solid rgba(19, 168, 106, 0.16);
+  border-radius: 0 8px 8px 0;
+  padding: 0 12px;
+  color: #526c80;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.nav-child .material-symbol {
+  width: 20px;
+  font-size: 1.05rem;
+}
+
+.nav-child:hover,
+.nav-child.active {
+  color: var(--brand-green-dark);
+  background: rgba(19, 168, 106, 0.08);
+}
+
+.nav-item:hover,
+.nav-toggle:hover {
+  border-color: rgba(19, 168, 106, 0.16);
+  background: rgba(19, 168, 106, 0.07);
+}
+
+.nav-item.active,
+.nav-toggle.active {
+  color: #007a4d;
+  border-color: rgba(19, 168, 106, 0.16);
+  background: linear-gradient(90deg, rgba(19, 168, 106, 0.18), rgba(19, 168, 106, 0.08));
+  box-shadow: 0 14px 30px rgba(19, 168, 106, 0.12);
+}
+
+.material-symbol {
+  width: 24px;
+  color: #0d2234;
+  font-family: "Material Symbols Rounded";
+  font-size: 1.35rem;
+  font-weight: 400;
+  line-height: 1;
+  text-align: center;
+}
+
+.nav-item.active .material-symbol,
+.nav-toggle.active .material-symbol {
+  color: var(--brand-green-dark);
+}
+
+.support-card {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(19, 168, 106, 0.14);
+  border-radius: 8px;
+  padding: 18px;
+  background:
+    linear-gradient(145deg, rgba(19, 168, 106, 0.12), rgba(255, 255, 255, 0.84)),
+    #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.support-card .material-symbol {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--brand-green-dark);
+  background: rgba(19, 168, 106, 0.12);
+}
+
+.support-card strong {
+  color: var(--ink);
+  font-size: 0.94rem;
+}
+
+.support-card small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.support-card button {
+  min-height: 42px;
+  margin-top: 7px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand-green), var(--brand-green-dark));
+}
+
+.company-content {
+  min-width: 0;
+  padding: 18px;
+}
+
+@media (max-width: 1080px) {
+  .company-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .company-sidebar {
+    min-height: auto;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    grid-template-rows: auto auto;
+    padding: 12px;
+  }
+
+  .sidebar-brand,
+  .support-card {
+    display: none;
+  }
+
+  nav {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(136px, max-content);
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+}

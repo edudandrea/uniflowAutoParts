@@ -1,0 +1,593 @@
+<section class="customers-page">
+  <header class="customers-hero">
+    <div class="back-line">
+      <span class="material-symbol" aria-hidden="true">arrow_back</span>
+      Clientes
+    </div>
+    <div class="title-row">
+      <div>
+        <h1>Clientes</h1>
+        <p>Gerencie seus clientes, historico de compras e relacionamento.</p>
+      </div>
+    </div>
+
+    <div class="hero-actions">
+      <button class="primary-action" type="button" (click)="abrirNovoCliente()">
+        <span class="material-symbol" aria-hidden="true">add</span>
+        Novo cliente
+      </button>
+      <button class="secondary-action" type="button">
+        Mais acoes
+        <span class="material-symbol" aria-hidden="true">expand_more</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="metrics-grid" aria-label="Resumo de clientes">
+    @for (metric of metrics(); track metric.label) {
+      <article class="metric-card" [class.danger]="metric.tone === 'danger'" [class.ring]="metric.icon === 'donut_large'">
+        <span class="metric-icon material-symbol" aria-hidden="true">{{ metric.icon }}</span>
+        <div>
+          <p>{{ metric.label }}</p>
+          <strong>{{ metric.value }}</strong>
+          <small [class.down]="metric.tone === 'danger'">
+            <b class="material-symbol">{{ metric.tone === 'danger' ? 'arrow_downward' : 'arrow_upward' }}</b>
+            {{ metric.delta }} <span>vs. mes anterior</span>
+          </small>
+        </div>
+      </article>
+    }
+  </section>
+
+  <section class="customers-workspace">
+    <article class="customers-panel">
+      <div class="filters-bar">
+        <label class="search-control">
+          <span class="material-symbol" aria-hidden="true">search</span>
+          <input type="search" placeholder="Buscar cliente..." />
+        </label>
+        <label>
+          <span>Tipo</span>
+          <select>
+            <option>Todos</option>
+            <option>PJ</option>
+            <option>PF</option>
+          </select>
+        </label>
+        <label>
+          <span>Situacao</span>
+          <select>
+            <option>Todos</option>
+            <option>Ativo</option>
+            <option>Inativo</option>
+          </select>
+        </label>
+        <label>
+          <span>Cidade</span>
+          <select>
+            <option>Todas</option>
+          </select>
+        </label>
+        <button class="filter-button" type="button">
+          <span class="material-symbol" aria-hidden="true">filter_alt</span>
+          Mais filtros
+        </button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th><input type="checkbox" aria-label="Selecionar todos" /></th>
+              <th>Cliente</th>
+              <th>Tipo</th>
+              <th>CPF/CNPJ</th>
+              <th>Telefone</th>
+              <th>Cidade/UF</th>
+              <th>Ultima compra</th>
+              <th>Total comprado</th>
+              <th>Status</th>
+              <th>Acoes</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (customer of customers(); track customer.id) {
+              <tr [class.selected]="customer.id === selectedCustomerId()" (click)="selecionarCliente(customer.id)">
+                <td><input type="checkbox" aria-label="Selecionar cliente" /></td>
+                <td>
+                  <div class="customer-cell">
+                    <span class="avatar">{{ initials(customer.nome) }}</span>
+                    <div>
+                      <strong>{{ customer.nome }}</strong>
+                      <small>{{ customer.subtitulo }}</small>
+                    </div>
+                  </div>
+                </td>
+                <td><span class="type-pill">{{ customer.tipo }}</span></td>
+                <td>{{ customer.documento }}</td>
+                <td>{{ customer.telefone }}</td>
+                <td>{{ customer.cidade }} / {{ customer.uf }}</td>
+                <td>{{ customer.ultimaCompra }}</td>
+                <td>{{ formatCurrency(customer.totalComprado) }}</td>
+                <td><span class="status-pill" [class.inactive]="customer.status === 'Inativo'">{{ customer.status }}</span></td>
+                <td><button class="row-action" type="button" aria-label="Acoes">...</button></td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="9">
+                  <div class="empty-list">
+                    <span class="material-symbol" aria-hidden="true">groups</span>
+                    <strong>Nenhum cliente cadastrado</strong>
+                    <small>Clique em Novo cliente para criar o primeiro cadastro.</small>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="table-footer">
+        <span>Mostrando {{ customers().length }} clientes</span>
+        <div class="pager">
+          <button type="button" aria-label="Anterior"><span class="material-symbol">chevron_left</span></button>
+          <button class="active" type="button">1</button>
+          <button type="button" aria-label="Proximo"><span class="material-symbol">chevron_right</span></button>
+          <select aria-label="Itens por pagina">
+            <option>10 por pagina</option>
+          </select>
+        </div>
+      </footer>
+    </article>
+
+    @if (selectedCustomer(); as customer) {
+      <aside class="customer-detail">
+        <section class="profile-card">
+          <button class="close-card" type="button" aria-label="Fechar">
+            <span class="material-symbol" aria-hidden="true">close</span>
+          </button>
+          <div class="profile-avatar">{{ initials(customer.nome) }}</div>
+          <div class="profile-copy">
+            <h2>{{ customer.nome }}</h2>
+            <p>{{ customer.subtitulo }}</p>
+          </div>
+          <span class="status-chip" [class.inactive]="customer.status === 'Inativo'">{{ customer.status }}</span>
+          <button class="mini-button" type="button" aria-label="Editar"><span class="material-symbol">edit</span></button>
+          <button class="mini-button" type="button" aria-label="Mais opcoes"><span class="material-symbol">more_horiz</span></button>
+        </section>
+
+        <nav class="detail-tabs" aria-label="Dados do cliente">
+          <button class="active" type="button">Dados gerais</button>
+          <button type="button">Enderecos</button>
+          <button type="button">Contatos</button>
+          <button type="button">Historico</button>
+          <button type="button">Financeiro</button>
+        </nav>
+
+        <section class="detail-form">
+          <h3>Dados do cliente</h3>
+          <div class="field-grid">
+            <label>
+              <span>Tipo de pessoa</span>
+              <input type="text" [value]="customer.tipo === 'PJ' ? 'Pessoa Juridica' : 'Pessoa Fisica'" readonly />
+            </label>
+            <label>
+              <span>{{ customer.tipo === 'PJ' ? 'CNPJ' : 'CPF' }}</span>
+              <input type="text" [value]="customer.documento" readonly />
+            </label>
+            <label>
+              <span>Inscricao estadual</span>
+              <input type="text" [value]="customer.inscricaoEstadual || '-'" readonly />
+            </label>
+            <label>
+              <span>Inscricao municipal</span>
+              <input type="text" [value]="customer.inscricaoMunicipal || '-'" readonly />
+            </label>
+            <label class="wide">
+              <span>Razao social</span>
+              <input type="text" [value]="customer.razaoSocial" readonly />
+            </label>
+            <label class="wide">
+              <span>Nome fantasia</span>
+              <input type="text" [value]="customer.nomeFantasia" readonly />
+            </label>
+          </div>
+
+          <h3>Contato principal</h3>
+          <div class="field-grid">
+            <label>
+              <span>Telefone</span>
+              <input type="text" [value]="customer.telefone" readonly />
+            </label>
+            <label>
+              <span>E-mail</span>
+              <input type="text" [value]="customer.email || '-'" readonly />
+            </label>
+            <label class="wide">
+              <span>Site</span>
+              <input type="text" [value]="customer.site || '-'" readonly />
+            </label>
+          </div>
+
+          <h3>Endereco principal</h3>
+          <div class="field-grid">
+            <label class="wide">
+              <span>Logradouro</span>
+              <input type="text" [value]="customer.logradouro" readonly />
+            </label>
+            <label>
+              <span>Bairro</span>
+              <input type="text" [value]="customer.bairro" readonly />
+            </label>
+            <label>
+              <span>CEP</span>
+              <input type="text" [value]="customer.cep" readonly />
+            </label>
+            <label class="wide">
+              <span>Cidade/UF</span>
+              <input type="text" [value]="customer.cidade + ' / ' + customer.uf" readonly />
+            </label>
+          </div>
+
+          <h3>Observacoes</h3>
+          <textarea readonly>{{ customer.observacoes }}</textarea>
+        </section>
+
+        <footer class="detail-actions">
+          <button class="outline-action" type="button"><span class="material-symbol">edit</span>Editar</button>
+          <button class="outline-action" type="button"><span class="material-symbol">history</span>Ver historico</button>
+          <button class="primary-action" type="button"><span class="material-symbol">shopping_cart</span>Nova venda</button>
+        </footer>
+      </aside>
+    }
+  </section>
+
+  @if (showCustomerModal()) {
+    <div class="modal-backdrop" role="presentation">
+      <section class="customer-modal customer-modal-large" role="dialog" aria-modal="true" aria-labelledby="new-customer-title">
+        <header class="modal-titlebar">
+          <div class="modal-title-icon">
+            <span class="material-symbol" aria-hidden="true">group_add</span>
+          </div>
+          <div>
+            <h2 id="new-customer-title">Novo cliente</h2>
+            <p>Preencha os dados para cadastrar um novo cliente no sistema.</p>
+          </div>
+          <button class="close-button" type="button" aria-label="Fechar" (click)="fecharNovoCliente()">
+            <span class="material-symbol" aria-hidden="true">close</span>
+          </button>
+        </header>
+
+        <nav class="modal-tabs" aria-label="Etapas do cadastro">
+          <button
+            type="button"
+            [class.active]="activeCustomerModalTab() === 'Dados gerais'"
+            (click)="activeCustomerModalTab.set('Dados gerais')"
+          >
+            <span class="material-symbol">person</span>Dados gerais
+          </button>
+          <button
+            type="button"
+            [class.active]="activeCustomerModalTab() === 'Enderecos'"
+            (click)="activeCustomerModalTab.set('Enderecos')"
+          >
+            <span class="material-symbol">location_on</span>Enderecos
+          </button>
+          <button
+            type="button"
+            [class.active]="activeCustomerModalTab() === 'Contatos'"
+            (click)="activeCustomerModalTab.set('Contatos')"
+          >
+            <span class="material-symbol">call</span>Contatos
+          </button>
+          <button
+            type="button"
+            [class.active]="activeCustomerModalTab() === 'Dados comerciais'"
+            (click)="activeCustomerModalTab.set('Dados comerciais')"
+          >
+            <span class="material-symbol">bar_chart</span>Dados comerciais
+          </button>
+          <button
+            type="button"
+            [class.active]="activeCustomerModalTab() === 'Observacoes'"
+            (click)="activeCustomerModalTab.set('Observacoes')"
+          >
+            <span class="material-symbol">description</span>Observacoes
+          </button>
+        </nav>
+
+        <form [formGroup]="customerForm" (ngSubmit)="cadastrarCliente()" class="customer-form">
+          @if (activeCustomerModalTab() === 'Dados gerais') {
+            <label class="span-2 compact-select">
+              <span>Tipo de pessoa</span>
+              <select formControlName="tipo">
+                <option value="PF">Pessoa Fisica</option>
+                <option value="PJ">Pessoa Juridica</option>
+              </select>
+            </label>
+
+            <label class="span-2 compact-select">
+              <span>Classificacao do cadastro</span>
+              <select formControlName="relacionamento">
+                <option value="Cliente">Cliente</option>
+                <option value="Fornecedor">Fornecedor</option>
+                <option value="Ambos">Ambos</option>
+              </select>
+            </label>
+
+            <label>
+              <span>{{ customerForm.controls.tipo.value === 'PJ' ? 'CNPJ' : 'CPF' }} *</span>
+              <input type="text" formControlName="documento" placeholder="000.000.000-00" />
+            </label>
+            <label class="span-2">
+              <span>Nome completo *</span>
+              <input type="text" formControlName="nome" placeholder="Digite o nome completo" />
+            </label>
+            <label>
+              <span>Data de nascimento</span>
+              <input type="date" formControlName="nascimento" />
+            </label>
+
+            <label>
+              <span>RG</span>
+              <input type="text" formControlName="rg" placeholder="00.000.000-0" />
+            </label>
+            <label>
+              <span>Orgao emissor</span>
+              <input type="text" formControlName="orgaoEmissor" />
+            </label>
+            <label>
+              <span>UF</span>
+              <select formControlName="uf">
+                <option>RS</option>
+                <option>SC</option>
+                <option>PR</option>
+                <option>SP</option>
+              </select>
+            </label>
+            <label>
+              <span>Estado civil</span>
+              <select formControlName="estadoCivil">
+                <option value="">Selecione...</option>
+                <option>Solteiro(a)</option>
+                <option>Casado(a)</option>
+                <option>Divorciado(a)</option>
+                <option>Viuvo(a)</option>
+              </select>
+            </label>
+
+            <section class="form-section full">
+              <h3>Informacoes adicionais</h3>
+            </section>
+
+            <label>
+              <span>Nome fantasia</span>
+              <input type="text" formControlName="nomeFantasia" placeholder="Nome fantasia (opcional)" />
+            </label>
+            <label>
+              <span>Profissao</span>
+              <select formControlName="profissao">
+                <option value="">Selecione...</option>
+                <option>Empresario(a)</option>
+                <option>Mecanico(a)</option>
+                <option>Vendedor(a)</option>
+                <option>Motorista</option>
+              </select>
+            </label>
+            <label>
+              <span>Indicador de IE</span>
+              <select formControlName="indicadorIe">
+                <option>Nao contribuinte</option>
+                <option>Contribuinte ICMS</option>
+                <option>Isento</option>
+              </select>
+            </label>
+            <label>
+              <span>CNH</span>
+              <input type="text" formControlName="cnh" placeholder="00000000000" />
+            </label>
+          }
+
+          @if (activeCustomerModalTab() === 'Enderecos') {
+            <section class="form-section full">
+              <h3>Endereco principal</h3>
+              <p>Pesquise por nome da rua, apelido do endereco ou CEP. A manutencao do endereco fica no menu Configuracoes.</p>
+            </section>
+            <label class="full address-search">
+              <span>Pesquisar endereco</span>
+              <span class="input-icon">
+                <span class="material-symbol" aria-hidden="true">search</span>
+                <input type="search" formControlName="enderecoBusca" placeholder="Digite uma rua, nome do endereco ou CEP" />
+              </span>
+            </label>
+
+            <section class="address-picker full">
+              @for (endereco of enderecosFiltrados(); track endereco.id) {
+                <button
+                  class="address-option"
+                  type="button"
+                  [class.selected]="customerForm.controls.enderecoId.value === endereco.id"
+                  (click)="selecionarEndereco(endereco)"
+                >
+                  <span class="material-symbol" aria-hidden="true">location_on</span>
+                  <strong>{{ endereco.nome }}</strong>
+                  <small>{{ endereco.logradouro }}, {{ endereco.numero }} - {{ endereco.bairro }}</small>
+                  <small>{{ formatCep(endereco.cep) }} | {{ endereco.municipio }} / {{ endereco.uf }}</small>
+                </button>
+              } @empty {
+                <div class="empty-address">
+                  <span class="material-symbol" aria-hidden="true">map</span>
+                  <strong>Nenhum endereco encontrado</strong>
+                  <small>Cadastre o endereco em Configuracoes > Cadastro de enderecos.</small>
+                </div>
+              }
+            </section>
+
+            @if (enderecoSelecionado(); as endereco) {
+              <section class="selected-address full" aria-label="Endereco selecionado">
+                <header>
+                  <span class="material-symbol" aria-hidden="true">check_circle</span>
+                  <strong>Endereco selecionado</strong>
+                </header>
+                <div class="readonly-address-grid">
+                  <label>
+                    <span>Nome</span>
+                    <input type="text" [value]="endereco.nome" readonly />
+                  </label>
+                  <label>
+                    <span>CEP</span>
+                    <input type="text" [value]="formatCep(endereco.cep)" readonly />
+                  </label>
+                  <label class="span-2">
+                    <span>Logradouro</span>
+                    <input type="text" [value]="endereco.logradouro + ', ' + endereco.numero" readonly />
+                  </label>
+                  <label>
+                    <span>Bairro</span>
+                    <input type="text" [value]="endereco.bairro" readonly />
+                  </label>
+                  <label>
+                    <span>Cidade/UF</span>
+                    <input type="text" [value]="endereco.municipio + ' / ' + endereco.uf" readonly />
+                  </label>
+                </div>
+              </section>
+            }
+          }
+
+          @if (activeCustomerModalTab() === 'Contatos') {
+            <section class="form-section full">
+              <h3>Contato principal</h3>
+            </section>
+            <label>
+              <span>Nome do contato</span>
+              <input type="text" formControlName="contatoNome" placeholder="Responsavel pelo atendimento" />
+            </label>
+            <label>
+              <span>Cargo</span>
+              <input type="text" formControlName="contatoCargo" />
+            </label>
+            <label>
+              <span>E-mail</span>
+              <span class="input-icon">
+                <span class="material-symbol" aria-hidden="true">mail</span>
+                <input type="email" formControlName="contatoEmail" placeholder="email@exemplo.com" />
+              </span>
+            </label>
+            <label>
+              <span>Telefone</span>
+              <span class="input-icon">
+                <span class="material-symbol" aria-hidden="true">call</span>
+                <input type="text" formControlName="contatoTelefone" placeholder="(00) 00000-0000" />
+              </span>
+            </label>
+            <label>
+              <span>Celular</span>
+              <span class="input-icon">
+                <span class="material-symbol" aria-hidden="true">smartphone</span>
+                <input type="text" formControlName="contatoCelular" placeholder="(00) 00000-0000" />
+              </span>
+            </label>
+            <label>
+              <span>E-mail do cliente</span>
+              <input type="email" formControlName="email" placeholder="email principal" />
+            </label>
+            <label>
+              <span>Telefone do cliente</span>
+              <input type="text" formControlName="telefone" />
+            </label>
+            <label>
+              <span>Celular do cliente</span>
+              <input type="text" formControlName="celular" />
+            </label>
+          }
+
+          @if (activeCustomerModalTab() === 'Dados comerciais') {
+            <section class="form-section full">
+              <h3>Dados comerciais</h3>
+            </section>
+            <label>
+              <span>Cliente desde</span>
+              <input type="date" formControlName="clienteDesde" />
+            </label>
+            <label>
+              <span>Origem</span>
+              <select formControlName="origem">
+                <option value="">Selecione...</option>
+                <option>Indicacao</option>
+                <option>Loja fisica</option>
+                <option>WhatsApp</option>
+                <option>Site</option>
+              </select>
+            </label>
+            <label>
+              <span>Vendedor padrao</span>
+              <select formControlName="vendedorPadrao">
+                <option value="">Selecione...</option>
+              </select>
+            </label>
+            <label>
+              <span>Condicao de pagamento</span>
+              <select formControlName="condicaoPagamento">
+                <option value="">Selecione...</option>
+                <option>A vista</option>
+                <option>30 dias</option>
+                <option>30/60 dias</option>
+              </select>
+            </label>
+            <label>
+              <span>Limite de credito</span>
+              <input type="number" formControlName="limiteCredito" min="0" />
+            </label>
+            <label>
+              <span>Tabela de preco</span>
+              <select formControlName="tabelaPreco">
+                <option value="">Selecione...</option>
+                <option>Varejo</option>
+                <option>Oficina</option>
+                <option>Atacado</option>
+              </select>
+            </label>
+            <label class="active-toggle inline-toggle">
+              <input type="checkbox" formControlName="bloquearVenda" />
+              <span></span>
+              <strong>Bloquear venda</strong>
+              <small>Impede novas vendas para este cadastro.</small>
+            </label>
+            <label class="active-toggle inline-toggle">
+              <input type="checkbox" formControlName="permiteFiado" />
+              <span></span>
+              <strong>Permite fiado</strong>
+              <small>Libera venda com pagamento posterior.</small>
+            </label>
+          }
+
+          @if (activeCustomerModalTab() === 'Observacoes') {
+            <label class="full">
+              <span>Observacoes gerais</span>
+              <textarea formControlName="observacoes" maxlength="500" placeholder="Digite observacoes sobre o cliente..."></textarea>
+              <small>0/500</small>
+            </label>
+          }
+
+          @if (customerMessage()) {
+            <p class="message error full">{{ customerMessage() }}</p>
+          }
+
+          <footer>
+            <label class="active-toggle">
+              <input type="checkbox" formControlName="ativo" />
+              <span></span>
+              <strong>Cliente ativo</strong>
+              <small>Cliente podera realizar compras normalmente.</small>
+            </label>
+            <button class="cancel-button" type="button" (click)="fecharNovoCliente()">Cancelar</button>
+            <button class="primary-action" type="submit" [disabled]="savingCustomer()">
+              <span class="material-symbol">save</span>{{ savingCustomer() ? 'Salvando...' : 'Salvar cliente' }}
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
+</section>

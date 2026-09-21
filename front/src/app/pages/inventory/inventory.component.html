@@ -1,0 +1,320 @@
+<section class="inventory-page">
+  <header class="inventory-hero">
+    <div class="title-row">
+      <span class="title-icon material-symbol" aria-hidden="true">inventory_2</span>
+      <div>
+        <h1>Estoque</h1>
+        <p>Controle total das suas pecas, em tempo real.</p>
+      </div>
+    </div>
+
+    <div class="hero-actions">
+      <button class="primary-action" type="button" (click)="abrirNovoProduto()">
+        <span class="material-symbol" aria-hidden="true">add</span>
+        Novo produto
+      </button>
+      <button class="secondary-action" type="button">
+        Mais acoes
+        <span class="material-symbol" aria-hidden="true">expand_more</span>
+      </button>
+    </div>
+  </header>
+
+  <section class="metrics-grid" aria-label="Resumo do estoque">
+    @for (metric of metrics(); track metric.label) {
+      <article class="metric-card" [class.danger]="metric.tone === 'danger'">
+        <span class="metric-icon material-symbol" aria-hidden="true">{{ metric.icon }}</span>
+        <div>
+          <p>{{ metric.label }}</p>
+          <strong>{{ metric.value }}</strong>
+          <small [class.down]="metric.tone === 'danger'">
+            <b class="material-symbol">{{ metric.tone === 'danger' ? 'arrow_downward' : 'arrow_upward' }}</b>
+            {{ metric.delta }} <span>{{ metric.caption }}</span>
+          </small>
+        </div>
+      </article>
+    }
+
+    <article class="turnover-card">
+      <div class="donut" aria-hidden="true">72%</div>
+      <div>
+        <p>Giro de estoque</p>
+        <strong>Bom desempenho</strong>
+      </div>
+      <span class="material-symbol" aria-hidden="true">chevron_right</span>
+    </article>
+  </section>
+
+  <section class="category-strip" aria-label="Categorias">
+    @for (category of categories(); track category.label) {
+      <button class="category-card" type="button" [class.active]="$first">
+        <span class="material-symbol" aria-hidden="true">{{ category.icon }}</span>
+        <strong>{{ category.label }}</strong>
+        <small>{{ category.total }}</small>
+      </button>
+    } @empty {
+      <button class="category-card empty-category" type="button" disabled>
+        <span class="material-symbol" aria-hidden="true">category</span>
+        <strong>Nenhuma categoria</strong>
+        <small>Cadastre produtos para listar categorias</small>
+      </button>
+    }
+  </section>
+
+  <section class="inventory-workspace">
+    <article class="stock-panel">
+      <div class="filters-bar">
+        <label class="search-control">
+          <span class="material-symbol" aria-hidden="true">search</span>
+          <input type="search" placeholder="Pesquisar no estoque..." />
+        </label>
+        <select aria-label="Categoria">
+          <option>Todas as categorias</option>
+        </select>
+        <select aria-label="Marca">
+          <option>Todas as marcas</option>
+        </select>
+        <select aria-label="Status">
+          <option>Todos os status</option>
+        </select>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th><input type="checkbox" aria-label="Selecionar todos" /></th>
+              <th>Codigo</th>
+              <th></th>
+              <th>Descricao</th>
+              <th>Marca</th>
+              <th>Categoria</th>
+              <th>Localizacao</th>
+              <th>Estoque</th>
+              <th>Est. min.</th>
+              <th>Valor (R$)</th>
+              <th>Status</th>
+              <th>Acoes</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (product of products(); track product.codigo) {
+              <tr [class.selected]="product.codigo === selectedProductCode()" (click)="selecionarProduto(product.codigo)">
+                <td><input type="checkbox" aria-label="Selecionar produto" /></td>
+                <td>{{ product.codigo }}</td>
+                <td>
+                  <span class="thumb">
+                    @if (product.imagemUrl) {
+                      <img [src]="product.imagemUrl" [alt]="product.descricao" />
+                    } @else {
+                      <span class="material-symbol" aria-hidden="true">image</span>
+                    }
+                  </span>
+                </td>
+                <td>{{ product.descricao }}</td>
+                <td>{{ product.marca }}</td>
+                <td>{{ product.categoria }}</td>
+                <td>{{ product.localizacao }}</td>
+                <td [class.zero-stock]="product.estoque === 0">{{ product.estoque }}</td>
+                <td>{{ product.minimo }}</td>
+                <td>{{ product.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) }}</td>
+                <td><span class="status-pill" [class]="statusClass(product)">{{ statusFor(product) }}</span></td>
+                <td><button class="row-action" type="button" aria-label="Acoes">...</button></td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="12">
+                  <div class="empty-list">
+                    <span class="material-symbol" aria-hidden="true">inventory_2</span>
+                    <strong>Nenhum item em estoque</strong>
+                    <small>Clique em Novo produto para cadastrar o primeiro item.</small>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    @if (selectedProduct(); as product) {
+      <aside class="detail-panel">
+        <div class="detail-top">
+          <div class="detail-image">
+            @if (product.imagemUrl) {
+              <img [src]="product.imagemUrl" [alt]="product.descricao" />
+            } @else {
+              <span class="material-symbol" aria-hidden="true">inventory_2</span>
+            }
+          </div>
+          <button class="filter-button" type="button">
+            <span class="material-symbol" aria-hidden="true">filter_alt</span>
+            Filtros
+          </button>
+        </div>
+
+        <div class="product-heading">
+          <small>{{ product.marca }}</small>
+          <h2>{{ product.descricao }}</h2>
+          <span>{{ product.codigo }}</span>
+        </div>
+
+        <nav class="detail-tabs" aria-label="Informacoes do produto">
+          <button class="active" type="button">Visao geral</button>
+          <button type="button">Movimentacoes</button>
+          <button type="button">Aplicacoes</button>
+          <button type="button">Mais</button>
+        </nav>
+
+        <section class="detail-cards">
+          <article>
+            <span class="material-symbol" aria-hidden="true">deployed_code</span>
+            <p>Estoque atual</p>
+            <strong>{{ product.estoque }}</strong>
+            <small>Est. minimo: {{ product.minimo }}</small>
+          </article>
+          <article>
+            <span class="material-symbol" aria-hidden="true">paid</span>
+            <p>Valor unitario</p>
+            <strong>{{ formatCurrency(product.valor) }}</strong>
+            <small>Valor total: {{ formatCurrency(product.valor * product.estoque) }}</small>
+          </article>
+        </section>
+
+        <section class="spec-grid">
+          <div>
+            <span class="material-symbol">badge</span>
+            <small>Marca</small>
+            <strong>{{ product.marca }}</strong>
+          </div>
+          <div>
+            <span class="material-symbol">category</span>
+            <small>Categoria</small>
+            <strong>{{ product.categoria }}</strong>
+          </div>
+          <div>
+            <span class="material-symbol">pin_drop</span>
+            <small>Localizacao</small>
+            <strong>{{ product.localizacao }}</strong>
+          </div>
+          <div>
+            <span class="material-symbol">qr_code</span>
+            <small>Cod. fabricante</small>
+            <strong>{{ product.fabricante || '-' }}</strong>
+          </div>
+          <div>
+            <span class="material-symbol">barcode</span>
+            <small>Cod. barras</small>
+            <strong>{{ product.barras || '-' }}</strong>
+          </div>
+          <div>
+            <span class="material-symbol">scale</span>
+            <small>Peso</small>
+            <strong>{{ product.peso || '-' }}</strong>
+          </div>
+          <div>
+            <span class="material-symbol">cases</span>
+            <small>NCM</small>
+            <strong>{{ product.ncm || '-' }}</strong>
+          </div>
+        </section>
+
+        <div class="detail-actions">
+          <button class="edit-button" type="button">
+            <span class="material-symbol" aria-hidden="true">edit</span>
+            Editar produto
+          </button>
+          <button class="movement-button" type="button">
+            <span class="material-symbol" aria-hidden="true">history</span>
+            Ver movimentacoes
+          </button>
+        </div>
+      </aside>
+    }
+  </section>
+
+  @if (showProductModal()) {
+    <div class="modal-backdrop" role="presentation">
+      <section class="product-modal" role="dialog" aria-modal="true" aria-labelledby="new-product-title">
+        <header>
+          <div>
+            <p>Novo produto</p>
+            <h2 id="new-product-title">Cadastrar item no estoque</h2>
+          </div>
+          <button class="close-button" type="button" aria-label="Fechar" (click)="fecharNovoProduto()">
+            <span class="material-symbol" aria-hidden="true">close</span>
+          </button>
+        </header>
+
+        <form [formGroup]="productForm" (ngSubmit)="cadastrarProduto()" class="product-form">
+          <label>
+            <span>Codigo</span>
+            <input type="text" formControlName="codigo" />
+          </label>
+          <label class="wide">
+            <span>Descricao</span>
+            <input type="text" formControlName="descricao" />
+          </label>
+          <label>
+            <span>Marca</span>
+            <input type="text" formControlName="marca" />
+          </label>
+          <label>
+            <span>Categoria</span>
+            <select formControlName="categoria">
+              <option>Filtros</option>
+              <option>Freios</option>
+              <option>Oleos</option>
+              <option>Suspensao</option>
+              <option>Motor</option>
+              <option>Eletrica</option>
+              <option>Carroceria</option>
+              <option>Outros</option>
+            </select>
+          </label>
+          <label>
+            <span>Localizacao</span>
+            <input type="text" formControlName="localizacao" />
+          </label>
+          <label>
+            <span>Estoque</span>
+            <input type="number" formControlName="estoque" min="0" />
+          </label>
+          <label>
+            <span>Estoque minimo</span>
+            <input type="number" formControlName="minimo" min="0" />
+          </label>
+          <label>
+            <span>Valor unitario</span>
+            <input type="number" formControlName="valor" min="0" step="0.01" />
+          </label>
+          <label>
+            <span>Cod. fabricante</span>
+            <input type="text" formControlName="fabricante" />
+          </label>
+          <label>
+            <span>Cod. barras</span>
+            <input type="text" formControlName="barras" />
+          </label>
+          <label>
+            <span>NCM</span>
+            <input type="text" formControlName="ncm" />
+          </label>
+          <label>
+            <span>Peso</span>
+            <input type="text" formControlName="peso" />
+          </label>
+          <label class="wide">
+            <span>URL da imagem</span>
+            <input type="url" formControlName="imagemUrl" placeholder="https://..." />
+          </label>
+
+          <footer>
+            <button class="cancel-button" type="button" (click)="fecharNovoProduto()">Cancelar</button>
+            <button class="primary-action" type="submit">Salvar produto</button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
+</section>
