@@ -42,7 +42,7 @@
       <div class="filters-bar">
         <label class="search-control">
           <span class="material-symbol" aria-hidden="true">search</span>
-          <input type="search" placeholder="Buscar por codigo, descricao, codigo de fabrica..." />
+          <input type="search" placeholder="Buscar por codigo, descricao, codigo de fabrica..." (input)="buscarProdutos($event)" />
         </label>
         <select aria-label="Marca">
           <option>Todos</option>
@@ -75,6 +75,8 @@
               <th>Categoria</th>
               <th>Compra</th>
               <th>Venda</th>
+              <th>NCM</th>
+              <th>Impostos</th>
               <th>Status</th>
               <th>Acoes</th>
             </tr>
@@ -99,16 +101,24 @@
                 <td>{{ product.categoria }}</td>
                 <td>{{ formatCurrency(product.precoCompra) }}</td>
                 <td>{{ formatCurrency(product.precoVenda) }}</td>
+                <td>{{ product.ncm || '-' }}</td>
+                <td>
+                  @if (product.impostos) {
+                    <span class="tax-summary">IPI {{ formatPercent(product.aliquotaIpi) }} - ICMS {{ formatPercent(product.aliquotaIcms) }}</span>
+                  } @else {
+                    -
+                  }
+                </td>
                 <td><span class="status-pill" [class.inactive]="product.status === 'Inativo'">{{ product.status }}</span></td>
                 <td><button class="row-action" type="button" aria-label="Acoes">...</button></td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="11">
+                <td colspan="13">
                   <div class="empty-list">
-                    <span class="material-symbol" aria-hidden="true">deployed_code</span>
-                    <strong>Nenhum produto cadastrado</strong>
-                    <small>Cadastre um produto ou importe um arquivo para iniciar o catalogo.</small>
+                    <span class="material-symbol" aria-hidden="true">{{ loadingProducts() ? 'progress_activity' : 'deployed_code' }}</span>
+                    <strong>{{ loadingProducts() ? 'Carregando produtos' : 'Nenhum produto cadastrado' }}</strong>
+                    <small>{{ loadingProducts() ? 'Atualizando a pagina do catalogo.' : 'Cadastre um produto ou importe um arquivo para iniciar o catalogo.' }}</small>
                   </div>
                 </td>
               </tr>
@@ -118,10 +128,20 @@
       </div>
 
       <footer class="table-footer">
-        <span>Mostrando {{ products().length }} produtos</span>
+        <span>
+          Mostrando {{ products().length }} de {{ totalProducts() }} produtos
+          @if (totalPages() > 1) {
+            - pagina {{ currentPage() }} de {{ totalPages() }}
+          }
+        </span>
         <div class="pager">
-          <button class="active" type="button">1</button>
-          <button type="button" aria-label="Proximo"><span class="material-symbol">chevron_right</span></button>
+          <button type="button" aria-label="Anterior" (click)="paginaAnterior()" [disabled]="currentPage() <= 1">
+            <span class="material-symbol">chevron_left</span>
+          </button>
+          <button class="active" type="button">{{ currentPage() }}</button>
+          <button type="button" aria-label="Proximo" (click)="proximaPagina()" [disabled]="currentPage() >= totalPages()">
+            <span class="material-symbol">chevron_right</span>
+          </button>
         </div>
       </footer>
     </article>
@@ -138,6 +158,11 @@
           <em>Formatos aceitos: XLS, XLSX, CSV, TXT</em>
         </button>
         <button class="primary-action full" type="button" (click)="abrirImportacao()">Selecionar arquivo</button>
+        <label class="manufacturer-check">
+          <input type="checkbox" [formControl]="importForm.controls.stellantis" />
+          <span class="material-symbol" aria-hidden="true">verified</span>
+          <strong>Fabricante Stellantis</strong>
+        </label>
         <a href="#"><span class="material-symbol">download</span>Baixar layout de exemplo</a>
       </article>
 
@@ -238,6 +263,26 @@
             <input type="number" formControlName="precoVenda" min="0" step="0.01" />
           </label>
           <label>
+            <span>NCM</span>
+            <input type="number" formControlName="ncm" min="0" />
+          </label>
+          <label>
+            <span>CEST</span>
+            <input type="number" formControlName="cest" min="0" />
+          </label>
+          <label>
+            <span>IPI (%)</span>
+            <input type="number" formControlName="aliquotaIpi" min="0" step="0.0001" />
+          </label>
+          <label>
+            <span>ICMS (%)</span>
+            <input type="number" formControlName="aliquotaIcms" min="0" step="0.0001" />
+          </label>
+          <label>
+            <span>MVA (%)</span>
+            <input type="number" formControlName="aliquotaMva" min="0" step="0.0001" />
+          </label>
+          <label>
             <span>Status</span>
             <select formControlName="status">
               <option>Ativo</option>
@@ -282,16 +327,28 @@
           <span>4 Conclusao</span>
         </div>
 
+        <label class="upload-trigger">
+          <input type="file" accept=".txt,.csv,.xls,.xlsx" (change)="selecionarArquivo($event)" />
+          <span class="material-symbol" aria-hidden="true">upload_file</span>
+          <strong>Selecionar arquivo</strong>
+        </label>
+
+        <label class="manufacturer-check modal-check">
+          <input type="checkbox" [formControl]="importForm.controls.stellantis" />
+          <span class="material-symbol" aria-hidden="true">verified</span>
+          <strong>Fabricante Stellantis</strong>
+        </label>
+
         <div class="file-preview">
           <span class="material-symbol" aria-hidden="true">description</span>
           <div>
-            <strong>Nenhum arquivo selecionado</strong>
-            <small>Selecione um arquivo para iniciar a importacao.</small>
+            <strong>{{ selectedFile()?.name || 'Nenhum arquivo selecionado' }}</strong>
+            <small>{{ importStatus() || 'Selecione um arquivo para iniciar a importacao.' }}</small>
           </div>
           <button type="button" aria-label="Remover arquivo">×</button>
         </div>
 
-        <section class="import-options">
+        <section class="import-options" [formGroup]="importForm">
           <h3>Opcoes de importacao</h3>
 
           <div class="import-mode-grid">
@@ -316,7 +373,7 @@
           </div>
 
           <label class="price-toggle">
-            <input type="checkbox" checked />
+            <input type="checkbox" formControlName="atualizarPrecos" />
             <span></span>
             <div>
               <strong>Atualizar precos</strong>
@@ -326,14 +383,17 @@
 
           <label class="margin-field">
             <span>Margem de preco padrao (%)</span>
-            <input type="number" value="0" />
+            <input type="number" formControlName="margemPreco" />
             <small>Utilizada para calcular o preco de venda a partir do preco de fabrica.</small>
           </label>
         </section>
 
         <footer>
           <button class="cancel-button" type="button" (click)="fecharImportacao()">Cancelar</button>
-          <button class="primary-action" type="button">Avancar <span class="material-symbol">arrow_forward</span></button>
+          <button class="primary-action" type="button" (click)="importarProdutos()" [disabled]="importing()">
+            {{ importing() ? 'Importando...' : 'Importar' }}
+            <span class="material-symbol">arrow_forward</span>
+          </button>
         </footer>
       </section>
     </div>

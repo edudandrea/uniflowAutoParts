@@ -3,7 +3,6 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { CadastroEndereco } from '../../core/app-models';
 import { ApiService } from '../../core/api.service';
-import { AuthSessionService } from '../../core/auth-session.service';
 
 @Component({
   selector: 'app-addresses',
@@ -13,8 +12,8 @@ import { AuthSessionService } from '../../core/auth-session.service';
 })
 export class AddressesComponent {
   private readonly api = inject(ApiService);
-  protected readonly auth = inject(AuthSessionService);
   private readonly fb = inject(FormBuilder);
+  private readonly empresaId = 1;
 
   protected readonly enderecos = signal<CadastroEndereco[]>([]);
   protected readonly busca = signal('');
@@ -93,8 +92,7 @@ export class AddressesComponent {
   }
 
   protected carregarEnderecos(): void {
-    const empresaId = this.empresaId();
-    this.api.listarEnderecos(empresaId).subscribe({
+    this.api.listarEnderecos(this.empresaId).subscribe({
       next: (enderecos) => {
         this.enderecos.set(enderecos);
       },
@@ -149,7 +147,7 @@ export class AddressesComponent {
 
     this.api
       .criarEndereco({
-        empresaId: this.empresaId(),
+        empresaId: this.empresaId,
         nome: form.nome || form.tipoEndereco || `${form.logradouro}, ${form.numero}`,
         cep: form.cep,
         logradouro: form.logradouro,
@@ -243,9 +241,5 @@ export class AddressesComponent {
     }
 
     return `${Math.round((valor / total) * 100)}% do total`;
-  }
-
-  private empresaId(): number {
-    return this.auth.usuario()?.empresaId ?? 1;
   }
 }

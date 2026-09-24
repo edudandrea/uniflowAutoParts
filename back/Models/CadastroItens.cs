@@ -25,6 +25,10 @@ namespace back.Models
         public int NCM { get; set; }
         public int CEST { get; set; }
         public string OrigemMercadoria { get; set; } = string.Empty;
+        public decimal AliquotaIpi { get; set; }
+        public decimal AliquotaIcms { get; set; }
+        public decimal AliquotaMva { get; set; }
+        public string ImpostosFabricante { get; set; } = string.Empty;
         public bool Ativo { get; set; }
         
         

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using back.Data;
@@ -11,9 +12,11 @@ using back.Data;
 namespace UniflowAutoParts.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260924202804_AddProdutoCamposFiscais")]
+    partial class AddProdutoCamposFiscais
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -180,10 +183,6 @@ namespace UniflowAutoParts.Api.Migrations
                     b.HasIndex("CategoriaId");
 
                     b.HasIndex("MarcaId");
-
-                    b.HasIndex("EmpresaId", "Ativo");
-
-                    b.HasIndex("EmpresaId", "Descricao");
 
                     b.HasIndex("EmpresaId", "SKU")
                         .IsUnique();

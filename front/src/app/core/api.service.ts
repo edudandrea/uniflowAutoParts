@@ -2,49 +2,25 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 
 import {
-  BootstrapStatusResponse,
   Categoria,
   CadastroEndereco,
   ClienteResumoResponse,
   CriarCadastroEnderecoPayload,
   CriarCategoriaPayload,
   CriarClientePayload,
-  CriarEmpresaContratantePayload,
   CriarMarcaPayload,
-  CriarUsuarioEmpresaPayload,
-  EmpresaResumoResponse,
+  CriarProdutoPayload,
+  ImportarProdutosFabricanteResponse,
+  ImportarNfeResponse,
   Marca,
-  UsuarioResponse,
+  Produto,
+  ProdutoListaResponse,
 } from './app-models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = 'http://localhost:5031/api';
-
-  getBootstrapStatus() {
-    return this.http.get<BootstrapStatusResponse>(`${this.apiUrl}/saas/bootstrap-status`);
-  }
-
-  criarAdministradorSaas(payload: { nome: string; email: string; senha: string }) {
-    return this.http.post<UsuarioResponse>(`${this.apiUrl}/saas/administradores`, payload);
-  }
-
-  login(payload: { email: string; senha: string }) {
-    return this.http.post<UsuarioResponse>(`${this.apiUrl}/auth/login`, payload);
-  }
-
-  listarEmpresas() {
-    return this.http.get<EmpresaResumoResponse[]>(`${this.apiUrl}/saas/empresas`);
-  }
-
-  criarEmpresa(payload: CriarEmpresaContratantePayload) {
-    return this.http.post(`${this.apiUrl}/saas/empresas`, payload);
-  }
-
-  criarUsuario(payload: CriarUsuarioEmpresaPayload) {
-    return this.http.post(`${this.apiUrl}/saas/usuarios`, payload);
-  }
 
   criarCliente(payload: CriarClientePayload) {
     return this.http.post<ClienteResumoResponse>(`${this.apiUrl}/clientes`, payload);
@@ -78,5 +54,33 @@ export class ApiService {
 
   criarMarca(payload: CriarMarcaPayload) {
     return this.http.post<Marca>(`${this.apiUrl}/marcas`, payload);
+  }
+
+  listarProdutos(empresaId: number, pagina = 1, tamanhoPagina = 50, busca = '') {
+    return this.http.get<ProdutoListaResponse>(`${this.apiUrl}/produtos`, {
+      params: { empresaId, pagina, tamanhoPagina, busca },
+    });
+  }
+
+  criarProduto(payload: CriarProdutoPayload) {
+    return this.http.post<Produto>(`${this.apiUrl}/produtos`, payload);
+  }
+
+  importarProdutosFabricante(empresaId: number, fabricante: string, atualizarPrecos: boolean, arquivo: File) {
+    const formData = new FormData();
+    formData.append('empresaId', String(empresaId));
+    formData.append('fabricante', fabricante);
+    formData.append('atualizarPrecos', String(atualizarPrecos));
+    formData.append('arquivo', arquivo);
+
+    return this.http.post<ImportarProdutosFabricanteResponse>(`${this.apiUrl}/produtos/importar-fabricante`, formData);
+  }
+
+  importarXmlNfeCompra(tenantId: number, arquivo: File) {
+    const formData = new FormData();
+    formData.append('tenantId', String(tenantId));
+    formData.append('arquivo', arquivo);
+
+    return this.http.post<ImportarNfeResponse>(`${this.apiUrl}/estoque/importar-nfe`, formData);
   }
 }

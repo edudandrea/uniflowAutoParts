@@ -29,23 +29,11 @@
   box-shadow: var(--shadow-sm);
 }
 
-.customers-hero::before,
 .customers-hero::after {
   content: "";
   position: absolute;
   inset-block: 0;
   pointer-events: none;
-}
-
-.customers-hero::before {
-  right: -34px;
-  width: min(42%, 560px);
-  background: url("/login-parts-bg.png") 88% center / auto 182% no-repeat;
-  opacity: 0.82;
-  mask-image:
-    linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0) 28%, rgba(0, 0, 0, 0.42) 54%, #000 78%, #000 100%),
-    linear-gradient(180deg, transparent 0%, #000 14%, #000 88%, transparent 100%);
-  mask-composite: intersect;
 }
 
 .customers-hero::after {
@@ -415,7 +403,6 @@ tbody tr.selected {
   color: #fff;
   background:
     linear-gradient(180deg, rgba(6, 24, 38, 0.18), rgba(6, 24, 38, 0.92)),
-    url("/login-parts-bg.png") center / cover no-repeat,
     #061826;
 }
 

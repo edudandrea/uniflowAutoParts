@@ -1,60 +1,3 @@
-export interface BootstrapStatusResponse {
-  administradorSaasCriado: boolean;
-}
-
-export interface UsuarioResponse {
-  id: number;
-  empresaId: number | null;
-  nome: string;
-  email: string;
-  perfil: string;
-  ativo: boolean;
-  criadoEm: string;
-}
-
-export interface EmpresaResumoResponse {
-  id: number;
-  razaoSocial: string;
-  nomeFantasia: string;
-  cnpj: string;
-  ativo: boolean;
-  acessoBloqueado: boolean;
-  dataCadastro: string;
-}
-
-export interface CriarEmpresaContratantePayload {
-  razaoSocial: string;
-  nomeFantasia: string;
-  cnpj: string;
-  telefone: string | null;
-  email: string | null;
-  emailFiscal: string | null;
-  endereco: string | null;
-  numero: string | null;
-  complemento: string | null;
-  bairro: string | null;
-  cidade: string | null;
-  estado: string | null;
-  cep: string | null;
-  inscricaoMunicipal: string | null;
-  inscricaoEstadual: string | null;
-  logoUrl: string | null;
-  utilizaAPAssistant: boolean;
-  administrador: {
-    nome: string;
-    email: string;
-    senha: string;
-  };
-}
-
-export interface CriarUsuarioEmpresaPayload {
-  empresaId: number;
-  nome: string;
-  email: string;
-  senha: string;
-  perfil: number;
-}
-
 export interface CriarClientePayload {
   empresaId: number;
   tipoPessoa: number;
@@ -212,4 +155,121 @@ export interface CriarMarcaPayload {
   site: string | null;
   observacao: string | null;
   ativo: boolean;
+}
+
+export interface Produto {
+  id: number;
+  empresaId: number;
+  sku: number;
+  codintern: number;
+  codfabricante: number;
+  descricao: string;
+  categoriaId: number;
+  categoria: string;
+  marcaId: number;
+  marca: string;
+  fabricanteId: number;
+  custo: number;
+  preco: number;
+  estoqueMinimo: number;
+  estoqueMaximo: number;
+  ncm: number;
+  cest: number;
+  origemMercadoria: string;
+  aliquotaIpi: number;
+  aliquotaIcms: number;
+  aliquotaMva: number;
+  impostosFabricante: string;
+  ativo: boolean;
+}
+
+export interface ProdutoListaResponse {
+  pagina: number;
+  tamanhoPagina: number;
+  total: number;
+  totalAtivos: number;
+  totalInativos: number;
+  produtos: Produto[];
+}
+
+export interface CriarProdutoPayload {
+  empresaId: number;
+  sku: number;
+  codintern: number;
+  codfabricante: number;
+  descricao: string;
+  categoriaId: number;
+  marcaId: number;
+  fabricanteId: number;
+  custo: number;
+  preco: number;
+  estoqueMinimo: number;
+  estoqueMaximo: number;
+  ncm: number;
+  cest: number;
+  origemMercadoria: string | null;
+  aliquotaIpi: number;
+  aliquotaIcms: number;
+  aliquotaMva: number;
+  impostosFabricante: string | null;
+  ativo: boolean;
+}
+
+export interface ImportarProdutosFabricanteResponse {
+  fabricante: string;
+  arquivo: string;
+  linhasLidas: number;
+  produtosCriados: number;
+  produtosAtualizados: number;
+  linhasIgnoradas: number;
+  erros: string[];
+  produtos: Produto[];
+}
+
+export interface ImportarNfeItemResponse {
+  numeroItem: number;
+  codigoFornecedor: string;
+  ean: string | null;
+  descricaoXml: string;
+  ncm: string | null;
+  cest: string | null;
+  cfop: string | null;
+  unidadeComercial: string;
+  quantidadeComercial: number;
+  valorUnitarioComercial: number;
+  unidadeTributavel: string;
+  quantidadeTributavel: number;
+  valorUnitarioTributavel: number;
+  valorProduto: number;
+  valorFrete: number;
+  valorSeguro: number;
+  valorDesconto: number;
+  valorOutrasDespesas: number;
+  quantidadeRecebida: number;
+  custoUnitario: number;
+  produtoIdentificado: boolean;
+  produtoId: number | null;
+}
+
+export interface ImportarNfeResponse {
+  entradaCompraId: number;
+  chaveNfe: string;
+  numeroNfe: string;
+  serie: string;
+  modelo: string;
+  dataEmissao: string | null;
+  dataEntrada: string | null;
+  naturezaOperacao: string;
+  fornecedorNome: string;
+  fornecedorDocumento: string;
+  valorProdutos: number;
+  valorFrete: number;
+  valorSeguro: number;
+  valorDesconto: number;
+  valorOutrasDespesas: number;
+  valorTotal: number;
+  totalItens: number;
+  produtosIdentificados: number;
+  produtosPendentes: number;
+  itens: ImportarNfeItemResponse[];
 }

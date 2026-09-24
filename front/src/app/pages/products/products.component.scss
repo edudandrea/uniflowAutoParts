@@ -29,23 +29,11 @@
   box-shadow: var(--shadow-sm);
 }
 
-.products-hero::before,
 .products-hero::after {
   content: "";
   position: absolute;
   inset-block: 0;
   pointer-events: none;
-}
-
-.products-hero::before {
-  right: -30px;
-  width: min(36%, 430px);
-  background: url("/login-parts-bg.png") 88% center / auto 178% no-repeat;
-  opacity: 0.86;
-  mask-image:
-    linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0) 28%, rgba(0, 0, 0, 0.42) 54%, #000 78%, #000 100%),
-    linear-gradient(180deg, transparent 0%, #000 14%, #000 88%, transparent 100%);
-  mask-composite: intersect;
 }
 
 .products-hero::after {
@@ -241,7 +229,7 @@ select {
 
 table {
   width: 100%;
-  min-width: 1040px;
+  min-width: 1220px;
   border-collapse: collapse;
   color: #22394d;
   font-size: 0.82rem;
@@ -303,6 +291,12 @@ th {
   background: transparent;
 }
 
+.tax-summary {
+  white-space: nowrap;
+  color: #254154;
+  font-weight: 700;
+}
+
 .table-footer {
   display: flex;
   align-items: center;
@@ -332,6 +326,11 @@ th {
 .pager button.active {
   color: #fff;
   background: var(--brand-green-dark);
+}
+
+.pager button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .import-panel {
@@ -386,6 +385,53 @@ th {
 
 .primary-action.full {
   width: 100%;
+}
+
+.primary-action:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.manufacturer-check,
+.upload-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(11, 36, 56, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  color: #263f54;
+  background: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.manufacturer-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--brand-green-dark);
+}
+
+.manufacturer-check .material-symbol,
+.upload-trigger .material-symbol {
+  color: var(--brand-green-dark);
+}
+
+.modal-check {
+  margin-bottom: 12px;
+}
+
+.upload-trigger {
+  justify-content: center;
+  margin-bottom: 10px;
+  cursor: pointer;
+  background: #f8fbfc;
+}
+
+.upload-trigger input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .import-card a,

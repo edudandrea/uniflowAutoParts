@@ -9,7 +9,7 @@ namespace back.Models
     {
         public long Id { get; set; }
 
-    // SaaS / Empresa proprietária do cadastro
+    // Empresa proprietaria do cadastro
     public long TenantId { get; set; }
 
     // Identificação

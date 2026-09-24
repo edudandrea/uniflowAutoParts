@@ -20,6 +20,8 @@ namespace back.Data
         public DbSet<Marca> Marcas => Set<Marca>();
         public DbSet<CadastroItens> CadastroItens => Set<CadastroItens>();
         public DbSet<Estoque> Estoques => Set<Estoque>();
+        public DbSet<EntradaCompra> EntradasCompra => Set<EntradaCompra>();
+        public DbSet<EntradaCompraItem> EntradaCompraItens => Set<EntradaCompraItem>();
         public DbSet<Users> Users => Set<Users>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -127,8 +129,14 @@ namespace back.Data
             modelBuilder.Entity<CadastroItens>(entity =>
             {
                 entity.HasIndex(e => new { e.EmpresaId, e.SKU }).IsUnique();
+                entity.HasIndex(e => new { e.EmpresaId, e.Descricao });
+                entity.HasIndex(e => new { e.EmpresaId, e.Ativo });
                 entity.HasIndex(e => e.CategoriaId);
                 entity.HasIndex(e => e.MarcaId);
+                entity.Property(e => e.AliquotaIpi).HasPrecision(9, 4);
+                entity.Property(e => e.AliquotaIcms).HasPrecision(9, 4);
+                entity.Property(e => e.AliquotaMva).HasPrecision(9, 4);
+                entity.Property(e => e.ImpostosFabricante).HasMaxLength(80);
 
                 entity.HasOne(e => e.Categoria)
                     .WithMany(e => e.Produtos)
@@ -171,6 +179,68 @@ namespace back.Data
             modelBuilder.Entity<Estoque>(entity =>
             {
                 entity.HasIndex(e => new { e.EmpresaId, e.ItemId });
+            });
+
+            modelBuilder.Entity<EntradaCompra>(entity =>
+            {
+                entity.HasIndex(e => new { e.TenantId, e.ChaveNfe }).IsUnique();
+                entity.HasIndex(e => e.FornecedorId);
+                entity.Property(e => e.ChaveNfe).HasMaxLength(44);
+                entity.Property(e => e.NumeroNfe).HasMaxLength(20);
+                entity.Property(e => e.Serie).HasMaxLength(10);
+                entity.Property(e => e.Modelo).HasMaxLength(10);
+                entity.Property(e => e.TipoOperacao).HasMaxLength(10);
+                entity.Property(e => e.Finalidade).HasMaxLength(10);
+                entity.Property(e => e.NaturezaOperacao).HasMaxLength(180);
+                entity.Property(e => e.Status).HasMaxLength(40);
+                entity.Property(e => e.ValorProdutos).HasPrecision(18, 2);
+                entity.Property(e => e.ValorFrete).HasPrecision(18, 2);
+                entity.Property(e => e.ValorSeguro).HasPrecision(18, 2);
+                entity.Property(e => e.ValorDesconto).HasPrecision(18, 2);
+                entity.Property(e => e.ValorOutrasDespesas).HasPrecision(18, 2);
+                entity.Property(e => e.ValorTotal).HasPrecision(18, 2);
+
+                entity.HasOne(e => e.Fornecedor)
+                    .WithMany()
+                    .HasForeignKey(e => e.FornecedorId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<EntradaCompraItem>(entity =>
+            {
+                entity.HasIndex(e => e.EntradaCompraId);
+                entity.HasIndex(e => e.ProdutoId);
+                entity.Property(e => e.CodigoFornecedor).HasMaxLength(80);
+                entity.Property(e => e.Ean).HasMaxLength(32);
+                entity.Property(e => e.DescricaoXml).HasMaxLength(500);
+                entity.Property(e => e.Ncm).HasMaxLength(16);
+                entity.Property(e => e.Cest).HasMaxLength(16);
+                entity.Property(e => e.Cfop).HasMaxLength(8);
+                entity.Property(e => e.UnidadeComercial).HasMaxLength(12);
+                entity.Property(e => e.UnidadeTributavel).HasMaxLength(12);
+                entity.Property(e => e.PedidoCompra).HasMaxLength(80);
+                entity.Property(e => e.ItemPedido).HasMaxLength(40);
+                entity.Property(e => e.QuantidadeComercial).HasPrecision(18, 4);
+                entity.Property(e => e.ValorUnitarioComercial).HasPrecision(18, 6);
+                entity.Property(e => e.QuantidadeTributavel).HasPrecision(18, 4);
+                entity.Property(e => e.ValorUnitarioTributavel).HasPrecision(18, 6);
+                entity.Property(e => e.ValorProduto).HasPrecision(18, 2);
+                entity.Property(e => e.ValorFrete).HasPrecision(18, 2);
+                entity.Property(e => e.ValorSeguro).HasPrecision(18, 2);
+                entity.Property(e => e.ValorDesconto).HasPrecision(18, 2);
+                entity.Property(e => e.ValorOutrasDespesas).HasPrecision(18, 2);
+                entity.Property(e => e.QuantidadeRecebida).HasPrecision(18, 4);
+                entity.Property(e => e.CustoUnitario).HasPrecision(18, 6);
+
+                entity.HasOne(e => e.EntradaCompra)
+                    .WithMany(e => e.Itens)
+                    .HasForeignKey(e => e.EntradaCompraId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Produto)
+                    .WithMany()
+                    .HasForeignKey(e => e.ProdutoId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
         }
     }

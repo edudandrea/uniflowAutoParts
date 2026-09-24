@@ -3,7 +3,6 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { CadastroEndereco } from '../../core/app-models';
 import { ApiService } from '../../core/api.service';
-import { AuthSessionService } from '../../core/auth-session.service';
 
 interface CustomerMetric {
   icon: string;
@@ -46,8 +45,8 @@ interface Customer {
 })
 export class CustomersComponent {
   private readonly api = inject(ApiService);
-  private readonly auth = inject(AuthSessionService);
   private readonly fb = inject(FormBuilder);
+  private readonly empresaId = 1;
 
   protected readonly showCustomerModal = signal(false);
   protected readonly selectedCustomerId = signal('');
@@ -219,7 +218,6 @@ export class CustomersComponent {
     }
 
     const form = this.customerForm.getRawValue();
-    const empresaId = this.auth.usuario()?.empresaId ?? 1;
     const id = String(Date.now());
     const customer: Customer = {
       id,
@@ -260,7 +258,7 @@ export class CustomersComponent {
 
     this.api
       .criarCliente({
-        empresaId,
+        empresaId: this.empresaId,
         tipoPessoa: form.tipo === 'PJ' ? 2 : 1,
         relacionamento: form.relacionamento === 'Fornecedor' ? 2 : form.relacionamento === 'Ambos' ? 3 : 1,
         nomeRazaoSocial: form.razaoSocial || form.nome,
@@ -363,8 +361,7 @@ export class CustomersComponent {
   }
 
   private carregarEnderecos(): void {
-    const empresaId = this.auth.usuario()?.empresaId ?? 1;
-    this.api.listarEnderecos(empresaId).subscribe({
+    this.api.listarEnderecos(this.empresaId).subscribe({
       next: (enderecos) => {
         this.enderecos.set(enderecos);
       },

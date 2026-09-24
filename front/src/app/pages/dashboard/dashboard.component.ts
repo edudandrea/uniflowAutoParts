@@ -1,6 +1,4 @@
-import { Component, inject } from '@angular/core';
-
-import { AuthSessionService } from '../../core/auth-session.service';
+import { Component } from '@angular/core';
 
 interface MetricCard {
   icon: string;
@@ -48,7 +46,6 @@ interface AlertItem {
   styleUrl: './dashboard.component.scss',
 })
 export class DashboardComponent {
-  protected readonly auth = inject(AuthSessionService);
   protected readonly today = new Date();
 
   protected readonly metrics: MetricCard[] = [];
@@ -72,8 +69,8 @@ export class DashboardComponent {
 
   protected readonly alerts: AlertItem[] = [];
 
-  protected initials(name: string | undefined | null): string {
-    return (name || 'U')
+  protected initials(name: string): string {
+    return name
       .split(' ')
       .slice(0, 2)
       .map((part) => part[0])

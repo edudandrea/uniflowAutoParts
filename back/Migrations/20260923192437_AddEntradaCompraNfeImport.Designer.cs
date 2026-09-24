@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using back.Data;
@@ -11,9 +12,11 @@ using back.Data;
 namespace UniflowAutoParts.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260923192437_AddEntradaCompraNfeImport")]
+    partial class AddEntradaCompraNfeImport
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -108,18 +111,6 @@ namespace UniflowAutoParts.Api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<decimal>("AliquotaIcms")
-                        .HasPrecision(9, 4)
-                        .HasColumnType("numeric(9,4)");
-
-                    b.Property<decimal>("AliquotaIpi")
-                        .HasPrecision(9, 4)
-                        .HasColumnType("numeric(9,4)");
-
-                    b.Property<decimal>("AliquotaMva")
-                        .HasPrecision(9, 4)
-                        .HasColumnType("numeric(9,4)");
-
                     b.Property<bool>("Ativo")
                         .HasColumnType("boolean");
 
@@ -154,11 +145,6 @@ namespace UniflowAutoParts.Api.Migrations
                     b.Property<int>("FabricanteId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("ImpostosFabricante")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("character varying(80)");
-
                     b.Property<long>("MarcaId")
                         .HasColumnType("bigint");
 
@@ -180,10 +166,6 @@ namespace UniflowAutoParts.Api.Migrations
                     b.HasIndex("CategoriaId");
 
                     b.HasIndex("MarcaId");
-
-                    b.HasIndex("EmpresaId", "Ativo");
-
-                    b.HasIndex("EmpresaId", "Descricao");
 
                     b.HasIndex("EmpresaId", "SKU")
                         .IsUnique();

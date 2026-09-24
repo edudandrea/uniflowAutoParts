@@ -9,6 +9,10 @@
     </div>
 
     <div class="hero-actions">
+      <button class="secondary-action" type="button" (click)="abrirImportacaoNfe()">
+        <span class="material-symbol" aria-hidden="true">upload_file</span>
+        Importar XML NF-e
+      </button>
       <button class="primary-action" type="button" (click)="abrirNovoProduto()">
         <span class="material-symbol" aria-hidden="true">add</span>
         Novo produto
@@ -314,6 +318,138 @@
             <button class="primary-action" type="submit">Salvar produto</button>
           </footer>
         </form>
+      </section>
+    </div>
+  }
+
+  @if (showNfeImportModal()) {
+    <div class="modal-backdrop" role="presentation">
+      <section class="import-modal" role="dialog" aria-modal="true" aria-labelledby="import-nfe-title">
+        <header>
+          <div>
+            <p>Importacao de compra</p>
+            <h2 id="import-nfe-title">Importar XML da NF-e</h2>
+          </div>
+          <button class="close-button" type="button" aria-label="Fechar" (click)="fecharImportacaoNfe()">
+            <span class="material-symbol" aria-hidden="true">close</span>
+          </button>
+        </header>
+
+        <section class="xml-upload-box">
+          <label>
+            <span class="material-symbol" aria-hidden="true">description</span>
+            <strong>{{ selectedXmlFile()?.name || 'Selecione o XML autorizado da compra' }}</strong>
+            <small>A chave de acesso sera validada e bloqueia importacao duplicada.</small>
+            <input type="file" accept=".xml,text/xml,application/xml" (change)="selecionarXml($event)" />
+          </label>
+
+          <button class="primary-action" type="button" [disabled]="importingNfe() || xmlPrecheck().status === 'invalid'" (click)="importarXmlNfe()">
+            <span class="material-symbol" aria-hidden="true">upload_file</span>
+            {{ importingNfe() ? 'Importando...' : 'Importar e conferir' }}
+          </button>
+        </section>
+
+        <section class="xml-check-card" [class.valid]="xmlPrecheck().status === 'valid'" [class.invalid]="xmlPrecheck().status === 'invalid'">
+          <span class="material-symbol" aria-hidden="true">
+            {{ xmlPrecheck().status === 'valid' ? 'check_circle' : xmlPrecheck().status === 'invalid' ? 'error' : 'rule' }}
+          </span>
+          <div>
+            <strong>
+              {{
+                xmlPrecheck().status === 'valid'
+                  ? 'NF-e de itens detectada'
+                  : xmlPrecheck().status === 'invalid'
+                    ? 'XML bloqueado para importacao'
+                    : 'Aguardando XML'
+              }}
+            </strong>
+            <small>{{ xmlPrecheck().message }}</small>
+          </div>
+        </section>
+
+        @if (importMessage()) {
+          <p class="import-message" [class.error]="!importedNfe()">{{ importMessage() }}</p>
+        }
+
+        @if (importedNfe(); as nfe) {
+          <section class="nfe-summary">
+            <article>
+              <span>NF-e</span>
+              <strong>{{ nfe.numeroNfe }}/{{ nfe.serie }}</strong>
+              <small>{{ nfe.chaveNfe }}</small>
+            </article>
+            <article>
+              <span>Fornecedor</span>
+              <strong>{{ nfe.fornecedorNome }}</strong>
+              <small>{{ nfe.fornecedorDocumento }}</small>
+            </article>
+            <article>
+              <span>Emissao</span>
+              <strong>{{ formatDate(nfe.dataEmissao) }}</strong>
+              <small>{{ nfe.naturezaOperacao || 'Natureza nao informada' }}</small>
+            </article>
+            <article>
+              <span>Total</span>
+              <strong>{{ formatCurrency(nfe.valorTotal) }}</strong>
+              <small>{{ nfe.totalItens }} itens</small>
+            </article>
+          </section>
+
+          <section class="conference-strip" aria-label="Resumo da conferencia">
+            <div>
+              <span class="material-symbol success" aria-hidden="true">check_circle</span>
+              <strong>{{ nfe.produtosIdentificados }}</strong>
+              <small>produtos identificados</small>
+            </div>
+            <div>
+              <span class="material-symbol warning" aria-hidden="true">manage_search</span>
+              <strong>{{ nfe.produtosPendentes }}</strong>
+              <small>pendentes de associacao</small>
+            </div>
+            <div>
+              <span class="material-symbol" aria-hidden="true">payments</span>
+              <strong>{{ formatCurrency(nfe.valorProdutos) }}</strong>
+              <small>valor dos produtos</small>
+            </div>
+          </section>
+
+          <div class="nfe-items-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Codigo fornecedor</th>
+                  <th>Descricao XML</th>
+                  <th>NCM</th>
+                  <th>CFOP</th>
+                  <th>Qtd. NF</th>
+                  <th>Recebido</th>
+                  <th>Custo</th>
+                  <th>Situacao</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of nfe.itens; track item.numeroItem) {
+                  <tr>
+                    <td>{{ item.numeroItem }}</td>
+                    <td>{{ item.codigoFornecedor }}</td>
+                    <td>{{ item.descricaoXml }}</td>
+                    <td>{{ item.ncm || '-' }}</td>
+                    <td>{{ item.cfop || '-' }}</td>
+                    <td>{{ item.quantidadeComercial }} {{ item.unidadeComercial }}</td>
+                    <td>{{ item.quantidadeRecebida }} {{ item.unidadeComercial }}</td>
+                    <td>{{ formatCurrency(item.custoUnitario) }}</td>
+                    <td>
+                      <span class="status-pill" [class.ok]="item.produtoIdentificado" [class.low]="!item.produtoIdentificado">
+                        {{ item.produtoIdentificado ? 'Vinculado' : 'Associar produto' }}
+                      </span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
       </section>
     </div>
   }

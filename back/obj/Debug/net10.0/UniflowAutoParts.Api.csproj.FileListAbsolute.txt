@@ -217,4 +217,5 @@ C:\Projects\UniflowAutoParts\back\artifacts\build-check\ru\Microsoft.CodeAnalysi
 C:\Projects\UniflowAutoParts\back\artifacts\build-check\tr\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
 C:\Projects\UniflowAutoParts\back\artifacts\build-check\zh-Hans\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
 C:\Projects\UniflowAutoParts\back\artifacts\build-check\zh-Hant\Microsoft.CodeAnalysis.Workspaces.MSBuild.resources.dll
+C:\Projects\UniflowAutoParts\back\obj\Debug\net10.0\UniflowAutoParts.Api.sourcelink.json
 C:\Projects\UniflowAutoParts\back\bin\Debug\net10.0\UniflowAutoParts.Api.exe

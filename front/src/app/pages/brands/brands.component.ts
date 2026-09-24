@@ -3,7 +3,6 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { Marca } from '../../core/app-models';
 import { ApiService } from '../../core/api.service';
-import { AuthSessionService } from '../../core/auth-session.service';
 
 @Component({
   selector: 'app-brands',
@@ -13,8 +12,8 @@ import { AuthSessionService } from '../../core/auth-session.service';
 })
 export class BrandsComponent {
   private readonly api = inject(ApiService);
-  private readonly auth = inject(AuthSessionService);
   private readonly fb = inject(FormBuilder);
+  private readonly tenantId = 1;
 
   protected readonly marcas = signal<Marca[]>([]);
   protected readonly busca = signal('');
@@ -98,7 +97,7 @@ export class BrandsComponent {
 
     this.api
       .criarMarca({
-        tenantId: this.tenantId(),
+        tenantId: this.tenantId,
         nome: form.nome,
         codigo: form.codigo || null,
         descricao: form.descricao || null,
@@ -135,13 +134,9 @@ export class BrandsComponent {
   }
 
   private carregarMarcas(): void {
-    this.api.listarMarcas(this.tenantId(), true).subscribe({
+    this.api.listarMarcas(this.tenantId, true).subscribe({
       next: (marcas) => this.marcas.set(marcas),
     });
-  }
-
-  private tenantId(): number {
-    return this.auth.usuario()?.empresaId ?? 1;
   }
 
   private percentual(valor: number, total: number): string {

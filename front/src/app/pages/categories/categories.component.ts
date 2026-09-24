@@ -3,7 +3,6 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { Categoria } from '../../core/app-models';
 import { ApiService } from '../../core/api.service';
-import { AuthSessionService } from '../../core/auth-session.service';
 
 @Component({
   selector: 'app-categories',
@@ -13,8 +12,8 @@ import { AuthSessionService } from '../../core/auth-session.service';
 })
 export class CategoriesComponent {
   private readonly api = inject(ApiService);
-  private readonly auth = inject(AuthSessionService);
   private readonly fb = inject(FormBuilder);
+  private readonly tenantId = 1;
 
   protected readonly categorias = signal<Categoria[]>([]);
   protected readonly busca = signal('');
@@ -107,7 +106,7 @@ export class CategoriesComponent {
 
     this.api
       .criarCategoria({
-        tenantId: this.tenantId(),
+        tenantId: this.tenantId,
         nome: form.nome,
         descricao: form.descricao || null,
         categoriaPaiId: form.categoriaPaiId ? Number(form.categoriaPaiId) : null,
@@ -134,13 +133,9 @@ export class CategoriesComponent {
   }
 
   private carregarCategorias(): void {
-    this.api.listarCategorias(this.tenantId(), true).subscribe({
+    this.api.listarCategorias(this.tenantId, true).subscribe({
       next: (categorias) => this.categorias.set(categorias),
     });
-  }
-
-  private tenantId(): number {
-    return this.auth.usuario()?.empresaId ?? 1;
   }
 
   private percentual(valor: number, total: number): string {

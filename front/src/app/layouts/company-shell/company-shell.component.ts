@@ -1,7 +1,5 @@
-import { Component, inject, signal } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-
-import { AuthSessionService } from '../../core/auth-session.service';
+import { Component, signal } from '@angular/core';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 interface CompanyMenuItem {
   label: string;
@@ -17,10 +15,8 @@ interface CompanyMenuItem {
   styleUrl: './company-shell.component.scss',
 })
 export class CompanyShellComponent {
-  protected readonly auth = inject(AuthSessionService);
   protected readonly logoUnavailable = signal(false);
   protected readonly expandedMenus = signal<Record<string, boolean>>({});
-  private readonly router = inject(Router);
 
   protected readonly menuItems: CompanyMenuItem[] = [
     { label: 'Dashboard', icon: 'grid_view', path: '/app/dashboard' },
@@ -52,10 +48,5 @@ export class CompanyShellComponent {
 
   protected isExpanded(label: string): boolean {
     return this.expandedMenus()[label] ?? false;
-  }
-
-  protected sair() {
-    this.auth.sair();
-    this.router.navigateByUrl('/login');
   }
 }

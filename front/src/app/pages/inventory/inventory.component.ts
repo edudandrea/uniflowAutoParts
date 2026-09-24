@@ -1,6 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
+import { ImportarNfeResponse } from '../../core/app-models';
+import { ApiService } from '../../core/api.service';
+
 interface InventoryMetric {
   icon: string;
   tone: 'success' | 'danger';
@@ -32,6 +35,11 @@ interface InventoryProduct {
   imagemUrl: string;
 }
 
+interface XmlPrecheck {
+  status: 'idle' | 'valid' | 'invalid';
+  message: string;
+}
+
 @Component({
   selector: 'app-inventory',
   imports: [ReactiveFormsModule],
@@ -39,10 +47,21 @@ interface InventoryProduct {
   styleUrl: './inventory.component.scss',
 })
 export class InventoryComponent {
+  private readonly api = inject(ApiService);
   private readonly fb = inject(FormBuilder);
+  private readonly tenantId = 1;
 
   protected readonly showProductModal = signal(false);
+  protected readonly showNfeImportModal = signal(false);
   protected readonly selectedProductCode = signal('');
+  protected readonly selectedXmlFile = signal<File | null>(null);
+  protected readonly importingNfe = signal(false);
+  protected readonly importMessage = signal('');
+  protected readonly importedNfe = signal<ImportarNfeResponse | null>(null);
+  protected readonly xmlPrecheck = signal<XmlPrecheck>({
+    status: 'idle',
+    message: 'Selecione um XML para validar a estrutura da NF-e.',
+  });
 
   protected readonly products = signal<InventoryProduct[]>([]);
 
@@ -107,8 +126,70 @@ export class InventoryComponent {
     this.showProductModal.set(true);
   }
 
+  protected abrirImportacaoNfe(): void {
+    this.selectedXmlFile.set(null);
+    this.importedNfe.set(null);
+    this.importMessage.set('');
+    this.xmlPrecheck.set({
+      status: 'idle',
+      message: 'Selecione um XML para validar a estrutura da NF-e.',
+    });
+    this.showNfeImportModal.set(true);
+  }
+
   protected fecharNovoProduto(): void {
     this.showProductModal.set(false);
+  }
+
+  protected fecharImportacaoNfe(): void {
+    this.showNfeImportModal.set(false);
+  }
+
+  protected async selecionarXml(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    this.selectedXmlFile.set(file);
+    this.importMessage.set('');
+    this.importedNfe.set(null);
+
+    if (!file) {
+      this.xmlPrecheck.set({
+        status: 'idle',
+        message: 'Selecione um XML para validar a estrutura da NF-e.',
+      });
+      return;
+    }
+
+    this.xmlPrecheck.set(await this.validarXmlSelecionado(file));
+  }
+
+  protected importarXmlNfe(): void {
+    const file = this.selectedXmlFile();
+    if (!file) {
+      this.importMessage.set('Selecione o XML autorizado da NF-e de compra.');
+      return;
+    }
+
+    if (this.xmlPrecheck().status === 'invalid') {
+      this.importMessage.set(this.xmlPrecheck().message);
+      return;
+    }
+
+    this.importingNfe.set(true);
+    this.importMessage.set('');
+    this.importedNfe.set(null);
+
+    this.api.importarXmlNfeCompra(this.tenantId, file).subscribe({
+      next: (result) => {
+        this.importedNfe.set(result);
+        this.importMessage.set('NF-e importada e pronta para conferencia.');
+        this.importingNfe.set(false);
+      },
+      error: (error) => {
+        this.importMessage.set(error?.error || 'Nao foi possivel importar o XML da NF-e.');
+        this.importingNfe.set(false);
+      },
+    });
   }
 
   protected cadastrarProduto(): void {
@@ -150,5 +231,71 @@ export class InventoryComponent {
 
   protected formatNumber(value: number): string {
     return value.toLocaleString('pt-BR');
+  }
+
+  protected formatDate(value: string | null): string {
+    if (!value) {
+      return '-';
+    }
+
+    return new Date(value).toLocaleDateString('pt-BR');
+  }
+
+  private async validarXmlSelecionado(file: File): Promise<XmlPrecheck> {
+    try {
+      const content = await file.text();
+      const document = new DOMParser().parseFromString(content, 'application/xml');
+
+      if (document.querySelector('parsererror')) {
+        return {
+          status: 'invalid',
+          message: 'O arquivo selecionado nao e um XML valido.',
+        };
+      }
+
+      const elements = Array.from(document.getElementsByTagName('*'));
+      const byName = (name: string) => elements.find((element) => element.localName === name);
+      const allByName = (name: string) => elements.filter((element) => element.localName === name);
+      const infNfe = byName('infNFe');
+
+      if (!byName('NFe') || !infNfe) {
+        return {
+          status: 'invalid',
+          message: 'Este XML nao e uma NF-e. Notas de servico ou outros documentos nao entram pelo estoque.',
+        };
+      }
+
+      const modelo = byName('mod')?.textContent?.trim();
+      if (modelo !== '55') {
+        return {
+          status: 'invalid',
+          message: 'Somente NF-e modelo 55 de compra de itens pode ser importada no estoque.',
+        };
+      }
+
+      const possuiItensProduto = allByName('det').some((det) => {
+        return Array.from(det.children).some((child) => child.localName === 'prod');
+      });
+
+      if (!possuiItensProduto) {
+        return {
+          status: 'invalid',
+          message: 'A nota fiscal selecionada nao possui itens de produto para entrada em estoque.',
+        };
+      }
+
+      const numero = byName('nNF')?.textContent?.trim();
+      const serie = byName('serie')?.textContent?.trim();
+
+      return {
+        status: 'valid',
+        message: `NF-e ${numero || '-'}${serie ? `/${serie}` : ''} com itens de produto encontrada.`,
+      };
+    } catch {
+      return {
+        status: 'invalid',
+        message: 'Nao foi possivel ler o XML selecionado.',
+      };
+    }
   }
 }
