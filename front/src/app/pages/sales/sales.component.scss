@@ -51,3 +51,88 @@ dl { margin: 0; font-size: 11px; color: #6b819a; > div { display: flex; justify-
 @media (max-width: 1200px) { .sales-page { padding: 20px 16px; } .hero { flex-wrap: wrap; } .workspace { grid-template-columns: minmax(0, 1fr) 290px; gap: 12px; } .sale-top { grid-template-columns: 1fr; gap: 12px; } .type-panel { label { margin-bottom: 10px; } } }
 @media (max-width: 900px) { .workspace { grid-template-columns: 1fr; } .sale-top { grid-template-columns: 1fr 1fr; } .side-column { grid-template-columns: 1fr 1fr; } .summary-panel { grid-column: 1 / -1; } }
 @media (max-width: 600px) { .sales-page { padding: 16px 10px; } .sale-top, .side-column { grid-template-columns: 1fr; } .hero { gap: 15px; } .actions { flex-wrap: wrap; } .title h1 { font-size: 23px; } .extras { grid-template-columns: 1fr; } .panel { padding: 13px; } .panel-heading a { max-width: 100px; } }
+
+@media (max-width: 480px) {
+  .sales-page {
+    padding: 12px 0 24px;
+  }
+
+  .breadcrumb,
+  .hero,
+  .workspace {
+    padding-inline: 10px;
+  }
+
+  .hero,
+  .title,
+  .actions,
+  .items-footer,
+  .notice {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .title {
+    gap: 10px;
+  }
+
+  .title h1 {
+    font-size: 20px;
+    letter-spacing: 0;
+  }
+
+  .title-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 8px;
+    font-size: 23px;
+  }
+
+  .actions button,
+  .finish-button,
+  .full-payment {
+    width: 100%;
+  }
+
+  .panel {
+    padding: 12px;
+  }
+
+  .panel-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .panel-heading a {
+    max-width: none;
+  }
+
+  .customer-card,
+  .customer-details,
+  .two-fields,
+  .extras,
+  .payment-row {
+    grid-template-columns: 1fr;
+  }
+
+  .customer-card {
+    position: relative;
+    padding-right: 38px;
+  }
+
+  .remove-customer {
+    position: absolute;
+    top: 10px;
+    right: 8px;
+  }
+
+  .table-wrap table {
+    min-width: 680px;
+  }
+
+  .grand-total {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+}

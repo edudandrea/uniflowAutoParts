@@ -3,10 +3,11 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { Marca } from '../../core/app-models';
 import { ApiService } from '../../core/api.service';
+import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
 @Component({
   selector: 'app-brands',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, AppIconComponent],
   templateUrl: './brands.component.html',
   styleUrl: './brands.component.scss',
 })
@@ -19,7 +20,11 @@ export class BrandsComponent {
   protected readonly busca = signal('');
   protected readonly showBrandModal = signal(false);
   protected readonly salvando = signal(false);
+  protected readonly enviandoLogo = signal(false);
   protected readonly mensagem = signal('');
+  protected readonly marcaSelecionada = signal<Marca | null>(null);
+  protected readonly logoNomeArquivo = signal('');
+  protected readonly logoPreview = signal('');
 
   protected readonly marcasFiltradas = computed(() => {
     const termo = this.busca().trim().toLowerCase();
@@ -46,10 +51,10 @@ export class BrandsComponent {
     const produtos = marcas.reduce((total, marca) => total + marca.produtos, 0);
 
     return [
-      { icon: 'sell', label: 'Total de marcas', value: marcas.length, detail: 'base atual' },
-      { icon: 'verified', label: 'Marcas ativas', value: ativas, detail: this.percentual(ativas, marcas.length) },
-      { icon: 'image', label: 'Com logo', value: comLogo, detail: this.percentual(comLogo, marcas.length) },
-      { icon: 'deployed_code', label: 'Produtos vinculados', value: produtos, detail: 'base atual' },
+      { icon: 'badge', label: 'Total de marcas', value: marcas.length, detail: 'base atual' },
+      { icon: 'badge-check', label: 'Marcas ativas', value: ativas, detail: this.percentual(ativas, marcas.length) },
+      { icon: 'eye', label: 'Com logo', value: comLogo, detail: this.percentual(comLogo, marcas.length) },
+      { icon: 'package', label: 'Produtos vinculados', value: produtos, detail: 'base atual' },
     ];
   });
 
@@ -69,6 +74,9 @@ export class BrandsComponent {
 
   protected abrirNovaMarca(): void {
     this.mensagem.set('');
+    this.marcaSelecionada.set(null);
+    this.logoNomeArquivo.set('');
+    this.logoPreview.set('');
     this.marcaForm.reset({
       nome: '',
       codigo: '',
@@ -81,8 +89,28 @@ export class BrandsComponent {
     this.showBrandModal.set(true);
   }
 
+  protected abrirEdicaoMarca(marca: Marca): void {
+    this.mensagem.set('');
+    this.marcaSelecionada.set(marca);
+    this.logoNomeArquivo.set('');
+    this.logoPreview.set(marca.logoUrl ?? '');
+    this.marcaForm.reset({
+      nome: marca.nome,
+      codigo: marca.codigo ?? '',
+      descricao: marca.descricao ?? '',
+      logoUrl: marca.logoUrl ?? '',
+      site: marca.site ?? '',
+      observacao: marca.observacao ?? '',
+      ativo: marca.ativo,
+    });
+    this.showBrandModal.set(true);
+  }
+
   protected fecharNovaMarca(): void {
     this.showBrandModal.set(false);
+    this.marcaSelecionada.set(null);
+    this.logoNomeArquivo.set('');
+    this.logoPreview.set('');
   }
 
   protected salvarMarca(): void {
@@ -95,28 +123,79 @@ export class BrandsComponent {
     this.salvando.set(true);
     this.mensagem.set('');
 
-    this.api
-      .criarMarca({
-        tenantId: this.tenantId,
-        nome: form.nome,
-        codigo: form.codigo || null,
-        descricao: form.descricao || null,
-        logoUrl: form.logoUrl || null,
-        site: form.site || null,
-        observacao: form.observacao || null,
-        ativo: form.ativo,
-      })
-      .subscribe({
-        next: (marca) => {
+    const payload = {
+      tenantId: this.tenantId,
+      nome: form.nome,
+      codigo: form.codigo || null,
+      descricao: form.descricao || null,
+      logoUrl: form.logoUrl || null,
+      site: form.site || null,
+      observacao: form.observacao || null,
+      ativo: form.ativo,
+    };
+
+    const marcaAtual = this.marcaSelecionada();
+    const request = marcaAtual ? this.api.atualizarMarca(marcaAtual.id, payload) : this.api.criarMarca(payload);
+
+    request.subscribe({
+      next: (marca) => {
+        if (marcaAtual) {
+          this.marcas.update((marcas) => marcas.map((item) => (item.id === marca.id ? marca : item)));
+        } else {
           this.marcas.update((marcas) => [marca, ...marcas]);
-          this.salvando.set(false);
-          this.showBrandModal.set(false);
-        },
-        error: (error) => {
-          this.mensagem.set(error?.error || 'Nao foi possivel cadastrar a marca.');
-          this.salvando.set(false);
-        },
-      });
+        }
+
+        this.salvando.set(false);
+        this.showBrandModal.set(false);
+        this.marcaSelecionada.set(null);
+        this.logoNomeArquivo.set('');
+      },
+      error: (error) => {
+        this.mensagem.set(error?.error || 'Nao foi possivel salvar a marca.');
+        this.salvando.set(false);
+      },
+    });
+  }
+
+  protected selecionarLogo(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith('image/')) {
+      this.mensagem.set('Selecione um arquivo de imagem para a logo.');
+      input.value = '';
+      return;
+    }
+
+    this.logoNomeArquivo.set(file.name);
+    this.logoPreview.set(URL.createObjectURL(file));
+    this.enviandoLogo.set(true);
+    this.mensagem.set('');
+
+    this.api.enviarLogoMarca(this.tenantId, file).subscribe({
+      next: (documento) => {
+        this.marcaForm.controls.logoUrl.setValue(documento.url);
+        this.logoPreview.set(documento.url);
+        this.enviandoLogo.set(false);
+      },
+      error: (error) => {
+        this.mensagem.set(error?.error || 'Nao foi possivel enviar a logo.');
+        this.logoPreview.set(this.marcaForm.controls.logoUrl.value);
+        this.logoNomeArquivo.set('');
+        this.enviandoLogo.set(false);
+        input.value = '';
+      },
+    });
+  }
+
+  protected removerLogo(): void {
+    this.marcaForm.controls.logoUrl.setValue('');
+    this.logoNomeArquivo.set('');
+    this.logoPreview.set('');
   }
 
   protected campoInvalido(campo: keyof typeof this.marcaForm.controls): boolean {

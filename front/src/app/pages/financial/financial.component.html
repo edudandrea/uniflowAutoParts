@@ -1,0 +1,234 @@
+<section class="financial-page">
+  <header class="financial-header page-hero">
+    <div class="title-area">
+      <app-icon class="title-icon" name="chart-no-axes-combined" />
+      <div>
+        <h1>Financeiro</h1>
+        <p>Acompanhe recebimentos, pagamentos e o fluxo financeiro da sua empresa.</p>
+      </div>
+    </div>
+
+    <div class="page-hero-visual" aria-hidden="true">
+      <div class="page-hero-card"><app-icon name="file-text" /><div><i></i><i></i></div></div>
+      <div class="page-hero-bars"><i></i><i></i><i></i></div>
+    </div>
+
+    <div class="hero-actions">
+      <button class="period-button" type="button">
+        <app-icon name="calendar" />
+        01/10/2026 - 31/10/2026
+        <app-icon name="chevron-down" />
+      </button>
+    </div>
+  </header>
+
+  <section class="metrics-grid" aria-label="Indicadores financeiros">
+    @for (metric of metrics; track metric.label) {
+      <article class="metric-card" [class]="metric.tone">
+        <app-icon class="metric-icon " [name]="metric.icon" [size]="24" />
+        <div>
+          <p>{{ metric.label }}</p>
+          <strong>{{ metric.value }}</strong>
+          <small>{{ metric.detail }}</small>
+        </div>
+        <em [class.view-action]="metric.delta === 'ver'">
+          @if (metric.delta === 'ver') {
+            <app-icon name="eye" />
+          } @else {
+            {{ metric.delta }} <span>vs. mes anterior</span>
+          }
+        </em>
+      </article>
+    }
+  </section>
+
+  <section class="overview-grid">
+    <article class="panel flow-panel">
+      <div class="panel-header">
+        <div>
+          <app-icon class="section-icon" name="file-text" />
+          <div>
+            <h2>Fluxo financeiro</h2>
+            <p>Entradas e saidas nos ultimos 6 meses.</p>
+          </div>
+        </div>
+        <div class="legend">
+          <span><i class="in"></i>Entradas</span>
+          <span><i class="out"></i>Saidas</span>
+          <span><i class="line"></i>Resultado</span>
+        </div>
+      </div>
+
+      <div class="flow-chart" aria-label="Grafico de fluxo financeiro">
+        <div class="axis">
+          <span>R$ 200.000</span>
+          <span>R$ 150.000</span>
+          <span>R$ 100.000</span>
+          <span>R$ 50.000</span>
+          <span>R$ 0</span>
+        </div>
+        <div class="bars">
+          @for (month of flow; track month.label) {
+            <div class="month">
+              <div class="bar-pair">
+                <span class="bar in" [style.height]="barHeight(month.entradas)"></span>
+                <span class="bar out" [style.height]="barHeight(month.saidas)"></span>
+                <span class="result-dot" [style.bottom]="resultPosition(month.resultado)"></span>
+              </div>
+              <strong>{{ month.label }}</strong>
+            </div>
+          }
+        </div>
+      </div>
+    </article>
+
+    <aside class="panel month-summary">
+      <div class="panel-header compact">
+        <h2>Resumo do mes</h2>
+        <button type="button">Outubro/2026 <app-icon name="chevron-down" /></button>
+      </div>
+      <div class="summary-row positive">
+        <app-icon name="arrow-down" />
+        <div>
+          <strong>Entradas</strong>
+          <small>214 recebimentos</small>
+        </div>
+        <b>R$ 126.840,00 <small>+ 8,4%</small></b>
+      </div>
+      <div class="summary-row negative">
+        <app-icon name="arrow-up" />
+        <div>
+          <strong>Saidas</strong>
+          <small>156 pagamentos</small>
+        </div>
+        <b>R$ 91.420,00 <small>+ 6,2%</small></b>
+      </div>
+      <div class="summary-row result">
+        <app-icon name="ellipsis" />
+        <div>
+          <strong>Resultado</strong>
+          <small>Saldo operacional</small>
+        </div>
+        <b>R$ 35.420,00 <small>+ 14,8%</small></b>
+      </div>
+    </aside>
+  </section>
+
+  <section class="due-grid">
+    <article class="panel table-panel">
+      <div class="panel-header compact">
+        <h2><app-icon class="section-icon" name="calendar-check" />Proximos recebimentos</h2>
+        <a href="#">Ver todos</a>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Vencimento</th>
+              <th>Cliente</th>
+              <th>Origem</th>
+              <th>Valor</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (title of receivables; track title.origem) {
+              <tr>
+                <td>{{ title.vencimento }}</td>
+                <td>{{ title.nome }}</td>
+                <td>{{ title.origem }}</td>
+                <td>{{ title.valor }}</td>
+                <td><span class="status-pill" [class]="statusClass(title.status)">{{ title.status }}</span></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="panel table-panel">
+      <div class="panel-header compact">
+        <h2><app-icon class="section-icon danger" name="calendar-x" />Proximos pagamentos</h2>
+        <a href="#">Ver todos</a>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Vencimento</th>
+              <th>Fornecedor</th>
+              <th>Origem</th>
+              <th>Valor</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (title of payables; track title.origem) {
+              <tr>
+                <td>{{ title.vencimento }}</td>
+                <td>{{ title.nome }}</td>
+                <td>{{ title.origem }}</td>
+                <td>{{ title.valor }}</td>
+                <td><span class="status-pill" [class]="statusClass(title.status)">{{ title.status }}</span></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+
+  <section class="bottom-grid">
+    <article class="panel movements-panel">
+      <div class="panel-header compact">
+        <h2><app-icon class="section-icon" name="circle-dollar-sign" />Movimentacoes recentes</h2>
+        <a href="#">Ver todas</a>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Data/Hora</th>
+              <th>Descricao</th>
+              <th>Origem</th>
+              <th>Forma de pagamento</th>
+              <th>Valor</th>
+              <th>Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (movement of movements; track movement.data + movement.descricao) {
+              <tr>
+                <td>{{ movement.data }}</td>
+                <td>{{ movement.descricao }}</td>
+                <td>{{ movement.origem }}</td>
+                <td>{{ movement.forma }}</td>
+                <td [class.negative-value]="movement.type === 'out'">{{ movement.valor }}</td>
+                <td class="balance-value">{{ movement.saldo }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <aside class="panel accounts-panel">
+      <div class="panel-header compact">
+        <h2><app-icon class="section-icon" name="wallet-cards" />Contas financeiras</h2>
+        <a href="#">Gerenciar</a>
+      </div>
+      <div class="account-list">
+        @for (account of accounts; track account.bank) {
+          <article class="account-row">
+            <app-icon class="account-icon " [name]="account.icon" [size]="20" />
+            <div>
+              <strong>{{ account.bank }}</strong>
+              <small>{{ account.type }}</small>
+            </div>
+            <b>{{ account.balance }}</b>
+          </article>
+        }
+      </div>
+    </aside>
+  </section>
+</section>

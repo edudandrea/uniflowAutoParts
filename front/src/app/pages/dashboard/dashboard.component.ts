@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
 interface MetricCard {
   icon: string;
@@ -42,6 +43,7 @@ interface AlertItem {
 
 @Component({
   selector: 'app-dashboard',
+  imports: [AppIconComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
@@ -59,12 +61,12 @@ export class DashboardComponent {
   protected readonly topProducts: ProductRow[] = [];
 
   protected readonly quickActions: QuickAction[] = [
-    { icon: 'shopping_cart', label: 'Nova venda' },
+    { icon: 'shopping-cart', label: 'Nova venda' },
     { icon: 'search', label: 'Buscar peca' },
-    { icon: 'person_add', label: 'Cadastrar cliente' },
-    { icon: 'description', label: 'Entrada de NF' },
-    { icon: 'inventory_2', label: 'Ajustar estoque' },
-    { icon: 'bar_chart', label: 'Relatorio de vendas' },
+    { icon: 'users', label: 'Cadastrar cliente' },
+    { icon: 'receipt-text', label: 'Entrada de NF' },
+    { icon: 'boxes', label: 'Ajustar estoque' },
+    { icon: 'chart-no-axes-combined', label: 'Relatorio de vendas' },
   ];
 
   protected readonly alerts: AlertItem[] = [];

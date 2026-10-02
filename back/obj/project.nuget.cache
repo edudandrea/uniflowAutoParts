@@ -1,9 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "LDvQPxyiddw=",
+  "dgSpecHash": "YApt66iuX6Y=",
   "success": true,
-  "projectFilePath": "D:\\Dev\\UniflouAutoParts\\back\\UniflowAutoParts.Api.csproj",
+  "projectFilePath": "C:\\Projects\\UniflowAutoParts\\back\\UniflowAutoParts.Api.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\Eduardo\\.nuget\\packages\\awssdk.core\\4.0.102.8\\awssdk.core.4.0.102.8.nupkg.sha512",
+    "C:\\Users\\Eduardo\\.nuget\\packages\\awssdk.s3\\4.0.104.1\\awssdk.s3.4.0.104.1.nupkg.sha512",
     "C:\\Users\\Eduardo\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\Eduardo\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.0\\microsoft.aspnetcore.openapi.10.0.0.nupkg.sha512",
     "C:\\Users\\Eduardo\\.nuget\\packages\\microsoft.build.framework\\18.0.2\\microsoft.build.framework.18.0.2.nupkg.sha512",
@@ -20,7 +22,7 @@
     "C:\\Users\\Eduardo\\.nuget\\packages\\microsoft.entityframeworkcore.relational\\10.0.12\\microsoft.entityframeworkcore.relational.10.0.12.nupkg.sha512",
     "C:\\Users\\Eduardo\\.nuget\\packages\\microsoft.entityframeworkcore.tools\\10.0.12\\microsoft.entityframeworkcore.tools.10.0.12.nupkg.sha512",
     "C:\\Users\\Eduardo\\.nuget\\packages\\microsoft.extensions.dependencymodel\\10.0.12\\microsoft.extensions.dependencymodel.10.0.12.nupkg.sha512",
-    "C:\\Users\\Eduardo\\.nuget\\packages\\microsoft.openapi\\2.0.0\\microsoft.openapi.2.0.0.nupkg.sha512",
+    "C:\\Users\\Eduardo\\.nuget\\packages\\microsoft.openapi\\2.12.2\\microsoft.openapi.2.12.2.nupkg.sha512",
     "C:\\Users\\Eduardo\\.nuget\\packages\\microsoft.visualstudio.solutionpersistence\\1.0.52\\microsoft.visualstudio.solutionpersistence.1.0.52.nupkg.sha512",
     "C:\\Users\\Eduardo\\.nuget\\packages\\mono.texttemplating\\3.0.0\\mono.texttemplating.3.0.0.nupkg.sha512",
     "C:\\Users\\Eduardo\\.nuget\\packages\\newtonsoft.json\\13.0.4\\newtonsoft.json.13.0.4.nupkg.sha512",
@@ -34,18 +36,5 @@
     "C:\\Users\\Eduardo\\.nuget\\packages\\system.composition.runtime\\9.0.0\\system.composition.runtime.9.0.0.nupkg.sha512",
     "C:\\Users\\Eduardo\\.nuget\\packages\\system.composition.typedparts\\9.0.0\\system.composition.typedparts.9.0.0.nupkg.sha512"
   ],
-  "logs": [
-    {
-      "code": "NU1903",
-      "level": "Warning",
-      "message": "O pacote 'Microsoft.OpenApi' 2.0.0 tem uma alta vulnerabilidade de gravidade conhecida, https://github.com/advisories/GHSA-v5pm-xwqc-g5wc",
-      "projectPath": "D:\\Dev\\UniflouAutoParts\\back\\UniflowAutoParts.Api.csproj",
-      "warningLevel": 1,
-      "filePath": "D:\\Dev\\UniflouAutoParts\\back\\UniflowAutoParts.Api.csproj",
-      "libraryId": "Microsoft.OpenApi",
-      "targetGraphs": [
-        "net10.0"
-      ]
-    }
-  ]
+  "logs": []
 }

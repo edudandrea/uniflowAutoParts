@@ -1,0 +1,268 @@
+<section class="applications-page">
+  <header class="applications-hero page-hero">
+    <div class="title-row">
+      <app-icon class="title-icon" name="car-front" />
+      <div>
+        <h1>Aplicacoes de pecas</h1>
+        <p>Vincule as pecas aos veiculos, marcas, modelos e versoes para facilitar a busca e a venda.</p>
+      </div>
+    </div>
+
+    <div class="page-hero-visual" aria-hidden="true">
+      <div class="page-hero-card"><app-icon name="car-front" /><div><i></i><i></i></div></div>
+      <div class="page-hero-bars"><i></i><i></i><i></i></div>
+    </div>
+
+    <div class="hero-actions">
+      <button class="primary-action" type="button" (click)="activeTab.set('details')">
+        <app-icon name="plus" />
+        Nova aplicacao
+      </button>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Etapas de aplicacao">
+    <button type="button" [class.active]="activeTab() === 'search'" (click)="activeTab.set('search')">
+      <app-icon name="search" />
+      Pesquisar peca
+    </button>
+    <button type="button" [class.active]="activeTab() === 'details'" (click)="activeTab.set('details')">
+      <app-icon name="car-front" />
+      Aplicacoes do item
+    </button>
+  </nav>
+
+  @if (activeTab() === 'search') {
+    <section class="search-layout">
+      <article class="search-panel">
+        <header class="panel-title">
+          <h2>Buscar produto</h2>
+          <span>{{ searchResults().length }} resultado(s)</span>
+        </header>
+
+        <label class="search-control">
+          <app-icon name="search" />
+          <input type="search" placeholder="Codigo, descricao, marca ou categoria" [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)" />
+        </label>
+
+        <div class="results-list">
+          @for (part of searchResults(); track part.id) {
+            <button class="part-result" type="button" [class.active]="part.id === selectedPartId()" (click)="selectPart(part)">
+              <span class="part-thumb"><app-icon name="package" /></span>
+              <span>
+                <strong>{{ part.codigo }}</strong>
+                <small>{{ part.descricao }}</small>
+                <em>{{ part.marca }} - {{ part.categoria }}</em>
+              </span>
+              <i>{{ part.applications.length }}</i>
+            </button>
+          } @empty {
+            <div class="empty-list">
+              <app-icon name="package" />
+              <strong>Nenhuma peca encontrada</strong>
+              <small>Revise o codigo ou a descricao pesquisada.</small>
+            </div>
+          }
+        </div>
+      </article>
+
+      <aside class="part-summary">
+        <div class="product-visual">
+          <app-icon name="package" [size]="48" [strokeWidth]="1.5" />
+        </div>
+        <div class="summary-head">
+          <div>
+            <h2>{{ selectedPart().codigo }}</h2>
+            <p>{{ selectedPart().descricao }}</p>
+          </div>
+          <span class="status-pill" [class.inactive]="selectedPart().status === 'Inativo'">{{ selectedPart().status }}</span>
+        </div>
+
+        <dl>
+          <div><dt>Marca</dt><dd>{{ selectedPart().marca }}</dd></div>
+          <div><dt>Categoria</dt><dd>{{ selectedPart().categoria }}</dd></div>
+          <div><dt>NCM</dt><dd>{{ selectedPart().ncm }}</dd></div>
+          <div><dt>Codigo de barras</dt><dd>{{ selectedPart().codigoBarras }}</dd></div>
+          <div><dt>Preco</dt><dd>{{ formatCurrency(selectedPart().preco) }}</dd></div>
+          <div><dt>Estoque</dt><dd>{{ selectedPart().estoque }} {{ selectedPart().unidade }}</dd></div>
+        </dl>
+
+        <button class="primary-action" type="button" (click)="activeTab.set('details')">
+          <app-icon name="eye" />
+          Ver aplicacoes
+        </button>
+      </aside>
+    </section>
+  } @else {
+    <section class="details-layout">
+      <aside class="product-card">
+        <div class="product-visual large">
+          <app-icon name="package" [size]="58" [strokeWidth]="1.5" />
+        </div>
+        <div class="summary-head">
+          <div>
+            <h2>{{ selectedPart().codigo }}</h2>
+            <p>{{ selectedPart().descricao }}</p>
+          </div>
+          <span class="status-pill" [class.inactive]="selectedPart().status === 'Inativo'">{{ selectedPart().status }}</span>
+        </div>
+        <button class="secondary-action" type="button">
+          <app-icon name="pencil" />
+          Editar produto
+        </button>
+        <button class="primary-action" type="button">
+          <app-icon name="plus" />
+          Nova aplicacao
+        </button>
+
+        <section class="info-card">
+          <h3>Informacoes da peca</h3>
+          <dl>
+            <div><dt>Codigo interno</dt><dd>{{ selectedPart().codigo }}</dd></div>
+            <div><dt>Codigo fabricante</dt><dd>{{ selectedPart().codigoFabricante }}</dd></div>
+            <div><dt>Descricao</dt><dd>{{ selectedPart().descricao }}</dd></div>
+            <div><dt>Marca</dt><dd>{{ selectedPart().marca }}</dd></div>
+            <div><dt>Categoria</dt><dd>{{ selectedPart().categoria }}</dd></div>
+            <div><dt>Unidade</dt><dd>{{ selectedPart().unidade }}</dd></div>
+            <div><dt>Peso liquido</dt><dd>{{ selectedPart().peso }}</dd></div>
+            <div><dt>Dimensoes</dt><dd>{{ selectedPart().dimensoes }}</dd></div>
+          </dl>
+        </section>
+      </aside>
+
+      <div class="applications-column">
+        <section class="filters-panel">
+          <h2>Filtros de aplicacao</h2>
+          <div class="filter-grid">
+            <label>
+              <span>Marca do veiculo</span>
+              <select [ngModel]="montadoraFiltro()" (ngModelChange)="montadoraFiltro.set($event)">
+                <option>Todas</option>
+                @for (montadora of montadoras(); track montadora) {
+                  <option>{{ montadora }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Modelo</span>
+              <select [ngModel]="modeloFiltro()" (ngModelChange)="modeloFiltro.set($event)">
+                <option>Todos</option>
+                @for (modelo of modelos(); track modelo) {
+                  <option>{{ modelo }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Ano de</span>
+              <select [ngModel]="anoDeFiltro()" (ngModelChange)="anoDeFiltro.set($event)">
+                <option>Todos</option>
+                @for (year of years; track year) {
+                  <option>{{ year }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Ano ate</span>
+              <select [ngModel]="anoAteFiltro()" (ngModelChange)="anoAteFiltro.set($event)">
+                <option>Todos</option>
+                @for (year of years; track year) {
+                  <option>{{ year }}</option>
+                }
+              </select>
+            </label>
+            <label>
+              <span>Motor</span>
+              <select [ngModel]="motorFiltro()" (ngModelChange)="motorFiltro.set($event)">
+                <option>Todos</option>
+                @for (motor of motores(); track motor) {
+                  <option>{{ motor }}</option>
+                }
+              </select>
+            </label>
+            <button class="primary-action" type="button" (click)="resetFilters()">
+              <app-icon name="search" />
+              Pesquisar
+            </button>
+          </div>
+        </section>
+
+        <section class="applications-panel">
+          <header class="panel-title">
+            <h2>Aplicacoes encontradas ({{ filteredApplications().length }})</h2>
+            <button class="secondary-action" type="button">
+              <app-icon name="download" />
+              Exportar
+            </button>
+          </header>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Marca</th>
+                  <th>Modelo</th>
+                  <th>Versao</th>
+                  <th>Motor</th>
+                  <th>Ano inicial</th>
+                  <th>Ano final</th>
+                  <th>Posicao</th>
+                  <th>Observacao</th>
+                  <th>Acoes</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (application of filteredApplications(); track application.id) {
+                  <tr>
+                    <td><span class="brand-dot">{{ application.montadora.slice(0, 2) }}</span>{{ application.montadora }}</td>
+                    <td>{{ application.modelo }}</td>
+                    <td>{{ application.versao }}</td>
+                    <td>{{ application.motor }}</td>
+                    <td>{{ application.anoInicial }}</td>
+                    <td>{{ application.anoFinal }}</td>
+                    <td>{{ application.posicao }}</td>
+                    <td>{{ application.observacao }}</td>
+                    <td class="row-actions">
+                      <button type="button" aria-label="Editar aplicacao"><app-icon name="pencil" /></button>
+                      <button type="button" aria-label="Excluir aplicacao" (click)="removerAplicacao(application.id)"><app-icon name="trash-2" /></button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="9">
+                      <div class="empty-list">
+                        <app-icon name="car-front" />
+                        <strong>Nenhuma aplicacao encontrada</strong>
+                        <small>Ajuste os filtros ou cadastre uma nova aplicacao.</small>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="application-form">
+      <h2>Adicionar / editar aplicacao</h2>
+      <div class="form-grid">
+        <label><span>Marca</span><input type="text" [(ngModel)]="novaAplicacao.montadora" /></label>
+        <label><span>Modelo</span><input type="text" [(ngModel)]="novaAplicacao.modelo" /></label>
+        <label><span>Versao</span><input type="text" [(ngModel)]="novaAplicacao.versao" /></label>
+        <label><span>Motor</span><input type="text" [(ngModel)]="novaAplicacao.motor" /></label>
+        <label><span>Ano inicial</span><input type="number" [(ngModel)]="novaAplicacao.anoInicial" /></label>
+        <label><span>Ano final</span><input type="number" [(ngModel)]="novaAplicacao.anoFinal" /></label>
+        <label><span>Posicao</span><input type="text" [(ngModel)]="novaAplicacao.posicao" /></label>
+        <label><span>Observacao</span><input type="text" [(ngModel)]="novaAplicacao.observacao" /></label>
+        <div class="form-actions">
+          <button class="secondary-action" type="button" (click)="activeTab.set('search')">Cancelar</button>
+          <button class="primary-action" type="button" (click)="salvarAplicacao()">
+            <app-icon name="save" />
+            Salvar aplicacao
+          </button>
+        </div>
+      </div>
+    </section>
+  }
+</section>

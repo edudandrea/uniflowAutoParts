@@ -342,3 +342,12 @@ D:\Dev\UniflouAutoParts\back\obj\Debug\net10.0\refint\UniflowAutoParts.Api.dll
 D:\Dev\UniflouAutoParts\back\obj\Debug\net10.0\UniflowAutoParts.Api.pdb
 D:\Dev\UniflouAutoParts\back\obj\Debug\net10.0\UniflowAutoParts.Api.genruntimeconfig.cache
 D:\Dev\UniflouAutoParts\back\obj\Debug\net10.0\ref\UniflowAutoParts.Api.dll
+C:\Projects\UniflowAutoParts\tmp-build\api\appsettings.Development.json
+C:\Projects\UniflowAutoParts\tmp-build\api\appsettings.json
+C:\Projects\UniflowAutoParts\tmp-build\api\UniflowAutoParts.Api.staticwebassets.endpoints.json
+C:\Projects\UniflowAutoParts\tmp-build\api\UniflowAutoParts.Api.deps.json
+C:\Projects\UniflowAutoParts\tmp-build\api\UniflowAutoParts.Api.runtimeconfig.json
+C:\Projects\UniflowAutoParts\tmp-build\api\UniflowAutoParts.Api.dll
+C:\Projects\UniflowAutoParts\tmp-build\api\UniflowAutoParts.Api.pdb
+C:\Projects\UniflowAutoParts\back\bin\Debug\net10.0\AWSSDK.Core.dll
+C:\Projects\UniflowAutoParts\back\bin\Debug\net10.0\AWSSDK.S3.dll

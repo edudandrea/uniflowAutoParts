@@ -1,7 +1,7 @@
 <section class="addresses-page">
   <header class="addresses-topbar">
     <label class="global-search" aria-label="Busca de enderecos">
-      <span class="material-symbol" aria-hidden="true">search</span>
+      <app-icon name="search" />
       <input
         type="search"
         placeholder="Buscar por cidade, endereco, CEP..."
@@ -13,7 +13,7 @@
 
     <div class="user-summary">
       <button type="button" class="topbar-icon" aria-label="Notificacoes">
-        <span class="material-symbol" aria-hidden="true">notifications</span>
+        <app-icon name="bell" />
       </button>
       <div class="user-avatar" aria-hidden="true">U</div>
       <div>
@@ -21,42 +21,40 @@
         <span>Sistema exposto</span>
       </div>
       <button type="button" class="topbar-icon" aria-label="Alternar tema">
-        <span class="material-symbol" aria-hidden="true">dark_mode</span>
+        <app-icon name="moon" />
       </button>
-      <span class="material-symbol chevron" aria-hidden="true">expand_more</span>
+      <app-icon class="chevron" name="chevron-down" />
     </div>
   </header>
 
-  <header class="addresses-hero">
-    <div class="hero-title">
-      <div class="title-icon">
-        <span class="material-symbol" aria-hidden="true">location_on</span>
-      </div>
+  <header class="addresses-hero page-hero">
+    <div class="hero-title title-row">
+      <app-icon class="title-icon" name="map-pin" />
       <div>
-        <div class="back-line">
-          <span class="material-symbol" aria-hidden="true">arrow_back</span>
-          Fornecedores
-          <span aria-hidden="true">&gt;</span>
-          Enderecos
-        </div>
         <h1>Enderecos</h1>
         <p>Gerencie os locais de entrega, cobranca e operacao dos seus fornecedores.</p>
       </div>
     </div>
-    <button class="primary-action" type="button" (click)="abrirNovoEndereco()">
-      <span class="material-symbol" aria-hidden="true">add</span>
-      Novo endereco
-    </button>
+    <div class="page-hero-visual" aria-hidden="true">
+      <div class="page-hero-card"><app-icon name="map-pin" /><div><i></i><i></i></div></div>
+      <div class="page-hero-bars"><i></i><i></i><i></i></div>
+    </div>
+    <div class="hero-actions">
+      <button class="primary-action" type="button" (click)="abrirNovoEndereco()">
+        <app-icon name="plus" />
+        Novo endereco
+      </button>
+    </div>
   </header>
 
   <section class="metrics-grid" aria-label="Resumo de enderecos">
     @for (metric of metrics(); track metric.label) {
       <article class="metric-card">
-        <span class="metric-icon material-symbol" aria-hidden="true">{{ metric.icon }}</span>
+        <app-icon class="metric-icon " [name]="metric.icon" [size]="24" />
         <div>
           <p>{{ metric.label }}</p>
           <strong>{{ metric.value }}</strong>
-          <small><span class="material-symbol">arrow_upward</span>{{ metric.detail }}</small>
+          <small><app-icon name="arrow-up" [size]="14" [strokeWidth]="2" />{{ metric.detail }}</small>
         </div>
       </article>
     }
@@ -65,7 +63,7 @@
   <section class="addresses-panel">
     <div class="filters-bar">
       <label class="search-control">
-        <span class="material-symbol" aria-hidden="true">search</span>
+        <app-icon name="search" />
         <input
           type="search"
           placeholder="Buscar por fornecedor, cidade, estado ou endereco..."
@@ -106,7 +104,7 @@
         </select>
       </label>
       <button class="filter-button" type="button" (click)="limparFiltros()">
-        <span class="material-symbol" aria-hidden="true">filter_alt</span>
+        <app-icon name="sliders-horizontal" />
         Filtros
       </button>
     </div>
@@ -126,7 +124,7 @@
       }
       @if (busca() || cidadeFiltro() !== 'Todas' || tipoEnderecoFiltro() !== 'Todos' || statusFiltro() !== 'Todos') {
         <button class="clear-filters" type="button" (click)="limparFiltros()">
-          <span class="material-symbol" aria-hidden="true">delete</span>
+          <app-icon name="trash-2" />
           Limpar filtros
         </button>
       }
@@ -167,7 +165,7 @@
               </td>
               <td>{{ endereco.municipio }} - {{ endereco.uf }}</td>
               <td>{{ formatCep(endereco.cep) }}</td>
-              <td><span class="star material-symbol" [class.active]="isPrincipal(endereco)">star</span></td>
+              <td><app-icon class="star" name="star" /></td>
               <td><span class="status-pill" [class.inactive]="!endereco.ativo">{{ endereco.ativo ? 'Ativo' : 'Inativo' }}</span></td>
               <td><button class="row-action" type="button" aria-label="Acoes">...</button></td>
             </tr>
@@ -175,7 +173,7 @@
             <tr>
               <td colspan="9">
                 <div class="empty-list">
-                  <span class="material-symbol" aria-hidden="true">map</span>
+                  <app-icon name="map-pin" />
                   <strong>Nenhum endereco cadastrado</strong>
                   <small>Clique em Novo endereco para criar o primeiro cadastro.</small>
                 </div>
@@ -190,7 +188,7 @@
       <span>Mostrando {{ enderecosFiltrados().length }} de {{ enderecos().length }} enderecos</span>
       <div class="pager">
         <button class="active" type="button">1</button>
-        <button type="button"><span class="material-symbol">chevron_right</span></button>
+        <button type="button"><app-icon name="chevron-right" /></button>
       </div>
     </footer>
   </section>
@@ -200,14 +198,14 @@
       <section class="address-modal" role="dialog" aria-modal="true" aria-labelledby="address-modal-title">
         <header class="modal-titlebar">
           <span class="title-icon">
-            <span class="material-symbol" aria-hidden="true">add_location_alt</span>
+            <app-icon name="map-pin" />
           </span>
           <div>
             <h2 id="address-modal-title">Novo endereco</h2>
             <p>Preencha os dados para cadastrar um novo endereco.</p>
           </div>
           <button class="close-button" type="button" aria-label="Fechar" (click)="fecharNovoEndereco()">
-            <span class="material-symbol" aria-hidden="true">close</span>
+            <app-icon name="x" />
           </button>
         </header>
 
@@ -234,7 +232,7 @@
             <span>CEP <b class="required">*</b></span>
             <span class="input-action">
               <input type="text" formControlName="cep" placeholder="00000-000" [class.invalid]="campoInvalido('cep')" />
-              <button type="button" aria-label="Pesquisar CEP"><span class="material-symbol">search</span></button>
+              <button type="button" aria-label="Pesquisar CEP"><app-icon name="search" /></button>
             </span>
             @if (campoInvalido('cep')) {
               <small class="field-error">CEP e obrigatorio.</small>
@@ -295,22 +293,22 @@
             <div>
               <label class="check-option">
                 <input type="checkbox" formControlName="enderecoPrincipal" />
-                <span class="material-symbol">star</span>
+                <app-icon name="star" />
                 Endereco principal
               </label>
               <label class="check-option">
                 <input type="checkbox" formControlName="recebimentoMercadorias" />
-                <span class="material-symbol">local_shipping</span>
+                <app-icon name="truck" />
                 Recebimento de mercadorias
               </label>
               <label class="check-option">
                 <input type="checkbox" formControlName="entrega" />
-                <span class="material-symbol">inventory_2</span>
+                <app-icon name="boxes" />
                 Entrega
               </label>
               <label class="check-option">
                 <input type="checkbox" formControlName="correspondencias" />
-                <span class="material-symbol">mail</span>
+                <app-icon name="mail" />
                 Correspondencias
               </label>
             </div>
@@ -333,7 +331,7 @@
             </label>
             <button class="cancel-button" type="button" (click)="fecharNovoEndereco()">Cancelar</button>
             <button class="primary-action" type="submit" [disabled]="salvando()">
-              <span class="material-symbol">save</span>{{ salvando() ? 'Salvando...' : 'Salvar endereco' }}
+              <app-icon name="save" />{{ salvando() ? 'Salvando...' : 'Salvar endereco' }}
             </button>
           </footer>
         </form>

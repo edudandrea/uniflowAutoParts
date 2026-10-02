@@ -3,10 +3,11 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { Categoria } from '../../core/app-models';
 import { ApiService } from '../../core/api.service';
+import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
 @Component({
   selector: 'app-categories',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, AppIconComponent],
   templateUrl: './categories.component.html',
   styleUrl: './categories.component.scss',
 })
@@ -21,7 +22,7 @@ export class CategoriesComponent {
   protected readonly salvando = signal(false);
   protected readonly mensagem = signal('');
 
-  protected readonly iconOptions = ['category', 'album', 'settings', 'filter_alt', 'build', 'bolt', 'water_drop', 'directions_car'];
+  protected readonly iconOptions = ['tags', 'package', 'settings', 'sliders-horizontal', 'badge', 'circle-dollar-sign', 'truck', 'car-front'];
 
   protected readonly categoriasPai = computed(() => {
     return this.categorias()
@@ -57,10 +58,10 @@ export class CategoriesComponent {
     const produtos = categorias.reduce((total, categoria) => total + categoria.produtos, 0);
 
     return [
-      { icon: 'category', label: 'Total de categorias', value: categorias.length, detail: 'base atual' },
-      { icon: 'account_tree', label: 'Categorias principais', value: principais, detail: `${subcategorias} subcategorias` },
-      { icon: 'verified', label: 'Ativas', value: ativas, detail: this.percentual(ativas, categorias.length) },
-      { icon: 'deployed_code', label: 'Produtos vinculados', value: produtos, detail: 'categorias finais' },
+      { icon: 'tags', label: 'Total de categorias', value: categorias.length, detail: 'base atual' },
+      { icon: 'sliders-horizontal', label: 'Categorias principais', value: principais, detail: `${subcategorias} subcategorias` },
+      { icon: 'badge-check', label: 'Ativas', value: ativas, detail: this.percentual(ativas, categorias.length) },
+      { icon: 'package', label: 'Produtos vinculados', value: produtos, detail: 'categorias finais' },
     ];
   });
 
@@ -68,7 +69,7 @@ export class CategoriesComponent {
     nome: ['', [Validators.required]],
     categoriaPaiId: [''],
     descricao: [''],
-    icone: ['category'],
+    icone: ['tags'],
     ordem: [10],
     ativo: [true],
   });
@@ -83,7 +84,7 @@ export class CategoriesComponent {
       nome: '',
       categoriaPaiId: '',
       descricao: '',
-      icone: 'category',
+      icone: 'tags',
       ordem: 10,
       ativo: true,
     });

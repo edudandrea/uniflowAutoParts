@@ -9,7 +9,9 @@ import {
   CriarCategoriaPayload,
   CriarClientePayload,
   CriarMarcaPayload,
+  AtualizarMarcaPayload,
   CriarProdutoPayload,
+  DocumentoUploadResponse,
   ImportarProdutosFabricanteResponse,
   ImportarNfeResponse,
   Marca,
@@ -58,6 +60,17 @@ export class ApiService {
 
   criarMarca(payload: CriarMarcaPayload) {
     return this.http.post<Marca>(`${this.apiUrl}/marcas`, payload);
+  }
+
+  atualizarMarca(id: number, payload: AtualizarMarcaPayload) {
+    return this.http.put<Marca>(`${this.apiUrl}/marcas/${id}`, payload);
+  }
+
+  enviarLogoMarca(tenantId: number, arquivo: File) {
+    const formData = new FormData();
+    formData.append('arquivo', arquivo);
+
+    return this.http.post<DocumentoUploadResponse>(`${this.apiUrl}/documentos/empresas/${tenantId}/marcas/logos`, formData);
   }
 
   listarProdutos(empresaId: number, pagina = 1, tamanhoPagina = 50, busca = '') {

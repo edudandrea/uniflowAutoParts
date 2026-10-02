@@ -10,6 +10,16 @@ public record CriarMarcaRequest(
     string? Observacao,
     bool Ativo);
 
+public record AtualizarMarcaRequest(
+    long TenantId,
+    string Nome,
+    string? Codigo,
+    string? Descricao,
+    string? LogoUrl,
+    string? Site,
+    string? Observacao,
+    bool Ativo);
+
 public record MarcaResponse(
     long Id,
     long TenantId,

@@ -1,7 +1,7 @@
 .company-shell {
   min-height: 100dvh;
   display: grid;
-  grid-template-columns: 244px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
   background:
     linear-gradient(135deg, rgba(19, 168, 106, 0.08), transparent 34%),
     linear-gradient(315deg, rgba(18, 191, 210, 0.08), transparent 32%),
@@ -17,6 +17,10 @@
   border-right: 1px solid rgba(11, 36, 56, 0.08);
   background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(18px);
+}
+
+.mobile-shell-bar {
+  display: none;
 }
 
 .sidebar-brand {
@@ -54,14 +58,22 @@ nav {
   min-height: 48px;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   border: 1px solid transparent;
   border-radius: 8px;
-  padding: 0 16px;
+  padding: 0 12px;
   color: #365267;
   font-size: 0.94rem;
   font-weight: 600;
   text-decoration: none;
+}
+
+.nav-item > span,
+.nav-child > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav-toggle {
@@ -99,7 +111,7 @@ nav {
 }
 
 .nav-children.open {
-  max-height: 160px;
+  max-height: 280px;
   padding-top: 6px;
   opacity: 1;
   transform: translateY(0);
@@ -119,9 +131,8 @@ nav {
   text-decoration: none;
 }
 
-.nav-child .material-symbol {
+.nav-child app-icon {
   width: 20px;
-  font-size: 1.05rem;
 }
 
 .nav-child:hover,
@@ -144,18 +155,14 @@ nav {
   box-shadow: 0 14px 30px rgba(19, 168, 106, 0.12);
 }
 
-.material-symbol {
+.nav-item app-icon,
+.nav-toggle app-icon {
   width: 24px;
   color: #0d2234;
-  font-family: "Material Symbols Rounded";
-  font-size: 1.35rem;
-  font-weight: 400;
-  line-height: 1;
-  text-align: center;
 }
 
-.nav-item.active .material-symbol,
-.nav-toggle.active .material-symbol {
+.nav-item.active app-icon,
+.nav-toggle.active app-icon {
   color: var(--brand-green-dark);
 }
 
@@ -171,7 +178,7 @@ nav {
   box-shadow: var(--shadow-sm);
 }
 
-.support-card .material-symbol {
+.support-card app-icon {
   width: 34px;
   height: 34px;
   display: grid;
@@ -201,6 +208,7 @@ nav {
 .company-content {
   min-width: 0;
   padding: 18px;
+  overflow: hidden;
 }
 
 @media (max-width: 1080px) {
@@ -227,5 +235,102 @@ nav {
     grid-auto-columns: minmax(136px, max-content);
     overflow-x: auto;
     padding-bottom: 2px;
+  }
+}
+
+@media (max-width: 640px) {
+  .company-shell {
+    min-height: 100svh;
+  }
+
+  .company-sidebar {
+    gap: 0;
+    padding: 0;
+    background: rgba(255, 255, 255, 0.94);
+  }
+
+  .mobile-shell-bar {
+    min-height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(11, 36, 56, 0.08);
+  }
+
+  .mobile-brand {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .mobile-brand img {
+    width: min(164px, 58vw);
+    max-height: 46px;
+    object-fit: contain;
+    object-position: left center;
+  }
+
+  .mobile-menu-button {
+    width: 44px;
+    min-height: 44px;
+    flex: 0 0 auto;
+    padding: 0;
+    color: #0d2234;
+    border: 1px solid var(--border);
+    background: #fff;
+  }
+
+  .sidebar-brand,
+  .support-card {
+    display: none;
+  }
+
+  nav {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    gap: 6px;
+    max-height: 0;
+    overflow: hidden;
+    padding: 0 10px;
+    opacity: 0;
+    transition: max-height 0.24s ease, opacity 0.2s ease, padding 0.24s ease;
+  }
+
+  .company-sidebar.mobile-open nav {
+    max-height: calc(100svh - 64px);
+    overflow-y: auto;
+    padding: 10px;
+    opacity: 1;
+  }
+
+  .nav-item {
+    min-height: 44px;
+    padding: 0 12px;
+  }
+
+  .nav-children {
+    padding-left: 10px;
+  }
+
+  .company-content {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    justify-self: start;
+    padding: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .company-content {
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    padding: 10px;
+  }
+
+  .nav-item,
+  .nav-child {
+    font-size: 0.86rem;
   }
 }

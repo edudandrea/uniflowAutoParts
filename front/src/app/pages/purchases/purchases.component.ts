@@ -1,4 +1,5 @@
 import { Component, computed, signal } from '@angular/core';
+import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
 interface PurchaseMetric {
   icon: string;
@@ -34,6 +35,7 @@ interface Receipt {
 
 @Component({
   selector: 'app-purchases',
+  imports: [AppIconComponent],
   templateUrl: './purchases.component.html',
   styleUrl: './purchases.component.scss',
 })
@@ -47,10 +49,10 @@ export class PurchasesComponent {
     const recebimentos = this.receipts.reduce((total, receipt) => total + receipt.valor, 0);
 
     return [
-      { icon: 'shopping_cart', label: 'Compras no mes', value: this.formatCurrency(comprasMes), detail: 'base atual', tone: 'success' },
-      { icon: 'description', label: 'Pedidos em aberto', value: String(abertos.length), detail: this.formatCurrency(abertos.reduce((total, order) => total + order.total, 0)), tone: 'neutral' },
-      { icon: 'schedule', label: 'Pedidos em atraso', value: String(atrasados.length), detail: this.formatCurrency(atrasados.reduce((total, order) => total + order.total, 0)), tone: 'danger' },
-      { icon: 'local_shipping', label: 'Recebimentos (mes)', value: String(this.receipts.length), detail: this.formatCurrency(recebimentos), tone: 'success' },
+      { icon: 'shopping-bag', label: 'Compras no mes', value: this.formatCurrency(comprasMes), detail: 'base atual', tone: 'success' },
+      { icon: 'file-text', label: 'Pedidos em aberto', value: String(abertos.length), detail: this.formatCurrency(abertos.reduce((total, order) => total + order.total, 0)), tone: 'neutral' },
+      { icon: 'info', label: 'Pedidos em atraso', value: String(atrasados.length), detail: this.formatCurrency(atrasados.reduce((total, order) => total + order.total, 0)), tone: 'danger' },
+      { icon: 'truck', label: 'Recebimentos (mes)', value: String(this.receipts.length), detail: this.formatCurrency(recebimentos), tone: 'success' },
     ];
   });
 
@@ -59,10 +61,10 @@ export class PurchasesComponent {
   protected readonly orders: PurchaseOrder[] = [];
 
   protected readonly quickActions: QuickAction[] = [
-    { icon: 'add_shopping_cart', title: 'Nova compra', detail: 'Criar um novo pedido' },
-    { icon: 'note_add', title: 'Importar NF-e', detail: 'Leia o XML do fornecedor' },
-    { icon: 'shopping_cart_checkout', title: 'Sugestao de compra', detail: 'Gerar automaticamente' },
-    { icon: 'request_quote', title: 'Cotacoes', detail: 'Comparar fornecedores' },
+    { icon: 'plus', title: 'Nova compra', detail: 'Criar um novo pedido' },
+    { icon: 'file-up', title: 'Importar NF-e', detail: 'Leia o XML do fornecedor' },
+    { icon: 'shopping-cart', title: 'Sugestao de compra', detail: 'Gerar automaticamente' },
+    { icon: 'file-text', title: 'Cotacoes', detail: 'Comparar fornecedores' },
   ];
 
   protected readonly receipts: Receipt[] = [];

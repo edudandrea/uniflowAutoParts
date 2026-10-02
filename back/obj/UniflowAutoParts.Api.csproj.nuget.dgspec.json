@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "D:\\Dev\\UniflouAutoParts\\back\\UniflowAutoParts.Api.csproj": {}
+    "C:\\Projects\\UniflowAutoParts\\back\\UniflowAutoParts.Api.csproj": {}
   },
   "projects": {
-    "D:\\Dev\\UniflouAutoParts\\back\\UniflowAutoParts.Api.csproj": {
+    "C:\\Projects\\UniflowAutoParts\\back\\UniflowAutoParts.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Dev\\UniflouAutoParts\\back\\UniflowAutoParts.Api.csproj",
+        "projectUniqueName": "C:\\Projects\\UniflowAutoParts\\back\\UniflowAutoParts.Api.csproj",
         "projectName": "UniflowAutoParts.Api",
-        "projectPath": "D:\\Dev\\UniflouAutoParts\\back\\UniflowAutoParts.Api.csproj",
+        "projectPath": "C:\\Projects\\UniflowAutoParts\\back\\UniflowAutoParts.Api.csproj",
         "packagesPath": "C:\\Users\\Eduardo\\.nuget\\packages\\",
-        "outputPath": "D:\\Dev\\UniflouAutoParts\\back\\obj\\",
+        "outputPath": "C:\\Projects\\UniflowAutoParts\\back\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Eduardo\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -46,6 +46,10 @@
           "framework": "net10.0",
           "targetAlias": "net10.0",
           "dependencies": {
+            "AWSSDK.S3": {
+              "target": "Package",
+              "version": "[4.0.104.1, )"
+            },
             "Microsoft.AspNetCore.OpenApi": {
               "target": "Package",
               "version": "[10.0.0, )"
@@ -61,6 +65,10 @@
               "suppressParent": "All",
               "target": "Package",
               "version": "[10.0.12, )"
+            },
+            "Microsoft.OpenApi": {
+              "target": "Package",
+              "version": "[2.12.2, )"
             },
             "Npgsql.EntityFrameworkCore.PostgreSQL": {
               "target": "Package",

@@ -1,5 +1,24 @@
 <main class="company-shell">
-  <aside class="company-sidebar">
+  <aside class="company-sidebar" [class.mobile-open]="mobileMenuOpen()">
+    <div class="mobile-shell-bar">
+      <div class="mobile-brand">
+        @if (!logoUnavailable()) {
+          <img src="/logo-uniflow-autoparts.png" alt="UniFlow AutoParts" (error)="logoUnavailable.set(true)" />
+        } @else {
+          <div class="mini-mark">UF</div>
+        }
+      </div>
+      <button
+        class="mobile-menu-button"
+        type="button"
+        aria-label="Abrir menu"
+        [attr.aria-expanded]="mobileMenuOpen()"
+        (click)="toggleMobileMenu()"
+      >
+        <app-icon [name]="mobileMenuOpen() ? 'x' : 'menu'" [size]="20" [strokeWidth]="2" />
+      </button>
+    </div>
+
     <div class="sidebar-brand">
       @if (!logoUnavailable()) {
         <img src="/logo-uniflow-autoparts.png" alt="UniFlow AutoParts" (error)="logoUnavailable.set(true)" />
@@ -19,21 +38,21 @@
               [attr.aria-expanded]="isExpanded(item.label)"
               (click)="toggleMenu(item.label)"
             >
-              <span class="material-symbol" aria-hidden="true">{{ item.icon }}</span>
+              <app-icon [name]="item.icon" [size]="20" [strokeWidth]="1.8" />
               <span>{{ item.label }}</span>
-              <span class="material-symbol expand-icon" aria-hidden="true">expand_more</span>
+              <app-icon class="expand-icon" name="chevron-down" [size]="16" [strokeWidth]="2" />
             </button>
             <div class="nav-children" [class.open]="isExpanded(item.label)">
               @for (child of item.children; track child.label) {
-                <a class="nav-child" [routerLink]="child.path" routerLinkActive="active">
-                  <span class="material-symbol" aria-hidden="true">{{ child.icon }}</span>
+                <a class="nav-child" [routerLink]="child.path" routerLinkActive="active" (click)="closeMobileMenu()">
+                  <app-icon [name]="child.icon" [size]="18" [strokeWidth]="1.8" />
                   <span>{{ child.label }}</span>
                 </a>
               }
             </div>
           } @else {
-            <a class="nav-item" [routerLink]="item.path" routerLinkActive="active">
-              <span class="material-symbol" aria-hidden="true">{{ item.icon }}</span>
+            <a class="nav-item" [routerLink]="item.path" routerLinkActive="active" (click)="closeMobileMenu()">
+              <app-icon [name]="item.icon" [size]="20" [strokeWidth]="1.8" />
               <span>{{ item.label }}</span>
             </a>
           }
@@ -42,7 +61,7 @@
     </nav>
 
     <section class="support-card" aria-label="Suporte">
-      <span class="material-symbol" aria-hidden="true">headset_mic</span>
+      <app-icon name="headphones" [size]="28" [strokeWidth]="1.5" />
       <strong>Precisa de ajuda?</strong>
       <small>Nossa equipe esta pronta para te atender.</small>
       <button type="button">Abrir suporte</button>

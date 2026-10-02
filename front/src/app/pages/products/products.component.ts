@@ -3,6 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { Categoria, Marca, Produto } from '../../core/app-models';
 import { ApiService } from '../../core/api.service';
+import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
 interface CatalogMetric {
   icon: string;
@@ -40,7 +41,7 @@ interface ImportHistory {
 
 @Component({
   selector: 'app-products',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, AppIconComponent],
   templateUrl: './products.component.html',
   styleUrl: './products.component.scss',
 })
@@ -73,10 +74,10 @@ export class ProductsComponent {
     const brands = this.marcas().length;
 
     return [
-      { icon: 'deployed_code', label: 'Total de produtos', value: String(total), delta: 'base atual', tone: 'success' },
-      { icon: 'check_circle', label: 'Produtos ativos', value: String(active), delta: this.percentual(active, total), tone: 'success' },
-      { icon: 'cancel', label: 'Produtos inativos', value: String(inactive), delta: this.percentual(inactive, total), tone: 'danger' },
-      { icon: 'sell', label: 'Marcas cadastradas', value: String(brands), delta: 'base atual', tone: 'success' },
+      { icon: 'package', label: 'Total de produtos', value: String(total), delta: 'base atual', tone: 'success' },
+      { icon: 'badge-check', label: 'Produtos ativos', value: String(active), delta: this.percentual(active, total), tone: 'success' },
+      { icon: 'x', label: 'Produtos inativos', value: String(inactive), delta: this.percentual(inactive, total), tone: 'danger' },
+      { icon: 'badge', label: 'Marcas cadastradas', value: String(brands), delta: 'base atual', tone: 'success' },
     ];
   });
 

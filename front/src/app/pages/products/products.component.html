@@ -1,22 +1,27 @@
 <section class="products-page">
-  <header class="products-hero">
+  <header class="products-hero page-hero">
     <div class="title-row">
-      <span class="title-icon material-symbol" aria-hidden="true">deployed_code</span>
+      <app-icon class="title-icon" name="package" />
       <div>
         <h1>Produtos</h1>
         <p>Cadastre e gerencie seus itens de forma simples e eficiente.</p>
       </div>
     </div>
 
+    <div class="page-hero-visual" aria-hidden="true">
+      <div class="page-hero-card"><app-icon name="package" /><div><i></i><i></i></div></div>
+      <div class="page-hero-bars"><i></i><i></i><i></i></div>
+    </div>
+
     <div class="hero-actions">
       <button class="primary-action" type="button" (click)="abrirNovoProduto()">
-        <span class="material-symbol" aria-hidden="true">add</span>
+        <app-icon name="plus" />
         Novo produto
       </button>
       <button class="secondary-action" type="button" (click)="abrirImportacao()">
-        <span class="material-symbol" aria-hidden="true">upload</span>
+        <app-icon name="upload" />
         Importar arquivo
-        <span class="material-symbol" aria-hidden="true">expand_more</span>
+        <app-icon name="chevron-down" />
       </button>
     </div>
   </header>
@@ -24,12 +29,12 @@
   <section class="metrics-grid" aria-label="Resumo dos produtos">
     @for (metric of metrics(); track metric.label) {
       <article class="metric-card" [class.danger]="metric.tone === 'danger'">
-        <span class="metric-icon material-symbol" aria-hidden="true">{{ metric.icon }}</span>
+        <app-icon class="metric-icon " [name]="metric.icon" [size]="24" />
         <div>
           <p>{{ metric.label }}</p>
           <strong>{{ metric.value }}</strong>
           <small [class.down]="metric.tone === 'danger'">
-            <b class="material-symbol">{{ metric.tone === 'danger' ? 'arrow_downward' : 'arrow_upward' }}</b>
+            <app-icon [name]="metric.tone === 'danger' ? 'arrow-down' : 'arrow-up'" [size]="14" [strokeWidth]="2" />
             {{ metric.delta }}
           </small>
         </div>
@@ -41,7 +46,7 @@
     <article class="catalog-panel">
       <div class="filters-bar">
         <label class="search-control">
-          <span class="material-symbol" aria-hidden="true">search</span>
+          <app-icon name="search" />
           <input type="search" placeholder="Buscar por codigo, descricao, codigo de fabrica..." (input)="buscarProdutos($event)" />
         </label>
         <select aria-label="Marca">
@@ -57,7 +62,7 @@
           <option>Todos</option>
         </select>
         <button class="filter-button" type="button">
-          <span class="material-symbol" aria-hidden="true">filter_alt</span>
+          <app-icon name="sliders-horizontal" />
           Mais filtros
         </button>
       </div>
@@ -91,7 +96,7 @@
                     @if (product.imagemUrl) {
                       <img [src]="product.imagemUrl" [alt]="product.descricao" />
                     } @else {
-                      <span class="material-symbol" aria-hidden="true">image</span>
+                      <app-icon name="eye" />
                     }
                   </span>
                 </td>
@@ -116,7 +121,7 @@
               <tr>
                 <td colspan="13">
                   <div class="empty-list">
-                    <span class="material-symbol" aria-hidden="true">{{ loadingProducts() ? 'progress_activity' : 'deployed_code' }}</span>
+                    <app-icon [name]="loadingProducts() ? 'info' : 'package'" />
                     <strong>{{ loadingProducts() ? 'Carregando produtos' : 'Nenhum produto cadastrado' }}</strong>
                     <small>{{ loadingProducts() ? 'Atualizando a pagina do catalogo.' : 'Cadastre um produto ou importe um arquivo para iniciar o catalogo.' }}</small>
                   </div>
@@ -136,11 +141,11 @@
         </span>
         <div class="pager">
           <button type="button" aria-label="Anterior" (click)="paginaAnterior()" [disabled]="currentPage() <= 1">
-            <span class="material-symbol">chevron_left</span>
+            <app-icon name="chevron-left" />
           </button>
           <button class="active" type="button">{{ currentPage() }}</button>
           <button type="button" aria-label="Proximo" (click)="proximaPagina()" [disabled]="currentPage() >= totalPages()">
-            <span class="material-symbol">chevron_right</span>
+            <app-icon name="chevron-right" />
           </button>
         </div>
       </footer>
@@ -148,11 +153,11 @@
 
     <aside class="import-panel">
       <article class="import-card">
-        <span class="panel-icon material-symbol" aria-hidden="true">cloud_upload</span>
+        <app-icon class="panel-icon" name="file-up" />
         <h2>Importacao de arquivo da fabrica</h2>
         <p>Atualize ou cadastre seus produtos em lote a partir do arquivo oficial da montadora ou fabricante.</p>
         <button class="drop-zone" type="button" (click)="abrirImportacao()">
-          <span class="material-symbol" aria-hidden="true">upload_file</span>
+          <app-icon name="file-up" />
           <strong>Arraste e solte o arquivo aqui</strong>
           <small>ou clique para selecionar</small>
           <em>Formatos aceitos: XLS, XLSX, CSV, TXT</em>
@@ -160,10 +165,10 @@
         <button class="primary-action full" type="button" (click)="abrirImportacao()">Selecionar arquivo</button>
         <label class="manufacturer-check">
           <input type="checkbox" [formControl]="importForm.controls.stellantis" />
-          <span class="material-symbol" aria-hidden="true">verified</span>
+          <app-icon name="badge-check" />
           <strong>Fabricante Stellantis</strong>
         </label>
-        <a href="#"><span class="material-symbol">download</span>Baixar layout de exemplo</a>
+        <a href="#"><app-icon name="download" />Baixar layout de exemplo</a>
       </article>
 
       <article class="import-card">
@@ -174,7 +179,7 @@
         <div class="import-list">
           @for (item of imports; track item.arquivo) {
             <div class="import-row" [class.error]="item.status === 'Erro'">
-              <span class="material-symbol">{{ item.status === 'Erro' ? 'cancel' : 'check_circle' }}</span>
+              <app-icon [name]="item.status === 'Erro' ? 'x' : 'badge-check'" />
               <div>
                 <strong>{{ item.arquivo }} - {{ item.data }}</strong>
                 <small>{{ item.itens }}</small>
@@ -183,7 +188,7 @@
             </div>
           } @empty {
             <div class="empty-list compact">
-              <span class="material-symbol" aria-hidden="true">cloud_upload</span>
+              <app-icon name="file-up" />
               <strong>Nenhuma importacao realizada</strong>
               <small>O historico aparecera apos o primeiro processamento.</small>
             </div>
@@ -202,7 +207,7 @@
             <h2 id="new-product-title">Novo produto</h2>
           </div>
           <button class="close-button" type="button" aria-label="Fechar" (click)="fecharNovoProduto()">
-            <span class="material-symbol" aria-hidden="true">close</span>
+            <app-icon name="x" />
           </button>
         </header>
 
@@ -307,13 +312,13 @@
     <div class="modal-backdrop" role="presentation">
       <section class="import-modal" role="dialog" aria-modal="true" aria-labelledby="import-title">
         <header>
-          <span class="panel-icon material-symbol" aria-hidden="true">cloud_upload</span>
+          <app-icon class="panel-icon" name="file-up" />
           <div>
             <h2 id="import-title">Importar produtos da fabrica</h2>
             <p>Selecione o arquivo e defina as opcoes de importacao.</p>
           </div>
           <button class="close-button" type="button" aria-label="Fechar" (click)="fecharImportacao()">
-            <span class="material-symbol" aria-hidden="true">close</span>
+            <app-icon name="x" />
           </button>
         </header>
 
@@ -329,18 +334,18 @@
 
         <label class="upload-trigger">
           <input type="file" accept=".txt,.csv,.xls,.xlsx" (change)="selecionarArquivo($event)" />
-          <span class="material-symbol" aria-hidden="true">upload_file</span>
+          <app-icon name="file-up" />
           <strong>Selecionar arquivo</strong>
         </label>
 
         <label class="manufacturer-check modal-check">
           <input type="checkbox" [formControl]="importForm.controls.stellantis" />
-          <span class="material-symbol" aria-hidden="true">verified</span>
+          <app-icon name="badge-check" />
           <strong>Fabricante Stellantis</strong>
         </label>
 
         <div class="file-preview">
-          <span class="material-symbol" aria-hidden="true">description</span>
+          <app-icon name="file-text" />
           <div>
             <strong>{{ selectedFile()?.name || 'Nenhum arquivo selecionado' }}</strong>
             <small>{{ importStatus() || 'Selecione um arquivo para iniciar a importacao.' }}</small>
@@ -392,7 +397,7 @@
           <button class="cancel-button" type="button" (click)="fecharImportacao()">Cancelar</button>
           <button class="primary-action" type="button" (click)="importarProdutos()" [disabled]="importing()">
             {{ importing() ? 'Importando...' : 'Importar' }}
-            <span class="material-symbol">arrow_forward</span>
+            <app-icon name="arrow-right" />
           </button>
         </footer>
       </section>

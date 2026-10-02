@@ -1,10 +1,13 @@
 using back.Data;
+using back.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 builder.Services.AddControllers();
+builder.Services.Configure<CloudflareR2Options>(builder.Configuration.GetSection("CloudflareR2"));
+builder.Services.AddSingleton<ICloudflareR2StorageService, CloudflareR2StorageService>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

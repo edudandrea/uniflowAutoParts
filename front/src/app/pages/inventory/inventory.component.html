@@ -1,25 +1,30 @@
 <section class="inventory-page">
-  <header class="inventory-hero">
+  <header class="inventory-hero page-hero">
     <div class="title-row">
-      <span class="title-icon material-symbol" aria-hidden="true">inventory_2</span>
+      <app-icon class="title-icon" name="boxes" />
       <div>
         <h1>Estoque</h1>
         <p>Controle total das suas pecas, em tempo real.</p>
       </div>
     </div>
 
+    <div class="page-hero-visual" aria-hidden="true">
+      <div class="page-hero-card"><app-icon name="boxes" /><div><i></i><i></i></div></div>
+      <div class="page-hero-bars"><i></i><i></i><i></i></div>
+    </div>
+
     <div class="hero-actions">
       <button class="secondary-action" type="button" (click)="abrirImportacaoNfe()">
-        <span class="material-symbol" aria-hidden="true">upload_file</span>
+        <app-icon name="file-up" />
         Importar XML NF-e
       </button>
       <button class="primary-action" type="button" (click)="abrirNovoProduto()">
-        <span class="material-symbol" aria-hidden="true">add</span>
+        <app-icon name="plus" />
         Novo produto
       </button>
       <button class="secondary-action" type="button">
         Mais acoes
-        <span class="material-symbol" aria-hidden="true">expand_more</span>
+        <app-icon name="chevron-down" />
       </button>
     </div>
   </header>
@@ -27,12 +32,12 @@
   <section class="metrics-grid" aria-label="Resumo do estoque">
     @for (metric of metrics(); track metric.label) {
       <article class="metric-card" [class.danger]="metric.tone === 'danger'">
-        <span class="metric-icon material-symbol" aria-hidden="true">{{ metric.icon }}</span>
+        <app-icon class="metric-icon " [name]="metric.icon" [size]="24" />
         <div>
           <p>{{ metric.label }}</p>
           <strong>{{ metric.value }}</strong>
           <small [class.down]="metric.tone === 'danger'">
-            <b class="material-symbol">{{ metric.tone === 'danger' ? 'arrow_downward' : 'arrow_upward' }}</b>
+            <app-icon [name]="metric.tone === 'danger' ? 'arrow-down' : 'arrow-up'" [size]="14" [strokeWidth]="2" />
             {{ metric.delta }} <span>{{ metric.caption }}</span>
           </small>
         </div>
@@ -45,42 +50,64 @@
         <p>Giro de estoque</p>
         <strong>Bom desempenho</strong>
       </div>
-      <span class="material-symbol" aria-hidden="true">chevron_right</span>
+      <app-icon name="chevron-right" />
     </article>
   </section>
 
-  <section class="category-strip" aria-label="Categorias">
-    @for (category of categories(); track category.label) {
-      <button class="category-card" type="button" [class.active]="$first">
-        <span class="material-symbol" aria-hidden="true">{{ category.icon }}</span>
-        <strong>{{ category.label }}</strong>
-        <small>{{ category.total }}</small>
-      </button>
-    } @empty {
-      <button class="category-card empty-category" type="button" disabled>
-        <span class="material-symbol" aria-hidden="true">category</span>
-        <strong>Nenhuma categoria</strong>
-        <small>Cadastre produtos para listar categorias</small>
-      </button>
-    }
-  </section>
+  <nav class="inventory-tabs" aria-label="Cadastro de estoque">
+    <button type="button" [class.active]="activeTab() === 'search'" (click)="activeTab.set('search')">
+      <app-icon name="search" />
+      Pesquisa de itens
+    </button>
+    <button type="button" [class.active]="activeTab() === 'details'" (click)="activeTab.set('details')">
+      <app-icon name="package" />
+      Dados do item
+    </button>
+  </nav>
 
-  <section class="inventory-workspace">
-    <article class="stock-panel">
+  @if (activeTab() === 'search') {
+    <section class="inventory-search-tab">
+      <article class="stock-panel">
+        <header class="panel-title">
+          <div>
+            <h2>Pesquisar estoque</h2>
+            <p>Busque por codigo, descricao, marca, fabricante ou codigo de barras.</p>
+          </div>
+          <strong>{{ filteredProducts().length }} item(ns)</strong>
+        </header>
+
       <div class="filters-bar">
         <label class="search-control">
-          <span class="material-symbol" aria-hidden="true">search</span>
-          <input type="search" placeholder="Pesquisar no estoque..." />
+          <app-icon name="search" />
+          <input
+            type="search"
+            placeholder="Buscar por codigo, descricao ou marca..."
+            [ngModel]="searchTerm()"
+            (ngModelChange)="searchTerm.set($event)"
+          />
         </label>
-        <select aria-label="Categoria">
-          <option>Todas as categorias</option>
+        <select aria-label="Categoria" [ngModel]="categoryFilter()" (ngModelChange)="categoryFilter.set($event)">
+          <option>Todas</option>
+          @for (category of categoryOptions(); track category) {
+            <option>{{ category }}</option>
+          }
         </select>
-        <select aria-label="Marca">
-          <option>Todas as marcas</option>
+        <select aria-label="Marca" [ngModel]="brandFilter()" (ngModelChange)="brandFilter.set($event)">
+          <option>Todas</option>
+          @for (brand of brandOptions(); track brand) {
+            <option>{{ brand }}</option>
+          }
         </select>
-        <select aria-label="Status">
-          <option>Todos os status</option>
+        <select aria-label="Status" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+          <option>Todas</option>
+          <option>Em estoque</option>
+          <option>Estoque baixo</option>
+          <option>Sem estoque</option>
         </select>
+        <button class="filter-button" type="button" (click)="limparFiltros()">
+          <app-icon name="sliders-horizontal" />
+          Limpar filtros
+        </button>
       </div>
 
       <div class="table-wrap">
@@ -102,7 +129,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (product of products(); track product.codigo) {
+            @for (product of filteredProducts(); track product.codigo) {
               <tr [class.selected]="product.codigo === selectedProductCode()" (click)="selecionarProduto(product.codigo)">
                 <td><input type="checkbox" aria-label="Selecionar produto" /></td>
                 <td>{{ product.codigo }}</td>
@@ -111,7 +138,7 @@
                     @if (product.imagemUrl) {
                       <img [src]="product.imagemUrl" [alt]="product.descricao" />
                     } @else {
-                      <span class="material-symbol" aria-hidden="true">image</span>
+                      <app-icon name="eye" />
                     }
                   </span>
                 </td>
@@ -129,9 +156,9 @@
               <tr>
                 <td colspan="12">
                   <div class="empty-list">
-                    <span class="material-symbol" aria-hidden="true">inventory_2</span>
-                    <strong>Nenhum item em estoque</strong>
-                    <small>Clique em Novo produto para cadastrar o primeiro item.</small>
+                    <app-icon name="boxes" />
+                    <strong>Nenhum item encontrado</strong>
+                    <small>Ajuste a pesquisa ou limpe os filtros para ver todos os itens.</small>
                   </div>
                 </td>
               </tr>
@@ -139,103 +166,157 @@
           </tbody>
         </table>
       </div>
-    </article>
 
+        <footer class="table-footer">
+          <span>Exibindo {{ filteredProducts().length }} de {{ products().length }} itens</span>
+          <button class="secondary-action" type="button" (click)="activeTab.set('details')">
+            <app-icon name="eye" />
+            Abrir item selecionado
+          </button>
+        </footer>
+      </article>
+    </section>
+  } @else {
     @if (selectedProduct(); as product) {
-      <aside class="detail-panel">
-        <div class="detail-top">
+      <section class="inventory-detail-tab">
+        <aside class="item-summary-panel">
           <div class="detail-image">
             @if (product.imagemUrl) {
               <img [src]="product.imagemUrl" [alt]="product.descricao" />
             } @else {
-              <span class="material-symbol" aria-hidden="true">inventory_2</span>
+              <app-icon name="boxes" />
             }
           </div>
-          <button class="filter-button" type="button">
-            <span class="material-symbol" aria-hidden="true">filter_alt</span>
-            Filtros
-          </button>
-        </div>
 
-        <div class="product-heading">
-          <small>{{ product.marca }}</small>
-          <h2>{{ product.descricao }}</h2>
-          <span>{{ product.codigo }}</span>
-        </div>
+          <div class="product-heading">
+            <span class="status-pill" [class]="statusClass(product)">{{ statusFor(product) }}</span>
+            <h2>{{ product.codigo }}</h2>
+            <p>{{ product.descricao }}</p>
+            <small>{{ product.marca }} - {{ product.categoria }}</small>
+          </div>
 
-        <nav class="detail-tabs" aria-label="Informacoes do produto">
-          <button class="active" type="button">Visao geral</button>
-          <button type="button">Movimentacoes</button>
-          <button type="button">Aplicacoes</button>
-          <button type="button">Mais</button>
-        </nav>
+          <div class="summary-actions">
+            <button class="secondary-action" type="button" (click)="voltarPesquisa()">
+              <app-icon name="search" />
+              Voltar para pesquisa
+            </button>
+            <button class="primary-action" type="button">
+              <app-icon name="plus" />
+              Movimentacao
+            </button>
+          </div>
 
-        <section class="detail-cards">
-          <article>
-            <span class="material-symbol" aria-hidden="true">deployed_code</span>
-            <p>Estoque atual</p>
-            <strong>{{ product.estoque }}</strong>
-            <small>Est. minimo: {{ product.minimo }}</small>
-          </article>
-          <article>
-            <span class="material-symbol" aria-hidden="true">paid</span>
-            <p>Valor unitario</p>
-            <strong>{{ formatCurrency(product.valor) }}</strong>
-            <small>Valor total: {{ formatCurrency(product.valor * product.estoque) }}</small>
-          </article>
-        </section>
+          <section class="info-list-card">
+            <h3>Informacoes da peca</h3>
+            <dl>
+              <div><dt>Codigo interno</dt><dd>{{ product.codigo }}</dd></div>
+              <div><dt>Codigo fabricante</dt><dd>{{ product.fabricante || '-' }}</dd></div>
+              <div><dt>Descricao</dt><dd>{{ product.descricao }}</dd></div>
+              <div><dt>Marca</dt><dd>{{ product.marca }}</dd></div>
+              <div><dt>Categoria</dt><dd>{{ product.categoria }}</dd></div>
+              <div><dt>Unidade</dt><dd>UN</dd></div>
+              <div><dt>Peso liquido</dt><dd>{{ product.peso || '-' }}</dd></div>
+              <div><dt>NCM</dt><dd>{{ product.ncm || '-' }}</dd></div>
+            </dl>
+          </section>
+        </aside>
 
-        <section class="spec-grid">
-          <div>
-            <span class="material-symbol">badge</span>
-            <small>Marca</small>
-            <strong>{{ product.marca }}</strong>
-          </div>
-          <div>
-            <span class="material-symbol">category</span>
-            <small>Categoria</small>
-            <strong>{{ product.categoria }}</strong>
-          </div>
-          <div>
-            <span class="material-symbol">pin_drop</span>
-            <small>Localizacao</small>
-            <strong>{{ product.localizacao }}</strong>
-          </div>
-          <div>
-            <span class="material-symbol">qr_code</span>
-            <small>Cod. fabricante</small>
-            <strong>{{ product.fabricante || '-' }}</strong>
-          </div>
-          <div>
-            <span class="material-symbol">barcode</span>
-            <small>Cod. barras</small>
-            <strong>{{ product.barras || '-' }}</strong>
-          </div>
-          <div>
-            <span class="material-symbol">scale</span>
-            <small>Peso</small>
-            <strong>{{ product.peso || '-' }}</strong>
-          </div>
-          <div>
-            <span class="material-symbol">cases</span>
-            <small>NCM</small>
-            <strong>{{ product.ncm || '-' }}</strong>
-          </div>
-        </section>
+        <article class="detail-panel">
+          <header class="panel-title">
+            <div>
+              <h2>Dados do item</h2>
+              <p>Resumo operacional, saldo por local e ultimas movimentacoes.</p>
+            </div>
+            <button class="secondary-action" type="button">
+              <app-icon name="pencil" />
+              Editar item
+            </button>
+          </header>
 
-        <div class="detail-actions">
-          <button class="edit-button" type="button">
-            <span class="material-symbol" aria-hidden="true">edit</span>
-            Editar produto
-          </button>
-          <button class="movement-button" type="button">
-            <span class="material-symbol" aria-hidden="true">history</span>
-            Ver movimentacoes
-          </button>
-        </div>
-      </aside>
+          <nav class="detail-tabs" aria-label="Informacoes do produto">
+            <button class="active" type="button">Geral</button>
+            <button type="button">Estoque</button>
+            <button type="button">Aplicacoes</button>
+            <button type="button">Equivalentes</button>
+          </nav>
+
+          <section class="detail-cards">
+            <article>
+              <app-icon name="package" />
+              <p>Estoque atual</p>
+              <strong>{{ product.estoque }}</strong>
+              <small>Est. minimo: {{ product.minimo }}</small>
+            </article>
+            <article>
+              <app-icon name="circle-dollar-sign" />
+              <p>Valor unitario</p>
+              <strong>{{ formatCurrency(product.valor) }}</strong>
+              <small>Valor total: {{ formatCurrency(product.valor * product.estoque) }}</small>
+            </article>
+            <article>
+              <app-icon name="map-pin" />
+              <p>Localizacao</p>
+              <strong>{{ product.localizacao }}</strong>
+              <small>Endereco principal</small>
+            </article>
+          </section>
+
+          <section class="record-grid">
+            <article class="info-list-card">
+              <h3>Saldo por local</h3>
+              <dl>
+                <div><dt>Estoque Principal</dt><dd>{{ product.estoque }}</dd></div>
+                <div><dt>Balcao</dt><dd>{{ product.estoque > 4 ? 4 : product.estoque }}</dd></div>
+                <div><dt>Deposito 01</dt><dd>{{ product.estoque > 2 ? 2 : product.estoque }}</dd></div>
+              </dl>
+            </article>
+
+            <article class="info-list-card">
+              <h3>Ultimas movimentacoes</h3>
+              <dl>
+                <div><dt>02/10/2026</dt><dd>Saida -2</dd></div>
+                <div><dt>01/10/2026</dt><dd>Entrada +10</dd></div>
+                <div><dt>28/09/2026</dt><dd>Saida -1</dd></div>
+              </dl>
+            </article>
+          </section>
+
+          <section class="spec-grid">
+            <div>
+              <app-icon name="badge" />
+              <small>Marca</small>
+              <strong>{{ product.marca }}</strong>
+            </div>
+            <div>
+              <app-icon name="tags" />
+              <small>Categoria</small>
+              <strong>{{ product.categoria }}</strong>
+            </div>
+            <div>
+              <app-icon name="map-pin" />
+              <small>Localizacao</small>
+              <strong>{{ product.localizacao }}</strong>
+            </div>
+            <div>
+              <app-icon name="qr-code" />
+              <small>Cod. fabricante</small>
+              <strong>{{ product.fabricante || '-' }}</strong>
+            </div>
+            <div>
+              <app-icon name="barcode" />
+              <small>Cod. barras</small>
+              <strong>{{ product.barras || '-' }}</strong>
+            </div>
+            <div>
+              <app-icon name="scale" />
+              <small>Peso</small>
+              <strong>{{ product.peso || '-' }}</strong>
+            </div>
+          </section>
+        </article>
+      </section>
     }
-  </section>
+  }
 
   @if (showProductModal()) {
     <div class="modal-backdrop" role="presentation">
@@ -246,7 +327,7 @@
             <h2 id="new-product-title">Cadastrar item no estoque</h2>
           </div>
           <button class="close-button" type="button" aria-label="Fechar" (click)="fecharNovoProduto()">
-            <span class="material-symbol" aria-hidden="true">close</span>
+            <app-icon name="x" />
           </button>
         </header>
 
@@ -331,28 +412,26 @@
             <h2 id="import-nfe-title">Importar XML da NF-e</h2>
           </div>
           <button class="close-button" type="button" aria-label="Fechar" (click)="fecharImportacaoNfe()">
-            <span class="material-symbol" aria-hidden="true">close</span>
+            <app-icon name="x" />
           </button>
         </header>
 
         <section class="xml-upload-box">
           <label>
-            <span class="material-symbol" aria-hidden="true">description</span>
+            <app-icon name="file-text" />
             <strong>{{ selectedXmlFile()?.name || 'Selecione o XML autorizado da compra' }}</strong>
             <small>A chave de acesso sera validada e bloqueia importacao duplicada.</small>
             <input type="file" accept=".xml,text/xml,application/xml" (change)="selecionarXml($event)" />
           </label>
 
           <button class="primary-action" type="button" [disabled]="importingNfe() || xmlPrecheck().status === 'invalid'" (click)="importarXmlNfe()">
-            <span class="material-symbol" aria-hidden="true">upload_file</span>
+            <app-icon name="file-up" />
             {{ importingNfe() ? 'Importando...' : 'Importar e conferir' }}
           </button>
         </section>
 
         <section class="xml-check-card" [class.valid]="xmlPrecheck().status === 'valid'" [class.invalid]="xmlPrecheck().status === 'invalid'">
-          <span class="material-symbol" aria-hidden="true">
-            {{ xmlPrecheck().status === 'valid' ? 'check_circle' : xmlPrecheck().status === 'invalid' ? 'error' : 'rule' }}
-          </span>
+          <app-icon [name]="xmlPrecheck().status === 'valid' ? 'badge-check' : xmlPrecheck().status === 'invalid' ? 'x' : 'check'" />
           <div>
             <strong>
               {{
@@ -397,17 +476,17 @@
 
           <section class="conference-strip" aria-label="Resumo da conferencia">
             <div>
-              <span class="material-symbol success" aria-hidden="true">check_circle</span>
+              <app-icon class="success" name="badge-check" />
               <strong>{{ nfe.produtosIdentificados }}</strong>
               <small>produtos identificados</small>
             </div>
             <div>
-              <span class="material-symbol warning" aria-hidden="true">manage_search</span>
+              <app-icon class="warning" name="search" />
               <strong>{{ nfe.produtosPendentes }}</strong>
               <small>pendentes de associacao</small>
             </div>
             <div>
-              <span class="material-symbol" aria-hidden="true">payments</span>
+              <app-icon name="circle-dollar-sign" />
               <strong>{{ formatCurrency(nfe.valorProdutos) }}</strong>
               <small>valor dos produtos</small>
             </div>

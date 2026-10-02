@@ -157,6 +157,15 @@ export interface CriarMarcaPayload {
   ativo: boolean;
 }
 
+export type AtualizarMarcaPayload = CriarMarcaPayload;
+
+export interface DocumentoUploadResponse {
+  key: string;
+  url: string;
+  contentType: string;
+  size: number;
+}
+
 export interface Produto {
   id: number;
   empresaId: number;

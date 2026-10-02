@@ -1,29 +1,30 @@
 <section class="categories-page">
-  <header class="categories-hero">
-    <div class="hero-title">
-      <span class="title-icon material-symbol" aria-hidden="true">category</span>
+  <header class="categories-hero page-hero">
+    <div class="hero-title title-row">
+      <app-icon class="title-icon" name="tags" />
       <div>
-        <div class="back-line">
-          <span class="material-symbol" aria-hidden="true">arrow_back</span>
-          Configuracoes
-          <span aria-hidden="true">&gt;</span>
-          Categorias
-        </div>
         <h1>Categorias</h1>
         <p>Organize categorias e subcategorias usadas no cadastro de produtos.</p>
       </div>
     </div>
 
-    <button class="primary-action" type="button" (click)="abrirNovaCategoria()">
-      <span class="material-symbol" aria-hidden="true">add</span>
-      Nova categoria
-    </button>
+    <div class="page-hero-visual" aria-hidden="true">
+      <div class="page-hero-card"><app-icon name="tags" /><div><i></i><i></i></div></div>
+      <div class="page-hero-bars"><i></i><i></i><i></i></div>
+    </div>
+
+    <div class="hero-actions">
+      <button class="primary-action" type="button" (click)="abrirNovaCategoria()">
+        <app-icon name="plus" />
+        Nova categoria
+      </button>
+    </div>
   </header>
 
   <section class="metrics-grid" aria-label="Resumo de categorias">
     @for (metric of metrics(); track metric.label) {
       <article class="metric-card">
-        <span class="metric-icon material-symbol" aria-hidden="true">{{ metric.icon }}</span>
+        <app-icon class="metric-icon " [name]="metric.icon" [size]="24" />
         <div>
           <p>{{ metric.label }}</p>
           <strong>{{ metric.value }}</strong>
@@ -36,13 +37,13 @@
   <section class="category-grid" aria-label="Categorias principais">
     @for (categoria of categoriasPai(); track categoria.id) {
       <article class="category-card">
-        <span class="material-symbol" aria-hidden="true">{{ categoria.icone || 'category' }}</span>
+        <app-icon [name]="categoria.icone || 'tags'" />
         <strong>{{ categoria.nome }}</strong>
         <small>{{ categoria.subcategorias }} subcategorias · {{ categoria.produtos }} produtos</small>
       </article>
     } @empty {
       <article class="category-card empty-card">
-        <span class="material-symbol" aria-hidden="true">category</span>
+        <app-icon name="tags" />
         <strong>Nenhuma categoria principal</strong>
         <small>Crie categorias como Freios, Motor, Filtros ou Suspensao.</small>
       </article>
@@ -52,7 +53,7 @@
   <section class="categories-panel">
     <div class="filters-bar">
       <label class="search-control">
-        <span class="material-symbol" aria-hidden="true">search</span>
+        <app-icon name="search" />
         <input
           type="search"
           placeholder="Buscar por categoria, descricao ou superior..."
@@ -61,7 +62,7 @@
         />
       </label>
       <button class="filter-button" type="button" (click)="busca.set('')">
-        <span class="material-symbol" aria-hidden="true">delete</span>
+        <app-icon name="trash-2" />
         Limpar
       </button>
     </div>
@@ -84,7 +85,7 @@
             <tr>
               <td>
                 <div class="category-cell">
-                  <span class="material-symbol" aria-hidden="true">{{ categoria.icone || 'category' }}</span>
+                  <app-icon [name]="categoria.icone || 'tags'" />
                   <strong>{{ categoria.nome }}</strong>
                 </div>
               </td>
@@ -99,7 +100,7 @@
             <tr>
               <td colspan="7">
                 <div class="empty-list">
-                  <span class="material-symbol" aria-hidden="true">category</span>
+                  <app-icon name="tags" />
                   <strong>Nenhuma categoria cadastrada</strong>
                   <small>Clique em Nova categoria para criar a primeira categoria de produtos.</small>
                 </div>
@@ -115,13 +116,13 @@
     <div class="modal-backdrop" role="presentation">
       <section class="category-modal" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
         <header class="modal-titlebar">
-          <span class="modal-title-icon material-symbol" aria-hidden="true">category</span>
+          <app-icon class="modal-title-icon" name="tags" />
           <div>
             <h2 id="category-modal-title">Nova categoria</h2>
             <p>Cadastre categorias principais ou subcategorias para produtos.</p>
           </div>
           <button class="close-button" type="button" aria-label="Fechar" (click)="fecharNovaCategoria()">
-            <span class="material-symbol" aria-hidden="true">close</span>
+            <app-icon name="x" />
           </button>
         </header>
 
@@ -160,7 +161,7 @@
               @for (icone of iconOptions; track icone) {
                 <label [class.active]="categoriaForm.controls.icone.value === icone">
                   <input type="radio" formControlName="icone" [value]="icone" />
-                  <span class="material-symbol" aria-hidden="true">{{ icone }}</span>
+                  <app-icon [name]="icone" />
                 </label>
               }
             </div>
@@ -176,7 +177,7 @@
             }
             <button class="cancel-button" type="button" (click)="fecharNovaCategoria()">Cancelar</button>
             <button class="primary-action" type="submit" [disabled]="salvando()">
-              <span class="material-symbol" aria-hidden="true">save</span>
+              <app-icon name="save" />
               {{ salvando() ? 'Salvando...' : 'Salvar categoria' }}
             </button>
           </footer>

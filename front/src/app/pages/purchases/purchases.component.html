@@ -1,18 +1,23 @@
 <section class="purchases-page">
-  <header class="purchases-hero">
+  <header class="purchases-hero page-hero">
     <div class="title-row">
-      <span class="title-icon material-symbol" aria-hidden="true">shopping_cart</span>
+      <app-icon class="title-icon" name="shopping-cart" />
       <div>
         <h1>Compras</h1>
         <p>Gerencie seus pedidos, recebimentos e reposicoes de forma simples e eficiente.</p>
       </div>
     </div>
 
+    <div class="page-hero-visual" aria-hidden="true">
+      <div class="page-hero-card"><app-icon name="shopping-cart" /><div><i></i><i></i></div></div>
+      <div class="page-hero-bars"><i></i><i></i><i></i></div>
+    </div>
+
     <div class="hero-actions">
       <button class="primary-action" type="button">
-        <span class="material-symbol" aria-hidden="true">add</span>
+        <app-icon name="plus" />
         Nova compra
-        <span class="material-symbol" aria-hidden="true">expand_more</span>
+        <app-icon name="chevron-down" />
       </button>
     </div>
   </header>
@@ -20,7 +25,7 @@
   <section class="metrics-grid" aria-label="Resumo de compras">
     @for (metric of metrics(); track metric.label) {
       <article class="metric-card" [class.danger]="metric.tone === 'danger'">
-        <span class="metric-icon material-symbol" aria-hidden="true">{{ metric.icon }}</span>
+        <app-icon class="metric-icon " [name]="metric.icon" [size]="24" />
         <div>
           <p>{{ metric.label }}</p>
           <strong>{{ metric.value }}</strong>
@@ -40,7 +45,7 @@
 
       <div class="filters-bar">
         <label class="search-control">
-          <span class="material-symbol" aria-hidden="true">search</span>
+          <app-icon name="search" />
           <input type="search" placeholder="Buscar por numero, fornecedor, produto..." />
         </label>
         <label>
@@ -62,7 +67,7 @@
           </select>
         </label>
         <button class="filter-button" type="button">
-          <span class="material-symbol" aria-hidden="true">filter_alt</span>
+          <app-icon name="sliders-horizontal" />
           Mais filtros
         </button>
       </div>
@@ -104,7 +109,7 @@
               <tr>
                 <td colspan="9">
                   <div class="empty-list">
-                    <span class="material-symbol" aria-hidden="true">shopping_cart</span>
+                    <app-icon name="shopping-cart" />
                     <strong>Nenhum pedido de compra</strong>
                     <small>Os pedidos criados aparecerao aqui.</small>
                   </div>
@@ -119,7 +124,7 @@
         <span>Mostrando {{ orders.length }} pedidos</span>
         <div class="pager">
           <button class="active" type="button">1</button>
-          <button type="button" aria-label="Proximo"><span class="material-symbol">chevron_right</span></button>
+          <button type="button" aria-label="Proximo"><app-icon name="chevron-right" /></button>
           <select aria-label="Itens por pagina">
             <option>10 por pagina</option>
           </select>
@@ -132,12 +137,12 @@
         <h2>Acoes rapidas</h2>
         @for (action of quickActions; track action.title) {
           <button type="button">
-            <span class="material-symbol" aria-hidden="true">{{ action.icon }}</span>
+            <app-icon class=" " [name]="action.icon" [size]="22" />
             <div>
               <strong>{{ action.title }}</strong>
               <small>{{ action.detail }}</small>
             </div>
-            <span class="material-symbol arrow" aria-hidden="true">chevron_right</span>
+            <app-icon class="arrow" name="chevron-right" />
           </button>
         }
       </article>
@@ -164,7 +169,7 @@
         <div class="receipt-list">
           @for (receipt of receipts; track receipt.nf) {
             <div class="receipt-row">
-              <span class="material-symbol" aria-hidden="true">description</span>
+              <app-icon name="file-text" />
               <div>
                 <strong>{{ receipt.nf }}</strong>
                 <small>{{ receipt.fornecedor }}</small>
@@ -174,7 +179,7 @@
             </div>
           } @empty {
             <div class="empty-list compact">
-              <span class="material-symbol" aria-hidden="true">description</span>
+              <app-icon name="file-text" />
               <strong>Nenhum recebimento</strong>
               <small>Os recebimentos aparecerao aqui.</small>
             </div>

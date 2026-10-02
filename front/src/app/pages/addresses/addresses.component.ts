@@ -3,10 +3,11 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { CadastroEndereco } from '../../core/app-models';
 import { ApiService } from '../../core/api.service';
+import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
 @Component({
   selector: 'app-addresses',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, AppIconComponent],
   templateUrl: './addresses.component.html',
   styleUrl: './addresses.component.scss',
 })
@@ -33,10 +34,10 @@ export class AddressesComponent {
     const cobranca = enderecos.filter((endereco) => this.tipoPorEndereco(endereco) === 'Cobranca').length;
 
     return [
-      { icon: 'description', label: 'Total de enderecos', value: total, detail: this.percentual(total, total) },
-      { icon: 'home', label: 'Enderecos principais', value: principal, detail: this.percentual(principal, total) },
-      { icon: 'local_shipping', label: 'Enderecos de entrega', value: entrega, detail: this.percentual(entrega, total) },
-      { icon: 'receipt_long', label: 'Enderecos de cobranca', value: cobranca, detail: this.percentual(cobranca, total) },
+      { icon: 'map-pin', label: 'Total de enderecos', value: total, detail: this.percentual(total, total) },
+      { icon: 'badge-check', label: 'Enderecos principais', value: principal, detail: this.percentual(principal, total) },
+      { icon: 'truck', label: 'Enderecos de entrega', value: entrega, detail: this.percentual(entrega, total) },
+      { icon: 'receipt', label: 'Enderecos de cobranca', value: cobranca, detail: this.percentual(cobranca, total) },
     ];
   });
 

@@ -943,7 +943,7 @@ textarea {
 
 :host ::ng-deep .addresses-page .metrics-grid {
   display: grid !important;
-  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
   gap: 12px !important;
   margin: 0 !important;
 }
@@ -967,7 +967,7 @@ textarea {
 
 :host ::ng-deep .addresses-page .filters-bar {
   display: grid !important;
-  grid-template-columns: minmax(260px, 1.25fr) repeat(4, minmax(138px, 0.48fr)) 126px !important;
+  grid-template-columns: minmax(240px, 1.25fr) repeat(4, minmax(132px, 0.48fr)) minmax(118px, auto) !important;
   gap: 12px !important;
   padding: 18px 14px 10px !important;
   align-items: end !important;
@@ -1034,5 +1034,29 @@ textarea {
   :host ::ng-deep .addresses-page .metrics-grid,
   :host ::ng-deep .addresses-page .filters-bar {
     grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.45rem;
+  }
+
+  .title-icon,
+  .metric-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 1.35rem;
+  }
+
+  .metric-card {
+    min-height: auto;
+  }
+
+  .primary-action,
+  .filter-button,
+  .table-footer .pager,
+  .table-footer > span {
+    width: 100%;
   }
 }

@@ -28,10 +28,20 @@
   box-sizing: border-box;
 }
 
+*,
+*::before,
+*::after {
+  min-width: 0;
+}
+
 html,
 body {
   min-height: 100%;
   margin: 0;
+}
+
+html {
+  overflow-x: hidden;
 }
 
 body {
@@ -44,6 +54,7 @@ body {
     Arial,
     sans-serif;
   font-weight: 400;
+  overflow-x: hidden;
 }
 
 label {
@@ -67,6 +78,39 @@ select {
   outline: none;
 }
 
+textarea {
+  max-width: 100%;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+p,
+span,
+small,
+strong,
+h1,
+h2,
+h3,
+td,
+th,
+button,
+a,
+label {
+  overflow-wrap: anywhere;
+}
+
+.material-symbol,
+app-icon {
+  overflow-wrap: normal;
+  white-space: nowrap;
+  word-break: normal;
+}
+
 input:focus,
 select:focus {
   border-color: var(--brand-teal);
@@ -81,6 +125,13 @@ button {
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+}
+
+button,
+input,
+select,
+textarea {
+  max-width: 100%;
 }
 
 strong,
@@ -140,6 +191,337 @@ button:disabled {
 .icon-button {
   width: 42px;
   padding: 0;
+}
+
+.page-hero {
+  position: relative;
+  isolation: isolate;
+  min-height: 112px;
+  overflow: hidden;
+  border: 1px solid rgba(11, 36, 56, 0.08);
+  border-radius: 8px;
+  margin-bottom: 14px;
+  padding: 16px 18px;
+  background:
+    linear-gradient(112deg, #fff 0%, #fff 48%, rgba(222, 248, 240, 0.92) 48.2%, rgba(192, 243, 225, 0.76) 72%, rgba(255, 255, 255, 0.94) 72.2%),
+    #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.page-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(circle at 78% 34%, rgba(19, 168, 106, 0.18), transparent 22%),
+    radial-gradient(circle at 61% 12%, rgba(0, 143, 175, 0.08) 0 1.5px, transparent 1.8px);
+  background-size: auto, 14px 14px;
+}
+
+.page-hero::after {
+  content: "";
+  position: absolute;
+  top: -34px;
+  right: 10%;
+  z-index: -1;
+  width: min(420px, 48%);
+  height: 190px;
+  background:
+    radial-gradient(ellipse at 78% 58%, rgba(19, 168, 106, 0.18), transparent 52%),
+    linear-gradient(118deg, rgba(255, 255, 255, 0), rgba(19, 168, 106, 0.1) 48%, rgba(0, 143, 175, 0.14));
+  transform: skewX(-18deg);
+}
+
+.page-hero .title-row,
+.page-hero .title-area,
+.page-hero .title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.page-hero .title-icon,
+.icon-box {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 11px;
+  color: #079669;
+  background: #e8f8f2;
+  box-shadow: none;
+}
+
+.icon-box {
+  width: 40px;
+  height: 40px;
+}
+
+.page-hero h1 {
+  margin: 0;
+  color: #07192a;
+  font-size: clamp(1.45rem, 2vw, 1.95rem);
+  letter-spacing: 0;
+}
+
+.page-hero p {
+  margin: 5px 0 0;
+  color: #607789;
+  font-weight: 800;
+}
+
+.page-hero .hero-actions,
+.page-hero .actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.page-hero.customers-hero,
+.page-hero.products-hero,
+.page-hero.inventory-hero,
+.page-hero.purchases-hero,
+.page-hero.suppliers-hero,
+.page-hero.applications-hero,
+.page-hero.brands-hero,
+.page-hero.categories-hero,
+.page-hero.addresses-hero,
+.page-hero.financial-header,
+.page-hero.hero,
+.page-hero.hero-panel {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(180px, 330px) auto;
+  grid-template-areas: "title visual actions";
+  align-items: center;
+  gap: 18px;
+  min-height: 112px;
+  border: 1px solid rgba(11, 36, 56, 0.08);
+  border-radius: 8px;
+  margin-bottom: 14px;
+  padding: 16px 18px;
+  background:
+    linear-gradient(112deg, #fff 0%, #fff 48%, rgba(222, 248, 240, 0.92) 48.2%, rgba(192, 243, 225, 0.76) 72%, rgba(255, 255, 255, 0.94) 72.2%),
+    #fff;
+  box-shadow: var(--shadow-sm);
+}
+
+.page-hero.customers-hero::after,
+.page-hero.products-hero::after,
+.page-hero.inventory-hero::after,
+.page-hero.purchases-hero::after,
+.page-hero.suppliers-hero::after,
+.page-hero.applications-hero::after,
+.page-hero.brands-hero::after,
+.page-hero.categories-hero::after,
+.page-hero.addresses-hero::after,
+.page-hero.financial-header::after,
+.page-hero.hero::after,
+.page-hero.hero-panel::after {
+  content: "";
+  position: absolute;
+  top: -34px;
+  right: 10%;
+  z-index: -1;
+  width: min(420px, 48%);
+  height: 190px;
+  background:
+    radial-gradient(ellipse at 78% 58%, rgba(19, 168, 106, 0.18), transparent 52%),
+    linear-gradient(118deg, rgba(255, 255, 255, 0), rgba(19, 168, 106, 0.1) 48%, rgba(0, 143, 175, 0.14));
+  transform: skewX(-18deg);
+  pointer-events: none;
+}
+
+.page-hero.customers-hero::before,
+.page-hero.products-hero::before,
+.page-hero.inventory-hero::before,
+.page-hero.purchases-hero::before,
+.page-hero.suppliers-hero::before,
+.page-hero.applications-hero::before,
+.page-hero.brands-hero::before,
+.page-hero.categories-hero::before,
+.page-hero.addresses-hero::before,
+.page-hero.financial-header::before,
+.page-hero.hero::before,
+.page-hero.hero-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(circle at 78% 34%, rgba(19, 168, 106, 0.18), transparent 22%),
+    radial-gradient(circle at 61% 12%, rgba(0, 143, 175, 0.08) 0 1.5px, transparent 1.8px);
+  background-size: auto, 14px 14px;
+  pointer-events: none;
+}
+
+.page-hero .title-row,
+.page-hero .title-area,
+.page-hero .hero-title,
+.page-hero .title,
+.page-hero .hero-copy {
+  grid-area: title;
+}
+
+.page-hero .page-hero-visual {
+  grid-area: visual;
+  justify-self: end;
+}
+
+.page-hero .hero-actions,
+.page-hero .actions,
+.page-hero > .primary-action,
+.page-hero > .period-button {
+  grid-area: actions;
+  justify-self: end;
+}
+
+.page-hero > .primary-action,
+.page-hero > .period-button {
+  align-self: center;
+}
+
+.page-hero-visual {
+  width: clamp(180px, 26vw, 330px);
+  min-height: 84px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 16px;
+  pointer-events: none;
+}
+
+.page-hero-card {
+  min-height: 66px;
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(19, 168, 106, 0.14);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 16px 35px rgba(12, 45, 65, 0.1);
+}
+
+.page-hero-card span,
+.page-hero-card app-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: var(--brand-green-dark);
+  background: rgba(19, 168, 106, 0.12);
+}
+
+.page-hero-card i {
+  display: block;
+  height: 8px;
+  border-radius: 99px;
+  background: rgba(19, 168, 106, 0.2);
+}
+
+.page-hero-card i + i {
+  width: 64%;
+  margin-top: 8px;
+  background: rgba(0, 143, 175, 0.14);
+}
+
+.page-hero-bars {
+  height: 74px;
+  display: flex;
+  align-items: end;
+  gap: 7px;
+}
+
+.page-hero-bars i {
+  width: 18px;
+  border-radius: 8px 8px 0 0;
+  background: linear-gradient(180deg, #77dcc0, var(--brand-green));
+  box-shadow: 0 10px 18px rgba(19, 168, 106, 0.2);
+}
+
+.page-hero-bars i:nth-child(1) {
+  height: 36px;
+}
+
+.page-hero-bars i:nth-child(2) {
+  height: 52px;
+}
+
+.page-hero-bars i:nth-child(3) {
+  height: 70px;
+}
+
+@media (max-width: 640px) {
+  input,
+  select,
+  button {
+    min-height: 44px;
+  }
+
+  .primary-button,
+  .secondary-button,
+  .ghost-button {
+    width: 100%;
+  }
+
+  .modal-card,
+  .login-card {
+    width: min(100%, calc(100vw - 20px));
+  }
+
+  .page-hero {
+    min-height: auto;
+    padding: 14px;
+  }
+
+  .page-hero .hero-actions,
+  .page-hero .actions {
+    align-items: stretch;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+
+  .page-hero.customers-hero,
+  .page-hero.products-hero,
+  .page-hero.inventory-hero,
+  .page-hero.purchases-hero,
+  .page-hero.suppliers-hero,
+  .page-hero.applications-hero,
+  .page-hero.brands-hero,
+  .page-hero.categories-hero,
+  .page-hero.addresses-hero,
+  .page-hero.financial-header,
+  .page-hero.hero,
+  .page-hero.hero-panel {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "title"
+      "actions";
+  }
+
+  .page-hero .title-row,
+  .page-hero .title-area,
+  .page-hero .hero-title,
+  .page-hero .title,
+  .page-hero .hero-copy {
+    align-items: flex-start;
+  }
+
+  .page-hero .hero-actions,
+  .page-hero .actions,
+  .page-hero > .primary-action,
+  .page-hero > .period-button {
+    justify-self: stretch;
+  }
+
+  .page-hero-visual {
+    display: none;
+  }
 }
 
 .empty-list {

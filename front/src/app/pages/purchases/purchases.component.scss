@@ -97,7 +97,7 @@ p {
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -175,7 +175,7 @@ p {
 
 .filters-bar {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) repeat(3, minmax(140px, 0.34fr)) 130px;
+  grid-template-columns: minmax(240px, 1fr) repeat(3, minmax(130px, 0.34fr)) minmax(124px, auto);
   gap: 10px;
   padding: 14px;
 }
@@ -531,5 +531,64 @@ i.canceled {
   .metrics-grid,
   .filters-bar {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .purchases-page {
+    min-height: auto;
+  }
+
+  .purchases-hero {
+    min-height: auto;
+    padding: 14px;
+  }
+
+  .title-row h1 {
+    font-size: 1.36rem;
+  }
+
+  .title-icon,
+  .metric-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 1.45rem;
+  }
+
+  .primary-action,
+  .filter-button,
+  .table-footer .pager,
+  .table-footer > span {
+    width: 100%;
+  }
+
+  .purchase-tabs {
+    overflow-x: auto;
+  }
+
+  .purchase-tabs button {
+    min-width: max-content;
+    padding-inline: 10px;
+  }
+
+  .metric-card,
+  .side-card {
+    min-height: auto;
+    padding: 14px;
+  }
+
+  .table-footer,
+  .purchase-status {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .quick-card button {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .quick-card button > .material-symbol:last-child {
+    display: none;
   }
 }

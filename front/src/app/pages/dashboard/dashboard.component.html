@@ -1,47 +1,52 @@
 <section class="dashboard-page">
   <header class="dashboard-topbar">
     <label class="search-field" aria-label="Busca geral">
-      <span class="material-symbol" aria-hidden="true">search</span>
+      <app-icon name="search" />
       <input type="search" placeholder="Buscar por produto, cliente, codigo, placa..." />
       <kbd>Ctrl + K</kbd>
     </label>
 
     <div class="user-area">
       <button type="button" class="icon-button alert-button" aria-label="Notificacoes">
-        <span class="material-symbol" aria-hidden="true">notifications</span>
+        <app-icon name="bell" />
       </button>
       <div class="avatar" aria-hidden="true">{{ initials('UniFlow') }}</div>
       <div>
         <strong>UniFlow AutoParts</strong>
         <span>Sistema exposto</span>
       </div>
-      <span class="material-symbol chevron" aria-hidden="true">expand_more</span>
+      <app-icon class="chevron" name="chevron-down" />
     </div>
   </header>
 
   <section class="dashboard-grid">
     <div class="main-column">
-      <article class="hero-panel">
+      <article class="hero-panel page-hero">
         <div class="hero-copy">
+          <app-icon class="title-icon" name="layout-dashboard" />
           <span>Bem-vindo ao UniFlow AutoParts</span>
           <h1>Mais controle <strong>para cada movimento.</strong></h1>
           <p>Estoque, vendas, clientes e resultados em um so lugar. Pecas que movem o seu negocio.</p>
+        </div>
+        <div class="page-hero-visual" aria-hidden="true">
+          <div class="page-hero-card"><app-icon name="chart-no-axes-combined" /><div><i></i><i></i></div></div>
+          <div class="page-hero-bars"><i></i><i></i><i></i></div>
         </div>
       </article>
 
       <section class="metrics-grid" aria-label="Indicadores">
         @for (metric of metrics; track metric.label) {
           <article class="metric-card">
-            <span class="metric-icon material-symbol" aria-hidden="true">{{ metric.icon }}</span>
+            <app-icon class="metric-icon " [name]="metric.icon" [size]="24" />
             <div>
               <p>{{ metric.label }}</p>
               <strong>{{ metric.value }}</strong>
-              <small><b>arrow_upward</b> {{ metric.delta }} <span>vs. ontem</span></small>
+              <small><app-icon name="arrow-up" [size]="14" [strokeWidth]="2" /> {{ metric.delta }} <span>vs. ontem</span></small>
             </div>
           </article>
         } @empty {
           <article class="metric-card">
-            <span class="metric-icon material-symbol" aria-hidden="true">bar_chart</span>
+            <app-icon class="metric-icon" name="chart-no-axes-combined" />
             <div>
               <p>Indicadores</p>
               <strong>0</strong>
@@ -65,7 +70,7 @@
           <div class="chart-area">
             @if (!chartPoints.length) {
               <div class="empty-list compact">
-                <span class="material-symbol" aria-hidden="true">show_chart</span>
+                <app-icon name="chart-no-axes-combined" />
                 <strong>Nenhuma venda registrada</strong>
                 <small>Os dados do grafico aparecerao apos movimentacoes.</small>
               </div>
@@ -90,20 +95,20 @@
         <article class="panel categories-panel">
           <div class="panel-header">
             <h2>Top categorias</h2>
-            <button type="button" class="filter-button">Por faturamento <span class="material-symbol">expand_more</span></button>
+            <button type="button" class="filter-button">Por faturamento <app-icon name="chevron-down" /></button>
           </div>
 
           <div class="category-list">
             @for (category of categories; track category.label) {
               <div class="category-row">
-                <span class="material-symbol" aria-hidden="true">{{ category.icon }}</span>
+                <app-icon class=" " [name]="category.icon" [size]="22" />
                 <strong>{{ category.label }}</strong>
                 <div class="progress"><i [style.width.%]="category.percent * 3.4"></i></div>
                 <small>{{ category.percent }}%</small>
               </div>
             } @empty {
               <div class="empty-list compact">
-                <span class="material-symbol" aria-hidden="true">category</span>
+                <app-icon name="tags" />
                 <strong>Nenhuma categoria</strong>
                 <small>As categorias aparecerao conforme houver vendas.</small>
               </div>
@@ -141,7 +146,7 @@
                 <tr>
                   <td colspan="5">
                     <div class="empty-list compact">
-                      <span class="material-symbol" aria-hidden="true">receipt_long</span>
+                      <app-icon name="receipt-text" />
                       <strong>Nenhuma venda</strong>
                     </div>
                   </td>
@@ -177,7 +182,7 @@
                 <tr>
                   <td colspan="4">
                     <div class="empty-list compact">
-                      <span class="material-symbol" aria-hidden="true">deployed_code</span>
+                      <app-icon name="package" />
                       <strong>Nenhum produto vendido</strong>
                     </div>
                   </td>
@@ -191,13 +196,13 @@
 
     <aside class="side-column">
       <article class="panel today-card">
-        <div class="calendar-icon material-symbol" aria-hidden="true">calendar_month</div>
+        <app-icon class="calendar-icon" name="calendar" />
         <div>
           <span>{{ today.toLocaleDateString('pt-BR', { weekday: 'long' }) }}</span>
           <strong>{{ today.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) }}</strong>
         </div>
         <hr />
-        <p><span class="material-symbol">location_on</span> Dados locais indisponiveis</p>
+        <p><app-icon name="map-pin" /> Dados locais indisponiveis</p>
       </article>
 
       <article class="panel quick-panel">
@@ -205,7 +210,7 @@
         <div class="quick-grid">
           @for (action of quickActions; track action.label) {
             <button type="button">
-              <span class="material-symbol" aria-hidden="true">{{ action.icon }}</span>
+              <app-icon class=" " [name]="action.icon" [size]="22" />
               {{ action.label }}
             </button>
           }
@@ -220,16 +225,13 @@
         <div class="alerts-list">
           @for (alert of alerts; track alert.title) {
             <div class="alert-row">
-              <span
-                class="material-symbol"
+              <app-icon
                 [class.danger]="alert.tone === 'danger'"
                 [class.warning]="alert.tone === 'warning'"
                 [class.info]="alert.tone === 'info'"
                 [class.success]="alert.tone === 'success'"
-                aria-hidden="true"
-              >
-                {{ alert.icon }}
-              </span>
+                [name]="alert.icon"
+              />
               <div>
                 <strong>{{ alert.title }}</strong>
                 <small>{{ alert.detail }}</small>
@@ -237,7 +239,7 @@
             </div>
           } @empty {
             <div class="empty-list compact">
-              <span class="material-symbol" aria-hidden="true">notifications</span>
+              <app-icon name="bell" />
               <strong>Nenhum alerta</strong>
             </div>
           }

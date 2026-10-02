@@ -101,6 +101,73 @@ public class MarcasController(AppDbContext db) : ControllerBase
         return Created($"/api/marcas/{marcaNova.Id}", ToResponse(marcaNova));
     }
 
+    [HttpPut("{id:long}")]
+    public async Task<ActionResult<MarcaResponse>> Atualizar(long id, AtualizarMarcaRequest request)
+    {
+        if (id <= 0)
+        {
+            return BadRequest("Id e obrigatorio.");
+        }
+
+        if (request.TenantId <= 0)
+        {
+            return BadRequest("TenantId e obrigatorio.");
+        }
+
+        var marca = await db.Marcas
+            .Include(marca => marca.Produtos)
+            .FirstOrDefaultAsync(marca => marca.Id == id && marca.TenantId == request.TenantId);
+
+        if (marca is null)
+        {
+            return NotFound("Marca nao encontrada.");
+        }
+
+        var nome = TextoOuNull(request.Nome);
+        if (nome is null)
+        {
+            return BadRequest("Nome e obrigatorio.");
+        }
+
+        var codigo = TextoOuNull(request.Codigo);
+        var nomeJaExiste = await db.Marcas.AnyAsync(outraMarca =>
+            outraMarca.Id != id &&
+            outraMarca.TenantId == request.TenantId &&
+            outraMarca.Nome.ToLower() == nome.ToLower());
+
+        if (nomeJaExiste)
+        {
+            return Conflict("Ja existe uma marca com este nome.");
+        }
+
+        if (codigo is not null)
+        {
+            var codigoJaExiste = await db.Marcas.AnyAsync(outraMarca =>
+                outraMarca.Id != id &&
+                outraMarca.TenantId == request.TenantId &&
+                outraMarca.Codigo != null &&
+                outraMarca.Codigo.ToLower() == codigo.ToLower());
+
+            if (codigoJaExiste)
+            {
+                return Conflict("Ja existe uma marca com este codigo.");
+            }
+        }
+
+        marca.Nome = nome;
+        marca.Codigo = codigo;
+        marca.Descricao = TextoOuNull(request.Descricao);
+        marca.LogoUrl = TextoOuNull(request.LogoUrl);
+        marca.Site = TextoOuNull(request.Site);
+        marca.Observacao = TextoOuNull(request.Observacao);
+        marca.Ativo = request.Ativo;
+        marca.AtualizadoEm = DateTime.UtcNow;
+
+        await db.SaveChangesAsync();
+
+        return Ok(ToResponse(marca));
+    }
+
     private static MarcaResponse ToResponse(Marca marca)
     {
         return new MarcaResponse(

@@ -1,8 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { ImportarNfeResponse } from '../../core/app-models';
 import { ApiService } from '../../core/api.service';
+import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
 interface InventoryMetric {
   icon: string;
@@ -35,6 +36,8 @@ interface InventoryProduct {
   imagemUrl: string;
 }
 
+type InventoryTab = 'search' | 'details';
+
 interface XmlPrecheck {
   status: 'idle' | 'valid' | 'invalid';
   message: string;
@@ -42,7 +45,7 @@ interface XmlPrecheck {
 
 @Component({
   selector: 'app-inventory',
-  imports: [ReactiveFormsModule],
+  imports: [FormsModule, ReactiveFormsModule, AppIconComponent],
   templateUrl: './inventory.component.html',
   styleUrl: './inventory.component.scss',
 })
@@ -53,7 +56,12 @@ export class InventoryComponent {
 
   protected readonly showProductModal = signal(false);
   protected readonly showNfeImportModal = signal(false);
+  protected readonly activeTab = signal<InventoryTab>('search');
   protected readonly selectedProductCode = signal('');
+  protected readonly searchTerm = signal('');
+  protected readonly categoryFilter = signal('Todas');
+  protected readonly brandFilter = signal('Todas');
+  protected readonly statusFilter = signal('Todas');
   protected readonly selectedXmlFile = signal<File | null>(null);
   protected readonly importingNfe = signal(false);
   protected readonly importMessage = signal('');
@@ -63,11 +71,149 @@ export class InventoryComponent {
     message: 'Selecione um XML para validar a estrutura da NF-e.',
   });
 
-  protected readonly products = signal<InventoryProduct[]>([]);
+  protected readonly products = signal<InventoryProduct[]>([
+    {
+      codigo: 'W610/3',
+      descricao: 'Filtro de oleo do motor',
+      marca: 'Mann Filter',
+      categoria: 'Filtros',
+      localizacao: 'Estoque Principal',
+      estoque: 24,
+      minimo: 8,
+      valor: 42.9,
+      fabricante: 'W610/3',
+      barras: '4011558123456',
+      ncm: '8421.23.00',
+      peso: '0,280 kg',
+      imagemUrl: '',
+    },
+    {
+      codigo: 'BP5678',
+      descricao: 'Pastilha de freio dianteira',
+      marca: 'Bosch',
+      categoria: 'Freios',
+      localizacao: 'Deposito 01',
+      estoque: 8,
+      minimo: 6,
+      valor: 289.9,
+      fabricante: 'BP5678',
+      barras: '7891104567890',
+      ncm: '8708.30.19',
+      peso: '1,120 kg',
+      imagemUrl: '',
+    },
+    {
+      codigo: 'GP332',
+      descricao: 'Amortecedor dianteiro',
+      marca: 'Cofap',
+      categoria: 'Suspensao',
+      localizacao: 'Rua A-12',
+      estoque: 0,
+      minimo: 4,
+      valor: 359.9,
+      fabricante: 'GP332',
+      barras: '7894561230332',
+      ncm: '8708.80.00',
+      peso: '3,400 kg',
+      imagemUrl: '',
+    },
+    {
+      codigo: 'OC593',
+      descricao: 'Filtro de oleo',
+      marca: 'Mahle',
+      categoria: 'Filtros',
+      localizacao: 'Estoque Principal',
+      estoque: 12,
+      minimo: 8,
+      valor: 39.5,
+      fabricante: 'OC593',
+      barras: '7890000000593',
+      ncm: '8421.23.00',
+      peso: '0,290 kg',
+      imagemUrl: '',
+    },
+    {
+      codigo: 'N-1234',
+      descricao: 'Pastilha de freio dianteira',
+      marca: 'Cobreq',
+      categoria: 'Freios',
+      localizacao: 'Deposito 01',
+      estoque: 3,
+      minimo: 5,
+      valor: 219,
+      fabricante: 'N-1234',
+      barras: '7890000012340',
+      ncm: '8708.30.19',
+      peso: '1,080 kg',
+      imagemUrl: '',
+    },
+    {
+      codigo: 'VKBAS2521',
+      descricao: 'Rolamento de roda',
+      marca: 'SKF',
+      categoria: 'Suspensao',
+      localizacao: 'Rua B-02',
+      estoque: 5,
+      minimo: 4,
+      valor: 189,
+      fabricante: 'VKBAS2521',
+      barras: '7316572521000',
+      ncm: '8482.10.10',
+      peso: '0,720 kg',
+      imagemUrl: '',
+    },
+    {
+      codigo: 'L1234',
+      descricao: 'Lampada H7 12V 55W',
+      marca: 'Osram',
+      categoria: 'Eletrica',
+      localizacao: 'Rua C-05',
+      estoque: 56,
+      minimo: 20,
+      valor: 28.9,
+      fabricante: 'L1234',
+      barras: '4050300012345',
+      ncm: '8539.21.10',
+      peso: '0,040 kg',
+      imagemUrl: '',
+    },
+    {
+      codigo: 'PSL55',
+      descricao: 'Filtro de combustivel',
+      marca: 'Tecfil',
+      categoria: 'Filtros',
+      localizacao: 'Estoque Principal',
+      estoque: 0,
+      minimo: 10,
+      valor: 49.9,
+      fabricante: 'PSL55',
+      barras: '7891344000550',
+      ncm: '8421.23.00',
+      peso: '0,180 kg',
+      imagemUrl: '',
+    },
+  ]);
 
   protected readonly selectedProduct = computed(() => {
-    return this.products().find((product) => product.codigo === this.selectedProductCode()) ?? null;
+    return this.products().find((product) => product.codigo === this.selectedProductCode()) ?? this.products()[0] ?? null;
   });
+
+  protected readonly filteredProducts = computed(() => {
+    const term = this.normalize(this.searchTerm());
+
+    return this.products().filter((product) => {
+      const haystack = this.normalize(`${product.codigo} ${product.descricao} ${product.marca} ${product.categoria} ${product.fabricante} ${product.barras}`);
+      const matchesTerm = !term || haystack.includes(term);
+      const matchesCategory = this.categoryFilter() === 'Todas' || product.categoria === this.categoryFilter();
+      const matchesBrand = this.brandFilter() === 'Todas' || product.marca === this.brandFilter();
+      const matchesStatus = this.statusFilter() === 'Todas' || this.statusFor(product) === this.statusFilter();
+
+      return matchesTerm && matchesCategory && matchesBrand && matchesStatus;
+    });
+  });
+
+  protected readonly categoryOptions = computed(() => this.unique(this.products().map((product) => product.categoria)));
+  protected readonly brandOptions = computed(() => this.unique(this.products().map((product) => product.marca)));
 
   protected readonly metrics = computed<InventoryMetric[]>(() => {
     const products = this.products();
@@ -77,10 +223,10 @@ export class InventoryComponent {
     const noStock = products.filter((product) => product.estoque === 0).length;
 
     return [
-      { icon: 'inventory_2', tone: 'success', label: 'Total de itens', value: this.formatNumber(totalItems), delta: 'base atual', caption: '' },
-      { icon: 'paid', tone: 'success', label: 'Valor em estoque', value: this.formatCurrency(stockValue), delta: 'base atual', caption: '' },
-      { icon: 'warning', tone: 'danger', label: 'Itens com estoque baixo', value: String(lowStock), delta: 'base atual', caption: '' },
-      { icon: 'cancel', tone: 'danger', label: 'Itens sem estoque', value: String(noStock), delta: 'base atual', caption: '' },
+      { icon: 'boxes', tone: 'success', label: 'Total de itens', value: this.formatNumber(totalItems), delta: 'base atual', caption: '' },
+      { icon: 'circle-dollar-sign', tone: 'success', label: 'Valor em estoque', value: this.formatCurrency(stockValue), delta: 'base atual', caption: '' },
+      { icon: 'info', tone: 'danger', label: 'Itens com estoque baixo', value: String(lowStock), delta: 'base atual', caption: '' },
+      { icon: 'x', tone: 'danger', label: 'Itens sem estoque', value: String(noStock), delta: 'base atual', caption: '' },
     ];
   });
 
@@ -88,7 +234,7 @@ export class InventoryComponent {
     const counts = new Map<string, number>();
     this.products().forEach((product) => counts.set(product.categoria, (counts.get(product.categoria) ?? 0) + 1));
 
-    return Array.from(counts.entries()).map(([label, total]) => ({ icon: 'category', label, total: `${total} itens` }));
+    return Array.from(counts.entries()).map(([label, total]) => ({ icon: 'tags', label, total: `${total} itens` }));
   });
 
   protected readonly productForm = this.fb.nonNullable.group({
@@ -201,11 +347,24 @@ export class InventoryComponent {
     const product = this.productForm.getRawValue();
     this.products.update((products) => [product, ...products]);
     this.selectedProductCode.set(product.codigo);
+    this.activeTab.set('details');
     this.showProductModal.set(false);
   }
 
   protected selecionarProduto(codigo: string): void {
     this.selectedProductCode.set(codigo);
+    this.activeTab.set('details');
+  }
+
+  protected voltarPesquisa(): void {
+    this.activeTab.set('search');
+  }
+
+  protected limparFiltros(): void {
+    this.searchTerm.set('');
+    this.categoryFilter.set('Todas');
+    this.brandFilter.set('Todas');
+    this.statusFilter.set('Todas');
   }
 
   protected statusFor(product: InventoryProduct): 'Sem estoque' | 'Estoque baixo' | 'Em estoque' {
@@ -239,6 +398,14 @@ export class InventoryComponent {
     }
 
     return new Date(value).toLocaleDateString('pt-BR');
+  }
+
+  private unique(values: string[]): string[] {
+    return [...new Set(values)].sort((a, b) => a.localeCompare(b));
+  }
+
+  private normalize(value: string): string {
+    return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   }
 
   private async validarXmlSelecionado(file: File): Promise<XmlPrecheck> {

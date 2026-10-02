@@ -1,29 +1,30 @@
 <section class="brands-page">
-  <header class="brands-hero">
-    <div class="hero-title">
-      <span class="title-icon material-symbol" aria-hidden="true">sell</span>
+  <header class="brands-hero page-hero">
+    <div class="hero-title title-row">
+      <app-icon class="title-icon" name="badge" />
       <div>
-        <div class="back-line">
-          <span class="material-symbol" aria-hidden="true">arrow_back</span>
-          Configuracoes
-          <span aria-hidden="true">&gt;</span>
-          Marcas
-        </div>
         <h1>Marcas</h1>
         <p>Cadastre fabricantes e marcas usadas no catalogo de produtos.</p>
       </div>
     </div>
 
-    <button class="primary-action" type="button" (click)="abrirNovaMarca()">
-      <span class="material-symbol" aria-hidden="true">add</span>
-      Nova marca
-    </button>
+    <div class="page-hero-visual" aria-hidden="true">
+      <div class="page-hero-card"><app-icon name="badge" /><div><i></i><i></i></div></div>
+      <div class="page-hero-bars"><i></i><i></i><i></i></div>
+    </div>
+
+    <div class="hero-actions">
+      <button class="primary-action" type="button" (click)="abrirNovaMarca()">
+        <app-icon name="plus" />
+        Nova marca
+      </button>
+    </div>
   </header>
 
   <section class="metrics-grid" aria-label="Resumo de marcas">
     @for (metric of metrics(); track metric.label) {
       <article class="metric-card">
-        <span class="metric-icon material-symbol" aria-hidden="true">{{ metric.icon }}</span>
+        <app-icon class="metric-icon " [name]="metric.icon" [size]="24" />
         <div>
           <p>{{ metric.label }}</p>
           <strong>{{ metric.value }}</strong>
@@ -35,7 +36,7 @@
 
   <section class="brand-grid" aria-label="Marcas cadastradas">
     @for (marca of marcasFiltradas().slice(0, 8); track marca.id) {
-      <article class="brand-card">
+      <button class="brand-card" type="button" (click)="abrirEdicaoMarca(marca)">
         @if (marca.logoUrl) {
           <img [src]="marca.logoUrl" [alt]="marca.nome" />
         } @else {
@@ -43,7 +44,7 @@
         }
         <strong>{{ marca.nome }}</strong>
         <small>{{ marca.produtos }} produtos</small>
-      </article>
+      </button>
     } @empty {
       <article class="brand-card empty-card">
         <span aria-hidden="true">M</span>
@@ -56,7 +57,7 @@
   <section class="brands-panel">
     <div class="filters-bar">
       <label class="search-control">
-        <span class="material-symbol" aria-hidden="true">search</span>
+        <app-icon name="search" />
         <input
           type="search"
           placeholder="Buscar por marca, codigo, descricao ou site..."
@@ -65,7 +66,7 @@
         />
       </label>
       <button class="filter-button" type="button" (click)="busca.set('')">
-        <span class="material-symbol" aria-hidden="true">delete</span>
+        <app-icon name="trash-2" />
         Limpar
       </button>
     </div>
@@ -85,7 +86,7 @@
         </thead>
         <tbody>
           @for (marca of marcasFiltradas(); track marca.id) {
-            <tr>
+            <tr class="clickable-row" tabindex="0" (click)="abrirEdicaoMarca(marca)" (keydown.enter)="abrirEdicaoMarca(marca)">
               <td>
                 <div class="brand-cell">
                   @if (marca.logoUrl) {
@@ -101,13 +102,17 @@
               <td>{{ marca.site || '-' }}</td>
               <td>{{ marca.produtos }}</td>
               <td><span class="status-pill" [class.inactive]="!marca.ativo">{{ marca.ativo ? 'Ativa' : 'Inativa' }}</span></td>
-              <td><button class="row-action" type="button" aria-label="Acoes">...</button></td>
+              <td>
+                <button class="row-action" type="button" aria-label="Editar marca" (click)="$event.stopPropagation(); abrirEdicaoMarca(marca)">
+                  <app-icon name="pencil" />
+                </button>
+              </td>
             </tr>
           } @empty {
             <tr>
               <td colspan="7">
                 <div class="empty-list">
-                  <span class="material-symbol" aria-hidden="true">sell</span>
+                  <app-icon name="badge" />
                   <strong>Nenhuma marca cadastrada</strong>
                   <small>Clique em Nova marca para criar o primeiro cadastro.</small>
                 </div>
@@ -123,13 +128,13 @@
     <div class="modal-backdrop" role="presentation">
       <section class="brand-modal" role="dialog" aria-modal="true" aria-labelledby="brand-modal-title">
         <header class="modal-titlebar">
-          <span class="modal-title-icon material-symbol" aria-hidden="true">sell</span>
+          <app-icon class="modal-title-icon" name="badge" />
           <div>
-            <h2 id="brand-modal-title">Nova marca</h2>
-            <p>Cadastre a marca para vincular aos produtos do catalogo.</p>
+            <h2 id="brand-modal-title">{{ marcaSelecionada() ? 'Editar marca' : 'Nova marca' }}</h2>
+            <p>{{ marcaSelecionada() ? 'Atualize os dados e a logo da marca.' : 'Cadastre a marca para vincular aos produtos do catalogo.' }}</p>
           </div>
           <button class="close-button" type="button" aria-label="Fechar" (click)="fecharNovaMarca()">
-            <span class="material-symbol" aria-hidden="true">close</span>
+            <app-icon name="x" />
           </button>
         </header>
 
@@ -152,10 +157,37 @@
             <textarea formControlName="descricao" maxlength="500" placeholder="Fabricante ou linha comercial da marca."></textarea>
           </label>
 
-          <label>
-            <span>Logo URL</span>
-            <input type="url" formControlName="logoUrl" placeholder="https://..." />
-          </label>
+          <div class="logo-upload">
+            <span>Logo da marca</span>
+            <div class="logo-upload-body">
+              <div class="logo-preview">
+                @if (logoPreview()) {
+                  <img [src]="logoPreview()" alt="Previa da logo" />
+                } @else {
+                  <span aria-hidden="true">{{ initials(marcaForm.controls.nome.value || 'Marca') }}</span>
+                }
+              </div>
+              <div>
+                <label class="upload-trigger">
+                  <input type="file" accept="image/*" (change)="selecionarLogo($event)" />
+                  <app-icon name="upload" />
+                  Escolher logo
+                </label>
+                <small>
+                  @if (enviandoLogo()) {
+                    Enviando logo...
+                  } @else {
+                    {{ logoNomeArquivo() || (marcaForm.controls.logoUrl.value ? 'Logo cadastrada' : 'PNG, JPG ou SVG ate 5 MB') }}
+                  }
+                </small>
+              </div>
+              @if (marcaForm.controls.logoUrl.value) {
+                <button class="remove-logo" type="button" (click)="removerLogo()">
+                  <app-icon name="trash-2" />
+                </button>
+              }
+            </div>
+          </div>
 
           <label>
             <span>Site</span>
@@ -176,9 +208,9 @@
               <p class="message">{{ mensagem() }}</p>
             }
             <button class="cancel-button" type="button" (click)="fecharNovaMarca()">Cancelar</button>
-            <button class="primary-action" type="submit" [disabled]="salvando()">
-              <span class="material-symbol" aria-hidden="true">save</span>
-              {{ salvando() ? 'Salvando...' : 'Salvar marca' }}
+            <button class="primary-action" type="submit" [disabled]="salvando() || enviandoLogo()">
+              <app-icon name="save" />
+              {{ salvando() ? 'Salvando...' : enviandoLogo() ? 'Enviando logo...' : marcaSelecionada() ? 'Salvar alteracoes' : 'Salvar marca' }}
             </button>
           </footer>
         </form>

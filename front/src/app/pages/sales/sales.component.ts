@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { ClienteResumoResponse, Produto } from '../../core/app-models';
+import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
 interface SaleItem { produto: Produto; quantidade: number; preco: number; desconto: number }
 interface Payment { id: number; forma: string; valor: number }
@@ -15,7 +16,7 @@ interface SaleDraft {
 }
 
 @Component({
-  selector: 'app-sales', imports: [FormsModule, RouterLink],
+  selector: 'app-sales', imports: [FormsModule, RouterLink, AppIconComponent],
   templateUrl: './sales.component.html', styleUrl: './sales.component.scss',
 })
 export class SalesComponent {

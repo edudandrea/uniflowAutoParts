@@ -1,15 +1,19 @@
 <section class="suppliers-page">
-  <header class="suppliers-hero">
+  <header class="suppliers-hero page-hero">
     <div class="title-row">
-      <span class="title-icon material-symbol" aria-hidden="true">local_shipping</span>
+      <app-icon class="title-icon" name="truck" />
       <div>
         <h1>Fornecedores</h1>
         <p>Gerencie fornecedores, condicoes comerciais e documentos fiscais.</p>
       </div>
     </div>
+    <div class="page-hero-visual" aria-hidden="true">
+      <div class="page-hero-card"><app-icon name="building-2" /><div><i></i><i></i></div></div>
+      <div class="page-hero-bars"><i></i><i></i><i></i></div>
+    </div>
     <div class="hero-actions">
       <button class="primary-action" type="button" (click)="abrirNovoFornecedor()">
-        <span class="material-symbol" aria-hidden="true">add</span>
+        <app-icon name="plus" />
         Novo fornecedor
       </button>
     </div>
@@ -18,94 +22,286 @@
   <section class="metrics-grid">
     @for (metric of metrics(); track metric.label) {
       <article class="metric-card" [class.danger]="metric.tone === 'danger'">
-        <span class="metric-icon material-symbol">{{ metric.icon }}</span>
+        <app-icon class="metric-icon " [name]="metric.icon" [size]="24" />
         <div><p>{{ metric.label }}</p><strong>{{ metric.value }}</strong><small>{{ metric.detail }}</small></div>
       </article>
     }
   </section>
 
-  <article class="suppliers-panel">
-    <div class="filters-bar">
-      <label class="search-control">
-        <span class="material-symbol">search</span>
-        <input type="search" placeholder="Buscar fornecedor..." />
-      </label>
-      <select><option>Todos os segmentos</option></select>
-      <select><option>Todos os status</option></select>
-      <button class="filter-button" type="button"><span class="material-symbol">filter_alt</span>Mais filtros</button>
-    </div>
+  <section class="supplier-tabs-shell">
+    <nav class="supplier-main-tabs" aria-label="Navegacao de fornecedores">
+      <button type="button" [class.active]="activePageTab() === 'Pesquisa'" (click)="abrirPesquisa()">
+        <app-icon name="search" />
+        Pesquisa e resultados
+      </button>
+      <button type="button" [class.active]="activePageTab() === 'Detalhes'" [disabled]="!selectedSupplier()" (click)="abrirDetalhes()">
+        <app-icon name="building-2" />
+        Dados do fornecedor
+      </button>
+    </nav>
 
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th><input type="checkbox" /></th>
-            <th>Fornecedor</th>
-            <th>CNPJ/CPF</th>
-            <th>Segmento</th>
-            <th>Telefone</th>
-            <th>Cidade/UF</th>
-            <th>Prazo</th>
-            <th>Total comprado</th>
-            <th>Tipo</th>
-            <th>Status</th>
-            <th>Acoes</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (supplier of suppliers(); track supplier.id) {
-            <tr>
-              <td><input type="checkbox" /></td>
-              <td><strong>{{ supplier.nome }}</strong></td>
-              <td>{{ supplier.documento }}</td>
-              <td>{{ supplier.segmento }}</td>
-              <td>{{ supplier.telefone }}</td>
-              <td>{{ supplier.cidade }}</td>
-              <td>{{ supplier.prazoEntrega }} dias</td>
-              <td>{{ formatCurrency(supplier.totalComprado) }}</td>
-              <td><span class="type-pill">{{ supplier.relacionamento }}</span></td>
-              <td><span class="status-pill" [class.inactive]="supplier.status === 'Inativo'">{{ supplier.status }}</span></td>
-              <td><button class="row-action" type="button">...</button></td>
-            </tr>
+    @if (activePageTab() === 'Pesquisa') {
+      <article class="supplier-search-panel">
+        <div class="supplier-search-header">
+          <label class="supplier-search-control">
+            <app-icon name="search" />
+            <input
+              type="search"
+              placeholder="Pesquisar por nome, CNPJ/CPF, telefone, e-mail ou cidade..."
+              [value]="supplierSearch()"
+              (input)="supplierSearch.set($any($event.target).value)"
+            />
+          </label>
+          <button class="filter-button" type="button" (click)="supplierSearch.set('')">
+            <app-icon name="trash-2" />
+            Limpar
+          </button>
+        </div>
+
+        <div class="supplier-results-grid">
+          @for (supplier of filteredSuppliers(); track supplier.id) {
+            <button
+              class="supplier-result-card"
+              type="button"
+              [class.selected]="supplier.id === selectedSupplierId()"
+              (click)="selecionarFornecedor(supplier.id)"
+            >
+              <span class="avatar">{{ initials(supplier.nomeFantasia || supplier.nome) }}</span>
+              <div>
+                <strong>{{ supplier.nome }}</strong>
+                <small>{{ supplier.nomeFantasia }} | {{ supplier.documento }}</small>
+                <em>{{ supplier.segmento }} | {{ supplier.telefone }} | {{ supplier.email }}</em>
+              </div>
+              <span class="status-pill" [class.inactive]="supplier.status === 'Inativo'">{{ supplier.status }}</span>
+              <app-icon name="chevron-right" />
+            </button>
           } @empty {
-            <tr>
-              <td colspan="11">
-                <div class="empty-list">
-                  <span class="material-symbol" aria-hidden="true">local_shipping</span>
-                  <strong>Nenhum fornecedor cadastrado</strong>
-                  <small>Clique em Novo fornecedor para criar o primeiro cadastro.</small>
-                </div>
-              </td>
-            </tr>
+            <div class="empty-list">
+              <app-icon name="truck" />
+              <strong>Nenhum fornecedor encontrado</strong>
+              <small>Cadastre um fornecedor ou ajuste os termos da pesquisa.</small>
+            </div>
           }
-        </tbody>
-      </table>
-    </div>
-  </article>
+        </div>
+      </article>
+    }
+
+    @if (activePageTab() === 'Detalhes') {
+      @if (selectedSupplier(); as supplier) {
+        <section class="supplier-detail-layout">
+          <article class="supplier-record">
+            <nav class="record-tabs" aria-label="Secoes do cadastro">
+              <button class="active" type="button"><app-icon name="user" />Dados principais</button>
+              <button type="button"><app-icon name="map-pin" />Enderecos</button>
+              <button type="button"><app-icon name="phone" />Contatos</button>
+              <button type="button"><app-icon name="briefcase-business" />Dados comerciais</button>
+              <button type="button"><app-icon name="percent" />Condicoes de compra</button>
+              <button type="button"><app-icon name="file-text" />Observacoes</button>
+            </nav>
+
+            <section class="record-section">
+              <h2>Tipo de pessoa</h2>
+              <div class="person-type-cards">
+                <article [class.active]="supplier.tipo === 'PJ'">
+                  <app-icon name="building-2" />
+                  <div>
+                    <strong>Pessoa juridica</strong>
+                    <small>Fornecedor CNPJ</small>
+                  </div>
+                </article>
+                <article [class.active]="supplier.tipo === 'PF'">
+                  <app-icon name="user" />
+                  <div>
+                    <strong>Pessoa fisica</strong>
+                    <small>Fornecedor CPF</small>
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            <section class="record-section">
+              <h2>Identificacao</h2>
+              <div class="record-field-grid">
+                <label>
+                  <span>{{ supplier.tipo === 'PJ' ? 'CNPJ' : 'CPF' }}</span>
+                  <input type="text" [value]="supplier.documento" readonly />
+                </label>
+                <label class="span-2">
+                  <span>{{ supplier.tipo === 'PJ' ? 'Razao social' : 'Nome completo' }}</span>
+                  <input type="text" [value]="supplier.nome" readonly />
+                </label>
+                <label>
+                  <span>Nome fantasia</span>
+                  <input type="text" [value]="supplier.nomeFantasia" readonly />
+                </label>
+              </div>
+            </section>
+
+            <section class="record-section">
+              <h2>Inscricao e classificacao</h2>
+              <div class="record-field-grid">
+                <label>
+                  <span>Inscricao estadual</span>
+                  <input type="text" [value]="supplier.inscricaoEstadual" readonly />
+                </label>
+                <label>
+                  <span>Inscricao municipal</span>
+                  <input type="text" [value]="supplier.inscricaoMunicipal" readonly />
+                </label>
+                <label>
+                  <span>Suframa</span>
+                  <input type="text" [value]="supplier.suframa" readonly />
+                </label>
+                <label>
+                  <span>CNAE</span>
+                  <input type="text" [value]="supplier.cnae" readonly />
+                </label>
+                <label>
+                  <span>Situacao</span>
+                  <input type="text" [value]="supplier.status" readonly />
+                </label>
+                <label>
+                  <span>Tipo de fornecedor</span>
+                  <input type="text" [value]="supplier.relacionamento" readonly />
+                </label>
+                <label>
+                  <span>Categoria</span>
+                  <input type="text" [value]="supplier.categoria" readonly />
+                </label>
+                <label>
+                  <span>Marca(s) principal(is)</span>
+                  <input type="text" [value]="supplier.marcas.join(', ')" readonly />
+                </label>
+              </div>
+            </section>
+
+            <section class="record-section">
+              <h2>Dados de contato</h2>
+              <div class="record-field-grid">
+                <label>
+                  <span>E-mail</span>
+                  <input type="text" [value]="supplier.email" readonly />
+                </label>
+                <label>
+                  <span>Telefone</span>
+                  <input type="text" [value]="supplier.telefone" readonly />
+                </label>
+                <label>
+                  <span>Celular</span>
+                  <input type="text" [value]="supplier.celular" readonly />
+                </label>
+                <label>
+                  <span>Site</span>
+                  <input type="text" [value]="supplier.site" readonly />
+                </label>
+              </div>
+            </section>
+
+            <section class="record-section address-band">
+              <h2>Endereco principal</h2>
+              <div class="supplier-address-preview">
+                <app-icon name="map-pin" />
+                <div>
+                  <strong>{{ supplier.endereco }}</strong>
+                  <small>{{ supplier.bairro }} - {{ supplier.cidade }} {{ supplier.uf !== '-' ? '- ' + supplier.uf : '' }} - {{ supplier.cep }}</small>
+                </div>
+                <button class="filter-button" type="button"><app-icon name="pencil" />Editar endereco</button>
+              </div>
+            </section>
+
+            <section class="record-section">
+              <h2>Observacao</h2>
+              <textarea [value]="supplier.observacoes" readonly></textarea>
+            </section>
+          </article>
+
+          <aside class="supplier-summary-column">
+            <article class="summary-card">
+              <h3><app-icon name="user" />Resumo do fornecedor</h3>
+              <div class="summary-profile">
+                <span class="profile-avatar">{{ initials(supplier.nomeFantasia || supplier.nome) }}</span>
+                <div>
+                  <strong>{{ supplier.nome }}</strong>
+                  <small>{{ supplier.nomeFantasia }}</small>
+                  <small>{{ supplier.tipo === 'PJ' ? 'CNPJ' : 'CPF' }} {{ supplier.documento }}</small>
+                </div>
+                <span class="status-pill" [class.inactive]="supplier.status === 'Inativo'">{{ supplier.status }}</span>
+              </div>
+              <dl>
+                <div><dt>Telefone</dt><dd>{{ supplier.telefone }}</dd></div>
+                <div><dt>Celular</dt><dd>{{ supplier.celular }}</dd></div>
+                <div><dt>E-mail</dt><dd>{{ supplier.email }}</dd></div>
+                <div><dt>Site</dt><dd>{{ supplier.site }}</dd></div>
+                <div><dt>Tipo</dt><dd>{{ supplier.relacionamento }}</dd></div>
+                <div><dt>Categoria</dt><dd>{{ supplier.categoria }}</dd></div>
+              </dl>
+            </article>
+
+            <article class="summary-card">
+              <h3><app-icon name="map-pin" />Endereco principal</h3>
+              <dl>
+                <div><dt>Logradouro</dt><dd>{{ supplier.endereco }}</dd></div>
+                <div><dt>Bairro</dt><dd>{{ supplier.bairro }}</dd></div>
+                <div><dt>Cidade/UF</dt><dd>{{ supplier.cidade }} {{ supplier.uf !== '-' ? '- ' + supplier.uf : '' }}</dd></div>
+                <div><dt>CEP</dt><dd>{{ supplier.cep }}</dd></div>
+              </dl>
+            </article>
+
+            <article class="summary-card">
+              <h3><app-icon class="chart" name="chart-no-axes-combined" />Estatisticas de compras</h3>
+              <dl>
+                <div><dt>Total de compras</dt><dd>{{ formatCurrency(supplier.totalComprado) }}</dd></div>
+                <div><dt>Quantidade de notas</dt><dd>{{ supplier.quantidadeNotas }}</dd></div>
+                <div><dt>Ultima compra</dt><dd>{{ supplier.ultimaCompra }}</dd></div>
+                <div><dt>Prazo medio de entrega</dt><dd>{{ supplier.prazoEntrega }} dias</dd></div>
+              </dl>
+            </article>
+
+            <article class="summary-card">
+              <h3><app-icon class="cart" name="boxes" />Principais produtos <a href="#">Ver todos</a></h3>
+              <div class="supplier-products">
+                <p><span>Vela de ignicao FR7DC+<small>NGK</small></span><strong>320 un</strong></p>
+                <p><span>Pastilha de freio BP5678<small>Bosch</small></span><strong>280 un</strong></p>
+                <p><span>Filtro de oleo W610/3<small>Mann Filter</small></span><strong>450 un</strong></p>
+              </div>
+            </article>
+          </aside>
+        </section>
+      } @else {
+        <article class="supplier-search-panel">
+          <div class="empty-list">
+            <app-icon name="user-search" />
+            <strong>Selecione um fornecedor</strong>
+            <small>Use a aba de pesquisa para abrir os dados do cadastro.</small>
+          </div>
+        </article>
+      }
+    }
+  </section>
 
   @if (showSupplierModal()) {
     <div class="modal-backdrop" role="presentation">
       <section class="supplier-modal" role="dialog" aria-modal="true" aria-labelledby="supplier-title">
         <header class="modal-titlebar">
           <div class="modal-title-icon">
-            <span class="material-symbol">apartment</span>
+            <app-icon name="building-2" />
           </div>
           <div>
             <h2 id="supplier-title">Novo fornecedor</h2>
             <p>Preencha os dados para cadastrar um novo fornecedor no sistema.</p>
           </div>
           <button class="close-button" type="button" (click)="fecharNovoFornecedor()">
-            <span class="material-symbol">close</span>
+            <app-icon name="x" />
           </button>
         </header>
 
         <nav class="modal-tabs">
-          <button class="active" type="button"><span class="material-symbol">person</span>Dados gerais</button>
-          <button type="button"><span class="material-symbol">location_on</span>Enderecos</button>
-          <button type="button"><span class="material-symbol">call</span>Contatos</button>
-          <button type="button"><span class="material-symbol">bar_chart</span>Condicoes comerciais</button>
-          <button type="button"><span class="material-symbol">description</span>Observacoes</button>
-          <button type="button"><span class="material-symbol">article</span>Documentos</button>
+          <button class="active" type="button"><app-icon name="user" />Dados gerais</button>
+          <button type="button"><app-icon name="map-pin" />Enderecos</button>
+          <button type="button"><app-icon name="phone" />Contatos</button>
+          <button type="button"><app-icon name="chart-no-axes-combined" />Condicoes comerciais</button>
+          <button type="button"><app-icon name="file-text" />Observacoes</button>
+          <button type="button"><app-icon name="file-text" />Documentos</button>
         </nav>
 
         <form [formGroup]="supplierForm" (ngSubmit)="salvarFornecedor()" class="supplier-form">
@@ -114,13 +310,13 @@
             <div class="person-type-grid">
               <label class="person-type-card" [class.active]="supplierForm.controls.tipo.value === 'PJ'">
                 <input type="radio" formControlName="tipo" value="PJ" />
-                <span class="material-symbol">apartment</span>
+                <app-icon name="building-2" />
                 Pessoa Juridica
                 <i></i>
               </label>
               <label class="person-type-card" [class.active]="supplierForm.controls.tipo.value === 'PF'">
                 <input type="radio" formControlName="tipo" value="PF" />
-                <span class="material-symbol">person</span>
+                <app-icon name="user" />
                 Pessoa Fisica
                 <i></i>
               </label>
@@ -146,6 +342,7 @@
           <label><span>Indicador de IE</span><select formControlName="indicadorIe"><option value="">Selecione...</option><option>Contribuinte</option><option>Isento</option></select></label>
           <label><span>Regime tributario</span><select formControlName="regimeTributario"><option value="">Selecione...</option><option>Simples Nacional</option><option>Lucro Presumido</option></select></label>
           <label><span>Suframa</span><input type="text" formControlName="suframa" placeholder="Digite o codigo Suframa" /></label>
+          <label><span>CNAE</span><input type="text" formControlName="cnae" placeholder="Ex.: 4530-7/03" /></label>
           <label class="switch-line"><span>Optante pelo Simples</span><input type="checkbox" formControlName="simples" /><i></i><strong>Sim</strong></label>
 
           <label class="full"><span>Observacoes</span><textarea formControlName="observacoes" maxlength="500" placeholder="Digite observacoes sobre o fornecedor..."></textarea><small>0/500</small></label>
@@ -157,7 +354,7 @@
               <small>Ao marcar, o cadastro estara disponivel no modulo de clientes.</small>
             </label>
             <button class="cancel-button" type="button" (click)="fecharNovoFornecedor()">Cancelar</button>
-            <button class="primary-action" type="submit"><span class="material-symbol">save</span>Salvar fornecedor</button>
+            <button class="primary-action" type="submit"><app-icon name="save" />Salvar fornecedor</button>
           </footer>
         </form>
       </section>

@@ -111,7 +111,7 @@ h1 {
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -163,7 +163,7 @@ h1 {
 
 .category-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -471,5 +471,30 @@ textarea {
   .category-form footer .primary-action,
   .category-form footer .cancel-button {
     width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.45rem;
+  }
+
+  .title-icon,
+  .modal-title-icon {
+    width: 44px;
+    height: 44px;
+    font-size: 1.35rem;
+  }
+
+  .modal-titlebar,
+  .category-form,
+  .category-form footer {
+    align-items: stretch;
+    padding-inline: 14px;
+  }
+
+  .category-modal {
+    max-height: calc(100svh - 20px);
+    overflow: auto;
   }
 }

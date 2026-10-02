@@ -133,7 +133,7 @@ p {
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -195,7 +195,7 @@ p {
 
 .filters-bar {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) repeat(3, minmax(140px, 0.34fr)) 130px;
+  grid-template-columns: minmax(240px, 1fr) repeat(3, minmax(130px, 0.34fr)) minmax(124px, auto);
   gap: 10px;
   padding: 14px;
 }
@@ -799,5 +799,91 @@ th {
 
   .margin-field small {
     grid-column: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .products-page {
+    min-height: auto;
+  }
+
+  .products-hero {
+    min-height: auto;
+    padding: 14px;
+  }
+
+  .title-row {
+    align-items: flex-start;
+  }
+
+  .title-icon,
+  .metric-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 1.45rem;
+  }
+
+  .title-row h1 {
+    font-size: 1.36rem;
+  }
+
+  .hero-actions button,
+  .filter-button,
+  .table-footer .pager,
+  .table-footer > span {
+    width: 100%;
+  }
+
+  .metric-card {
+    min-height: auto;
+    padding: 14px;
+  }
+
+  .filters-bar,
+  .import-card,
+  .product-modal,
+  .import-modal {
+    padding: 14px;
+  }
+
+  .table-footer,
+  .product-form footer,
+  .import-modal footer,
+  .file-preview,
+  .steps {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pager {
+    justify-content: space-between;
+  }
+
+  .product-modal,
+  .import-modal {
+    max-height: calc(100svh - 20px);
+  }
+
+  .product-modal header,
+  .import-modal header {
+    align-items: flex-start;
+  }
+
+  .steps {
+    display: flex;
+    gap: 8px;
+  }
+
+  .steps i {
+    display: none;
+  }
+
+  .option-card {
+    min-height: auto;
+  }
+
+  .product-form footer button,
+  .import-modal footer button {
+    width: 100%;
   }
 }

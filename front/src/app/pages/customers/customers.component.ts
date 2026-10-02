@@ -1,8 +1,9 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
-import { CadastroEndereco } from '../../core/app-models';
+import { CadastroEndereco, ClienteResumoResponse } from '../../core/app-models';
 import { ApiService } from '../../core/api.service';
+import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
 interface CustomerMetric {
   icon: string;
@@ -39,7 +40,7 @@ interface Customer {
 
 @Component({
   selector: 'app-customers',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, AppIconComponent],
   templateUrl: './customers.component.html',
   styleUrl: './customers.component.scss',
 })
@@ -50,6 +51,8 @@ export class CustomersComponent {
 
   protected readonly showCustomerModal = signal(false);
   protected readonly selectedCustomerId = signal('');
+  protected readonly activePageTab = signal<'Pesquisa' | 'Detalhes'>('Pesquisa');
+  protected readonly customerSearch = signal('');
   protected readonly activeCustomerModalTab = signal('Dados gerais');
   protected readonly savingCustomer = signal(false);
   protected readonly customerMessage = signal('');
@@ -57,6 +60,26 @@ export class CustomersComponent {
   protected readonly enderecos = signal<CadastroEndereco[]>([]);
 
   protected readonly customers = signal<Customer[]>([]);
+
+  protected readonly filteredCustomers = computed(() => {
+    const term = this.customerSearch().trim().toLowerCase();
+    const customers = this.customers();
+
+    if (!term) {
+      return customers;
+    }
+
+    return customers.filter((customer) => {
+      return (
+        customer.nome.toLowerCase().includes(term) ||
+        customer.subtitulo.toLowerCase().includes(term) ||
+        customer.documento.toLowerCase().includes(term) ||
+        customer.telefone.toLowerCase().includes(term) ||
+        customer.email.toLowerCase().includes(term) ||
+        customer.cidade.toLowerCase().includes(term)
+      );
+    });
+  });
 
   protected readonly selectedCustomer = computed(() => {
     return this.customers().find((customer) => customer.id === this.selectedCustomerId()) ?? null;
@@ -92,10 +115,10 @@ export class CustomersComponent {
     const inactive = customers.length - active;
 
     return [
-      { icon: 'groups', label: 'Total de clientes', value: this.formatNumber(customers.length), delta: 'base atual', tone: 'success' },
-      { icon: 'donut_large', label: 'Clientes ativos', value: this.formatNumber(active), delta: this.percentual(active, customers.length), tone: 'success' },
-      { icon: 'group_add', label: 'Novos clientes (mes)', value: '0', delta: 'base atual', tone: 'success' },
-      { icon: 'cancel', label: 'Clientes inativos', value: String(inactive), delta: this.percentual(inactive, customers.length), tone: 'danger' },
+      { icon: 'users', label: 'Total de clientes', value: this.formatNumber(customers.length), delta: 'base atual', tone: 'success' },
+      { icon: 'badge-check', label: 'Clientes ativos', value: this.formatNumber(active), delta: this.percentual(active, customers.length), tone: 'success' },
+      { icon: 'plus', label: 'Novos clientes (mes)', value: '0', delta: 'base atual', tone: 'success' },
+      { icon: 'x', label: 'Clientes inativos', value: String(inactive), delta: this.percentual(inactive, customers.length), tone: 'danger' },
     ];
   });
 
@@ -150,6 +173,7 @@ export class CustomersComponent {
 
   constructor() {
     this.carregarEnderecos();
+    this.carregarClientes();
   }
 
   protected abrirNovoCliente(): void {
@@ -312,6 +336,7 @@ export class CustomersComponent {
           customer.id = String(response.id);
           this.customers.update((customers) => [customer, ...customers]);
           this.selectedCustomerId.set(customer.id);
+          this.activePageTab.set('Detalhes');
           this.savingCustomer.set(false);
           this.showCustomerModal.set(false);
         },
@@ -324,6 +349,17 @@ export class CustomersComponent {
 
   protected selecionarCliente(id: string): void {
     this.selectedCustomerId.set(id);
+    this.activePageTab.set('Detalhes');
+  }
+
+  protected abrirPesquisa(): void {
+    this.activePageTab.set('Pesquisa');
+  }
+
+  protected abrirDetalhes(): void {
+    if (this.selectedCustomer()) {
+      this.activePageTab.set('Detalhes');
+    }
   }
 
   protected selecionarEndereco(endereco: CadastroEndereco): void {
@@ -366,5 +402,46 @@ export class CustomersComponent {
         this.enderecos.set(enderecos);
       },
     });
+  }
+
+  private carregarClientes(): void {
+    this.api.listarClientes(this.empresaId).subscribe({
+      next: (clientes) => {
+        const mapped = clientes.map((cliente) => this.mapCliente(cliente));
+        this.customers.set(mapped);
+
+        if (!this.selectedCustomerId() && mapped.length) {
+          this.selectedCustomerId.set(mapped[0].id);
+        }
+      },
+    });
+  }
+
+  private mapCliente(cliente: ClienteResumoResponse): Customer {
+    const tipo = cliente.tipoPessoa === 2 ? 'PJ' : 'PF';
+    return {
+      id: String(cliente.id),
+      nome: cliente.nomeFantasia || cliente.nomeRazaoSocial,
+      subtitulo: tipo === 'PJ' ? 'Cliente CNPJ' : 'Cliente CPF',
+      tipo,
+      documento: cliente.cpfCnpj,
+      telefone: cliente.celular || cliente.telefone || '-',
+      email: cliente.email || '-',
+      site: '',
+      cidade: '-',
+      uf: '',
+      ultimaCompra: '-',
+      totalComprado: 0,
+      status: cliente.ativo ? 'Ativo' : 'Inativo',
+      inscricaoEstadual: '',
+      inscricaoMunicipal: '',
+      razaoSocial: cliente.nomeRazaoSocial,
+      nomeFantasia: cliente.nomeFantasia || cliente.nomeRazaoSocial,
+      logradouro: '-',
+      bairro: '-',
+      cep: '-',
+      observacoes: '',
+      relacionamento: cliente.relacionamento === 2 ? 'Fornecedor' : cliente.relacionamento === 3 ? 'Ambos' : 'Cliente',
+    };
   }
 }
