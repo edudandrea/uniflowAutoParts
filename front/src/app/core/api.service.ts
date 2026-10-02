@@ -26,6 +26,10 @@ export class ApiService {
     return this.http.post<ClienteResumoResponse>(`${this.apiUrl}/clientes`, payload);
   }
 
+  listarClientes(empresaId: number) {
+    return this.http.get<ClienteResumoResponse[]>(`${this.apiUrl}/clientes`, { params: { empresaId } });
+  }
+
   listarEnderecos(empresaId: number, busca = '') {
     return this.http.get<CadastroEndereco[]>(`${this.apiUrl}/enderecos`, {
       params: { empresaId, busca },

@@ -10,6 +10,7 @@ import { InventoryComponent } from './pages/inventory/inventory.component';
 import { ProductsComponent } from './pages/products/products.component';
 import { PurchasesComponent } from './pages/purchases/purchases.component';
 import { SuppliersComponent } from './pages/suppliers/suppliers.component';
+import { SalesComponent } from './pages/sales/sales.component';
 
 export const routes: Routes = [
   {
@@ -21,6 +22,7 @@ export const routes: Routes = [
       { path: 'clientes', component: CustomersComponent },
       { path: 'produtos', component: ProductsComponent },
       { path: 'compras', component: PurchasesComponent },
+      { path: 'vendas', component: SalesComponent },
       { path: 'fornecedores', component: SuppliersComponent },
       { path: 'configuracoes/enderecos', component: AddressesComponent },
       { path: 'configuracoes/categorias', component: CategoriesComponent },
