@@ -316,7 +316,11 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
 
     private static DateTime? Data(string? value)
     {
-        return DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var parsed) ? parsed : null;
+        return DateTimeOffset.TryParse(
+            value,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal,
+            out var parsed) ? parsed.UtcDateTime : null;
     }
 
     private static string ApenasDigitos(string value)

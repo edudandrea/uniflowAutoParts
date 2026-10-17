@@ -351,3 +351,11 @@ C:\Projects\UniflowAutoParts\tmp-build\api\UniflowAutoParts.Api.dll
 C:\Projects\UniflowAutoParts\tmp-build\api\UniflowAutoParts.Api.pdb
 C:\Projects\UniflowAutoParts\back\bin\Debug\net10.0\AWSSDK.Core.dll
 C:\Projects\UniflowAutoParts\back\bin\Debug\net10.0\AWSSDK.S3.dll
+C:\Users\Eduardo\AppData\Local\Temp\uniflow-nfe-95a0f9b3b99043339c4a1e6427f03bcc\api\appsettings.Development.json
+C:\Users\Eduardo\AppData\Local\Temp\uniflow-nfe-95a0f9b3b99043339c4a1e6427f03bcc\api\appsettings.json
+C:\Users\Eduardo\AppData\Local\Temp\uniflow-nfe-95a0f9b3b99043339c4a1e6427f03bcc\api\UniflowAutoParts.Api.staticwebassets.endpoints.json
+C:\Users\Eduardo\AppData\Local\Temp\uniflow-nfe-95a0f9b3b99043339c4a1e6427f03bcc\api\UniflowAutoParts.Api.exe
+C:\Users\Eduardo\AppData\Local\Temp\uniflow-nfe-95a0f9b3b99043339c4a1e6427f03bcc\api\UniflowAutoParts.Api.deps.json
+C:\Users\Eduardo\AppData\Local\Temp\uniflow-nfe-95a0f9b3b99043339c4a1e6427f03bcc\api\UniflowAutoParts.Api.runtimeconfig.json
+C:\Users\Eduardo\AppData\Local\Temp\uniflow-nfe-95a0f9b3b99043339c4a1e6427f03bcc\api\UniflowAutoParts.Api.dll
+C:\Users\Eduardo\AppData\Local\Temp\uniflow-nfe-95a0f9b3b99043339c4a1e6427f03bcc\api\UniflowAutoParts.Api.pdb
