@@ -58,6 +58,9 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "allowedHosts": ["front-production-0fc8.up.railway.app"]
+          },
           "configurations": {
             "production": {
               "buildTarget": "UniflowAutoParts.App:build:production"
