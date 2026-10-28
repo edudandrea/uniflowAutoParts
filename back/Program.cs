@@ -1,37 +1,61 @@
+
 using back.Data;
 using back.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddOpenApi();
+// Controllers e OpenAPI
 builder.Services.AddControllers();
-builder.Services.Configure<CloudflareR2Options>(builder.Configuration.GetSection("CloudflareR2"));
-builder.Services.AddSingleton<ICloudflareR2StorageService, CloudflareR2StorageService>();
+builder.Services.AddOpenApi();
+
+// Cloudflare R2
+builder.Services.Configure<CloudflareR2Options>(
+    builder.Configuration.GetSection("CloudflareR2"));
+
+builder.Services.AddSingleton<
+    ICloudflareR2StorageService,
+    CloudflareR2StorageService>();
+
+// PostgreSQL - conexão conforme ambiente
+var connectionString = builder.Configuration
+    .GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException(
+        "Connection string DefaultConnection não configurada.");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(connectionString));
+
+// CORS - origens configuradas por ambiente
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins")
+    .Get<string[]>() ?? Array.Empty<string>();
+
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
-        policy.WithOrigins("http://localhost:4200", "http://127.0.0.1:4200")
-            .AllowAnyHeader()
-            .AllowAnyMethod());
+    options.AddPolicy("FrontendPolicy", policy =>
+    {
+        policy.WithOrigins(allowedOrigins)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
 });
 
 var app = builder.Build();
 
+// OpenAPI somente em desenvolvimento
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
+// No Railway, o HTTPS termina no proxy.
+// Não forçamos redirecionamento dentro do container.
+// Em outras hospedagens, configure HTTPS conforme
+// o proxy e os forwarded headers utilizados.
 
-app.UseCors();
+app.UseCors("FrontendPolicy");
+
 app.MapControllers();
 
 app.Run();
