@@ -1,7 +1,6 @@
 <section class="sales-page">
   <header class="hero page-hero">
     <div class="title"><app-icon class="title-icon" name="shopping-cart" /><div><h1>Nova venda</h1><p>Inclua os itens, selecione o cliente e prepare a nota fiscal.</p></div></div>
-    <div class="page-hero-visual" aria-hidden="true"><div class="page-hero-card"><app-icon name="receipt-text" /><div><i></i><i></i></div></div><div class="page-hero-bars"><i></i><i></i><i></i></div></div>
     <div class="actions"><button type="button" (click)="tipo = 'Orçamento'; saveDraft()"><app-icon name="file-text" />Orçamento</button><button type="button" (click)="clear()"><app-icon name="trash-2" />Limpar venda</button><button type="button" (click)="saveDraft()"><app-icon name="save" />Salvar rascunho</button></div>
   </header>
   @if (message()) { <div class="notice" role="status"><app-icon name="info" />{{ message() }}<button type="button" aria-label="Fechar mensagem" (click)="message.set('')"><app-icon name="x" /></button></div> }

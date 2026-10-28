@@ -196,41 +196,24 @@ button:disabled {
 .page-hero {
   position: relative;
   isolation: isolate;
-  min-height: 112px;
+  min-height: 88px;
   overflow: hidden;
   border: 1px solid rgba(11, 36, 56, 0.08);
   border-radius: 8px;
   margin-bottom: 14px;
   padding: 16px 18px;
-  background:
-    linear-gradient(112deg, #fff 0%, #fff 48%, rgba(222, 248, 240, 0.92) 48.2%, rgba(192, 243, 225, 0.76) 72%, rgba(255, 255, 255, 0.94) 72.2%),
-    #fff;
+  background: #fff;
   box-shadow: var(--shadow-sm);
 }
 
 .page-hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  background:
-    radial-gradient(circle at 78% 34%, rgba(19, 168, 106, 0.18), transparent 22%),
-    radial-gradient(circle at 61% 12%, rgba(0, 143, 175, 0.08) 0 1.5px, transparent 1.8px);
-  background-size: auto, 14px 14px;
+  content: none;
+  display: none;
 }
 
 .page-hero::after {
-  content: "";
-  position: absolute;
-  top: -34px;
-  right: 10%;
-  z-index: -1;
-  width: min(420px, 48%);
-  height: 190px;
-  background:
-    radial-gradient(ellipse at 78% 58%, rgba(19, 168, 106, 0.18), transparent 52%),
-    linear-gradient(118deg, rgba(255, 255, 255, 0), rgba(19, 168, 106, 0.1) 48%, rgba(0, 143, 175, 0.14));
-  transform: skewX(-18deg);
+  content: none;
+  display: none;
 }
 
 .page-hero .title-row,
@@ -293,18 +276,16 @@ button:disabled {
 .page-hero.hero,
 .page-hero.hero-panel {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(180px, 330px) auto;
-  grid-template-areas: "title visual actions";
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "title actions";
   align-items: center;
   gap: 18px;
-  min-height: 112px;
+  min-height: 88px;
   border: 1px solid rgba(11, 36, 56, 0.08);
   border-radius: 8px;
   margin-bottom: 14px;
   padding: 16px 18px;
-  background:
-    linear-gradient(112deg, #fff 0%, #fff 48%, rgba(222, 248, 240, 0.92) 48.2%, rgba(192, 243, 225, 0.76) 72%, rgba(255, 255, 255, 0.94) 72.2%),
-    #fff;
+  background: #fff;
   box-shadow: var(--shadow-sm);
 }
 
@@ -320,18 +301,8 @@ button:disabled {
 .page-hero.financial-header::after,
 .page-hero.hero::after,
 .page-hero.hero-panel::after {
-  content: "";
-  position: absolute;
-  top: -34px;
-  right: 10%;
-  z-index: -1;
-  width: min(420px, 48%);
-  height: 190px;
-  background:
-    radial-gradient(ellipse at 78% 58%, rgba(19, 168, 106, 0.18), transparent 52%),
-    linear-gradient(118deg, rgba(255, 255, 255, 0), rgba(19, 168, 106, 0.1) 48%, rgba(0, 143, 175, 0.14));
-  transform: skewX(-18deg);
-  pointer-events: none;
+  content: none;
+  display: none;
 }
 
 .page-hero.customers-hero::before,
@@ -346,15 +317,8 @@ button:disabled {
 .page-hero.financial-header::before,
 .page-hero.hero::before,
 .page-hero.hero-panel::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  background:
-    radial-gradient(circle at 78% 34%, rgba(19, 168, 106, 0.18), transparent 22%),
-    radial-gradient(circle at 61% 12%, rgba(0, 143, 175, 0.08) 0 1.5px, transparent 1.8px);
-  background-size: auto, 14px 14px;
-  pointer-events: none;
+  content: none;
+  display: none;
 }
 
 .page-hero .title-row,
@@ -363,11 +327,6 @@ button:disabled {
 .page-hero .title,
 .page-hero .hero-copy {
   grid-area: title;
-}
-
-.page-hero .page-hero-visual {
-  grid-area: visual;
-  justify-self: end;
 }
 
 .page-hero .hero-actions,
@@ -381,79 +340,6 @@ button:disabled {
 .page-hero > .primary-action,
 .page-hero > .period-button {
   align-self: center;
-}
-
-.page-hero-visual {
-  width: clamp(180px, 26vw, 330px);
-  min-height: 84px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: end;
-  gap: 16px;
-  pointer-events: none;
-}
-
-.page-hero-card {
-  min-height: 66px;
-  display: grid;
-  grid-template-columns: 38px 1fr;
-  gap: 10px;
-  align-items: center;
-  border: 1px solid rgba(19, 168, 106, 0.14);
-  border-radius: 8px;
-  padding: 10px;
-  background: rgba(255, 255, 255, 0.72);
-  box-shadow: 0 16px 35px rgba(12, 45, 65, 0.1);
-}
-
-.page-hero-card span,
-.page-hero-card app-icon {
-  width: 36px;
-  height: 36px;
-  display: grid;
-  place-items: center;
-  border-radius: 8px;
-  color: var(--brand-green-dark);
-  background: rgba(19, 168, 106, 0.12);
-}
-
-.page-hero-card i {
-  display: block;
-  height: 8px;
-  border-radius: 99px;
-  background: rgba(19, 168, 106, 0.2);
-}
-
-.page-hero-card i + i {
-  width: 64%;
-  margin-top: 8px;
-  background: rgba(0, 143, 175, 0.14);
-}
-
-.page-hero-bars {
-  height: 74px;
-  display: flex;
-  align-items: end;
-  gap: 7px;
-}
-
-.page-hero-bars i {
-  width: 18px;
-  border-radius: 8px 8px 0 0;
-  background: linear-gradient(180deg, #77dcc0, var(--brand-green));
-  box-shadow: 0 10px 18px rgba(19, 168, 106, 0.2);
-}
-
-.page-hero-bars i:nth-child(1) {
-  height: 36px;
-}
-
-.page-hero-bars i:nth-child(2) {
-  height: 52px;
-}
-
-.page-hero-bars i:nth-child(3) {
-  height: 70px;
 }
 
 @media (max-width: 640px) {
@@ -519,9 +405,6 @@ button:disabled {
     justify-self: stretch;
   }
 
-  .page-hero-visual {
-    display: none;
-  }
 }
 
 .empty-list {

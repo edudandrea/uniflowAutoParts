@@ -58,6 +58,7 @@ export class InventoryComponent {
   protected readonly showNfeImportModal = signal(false);
   protected readonly activeTab = signal<InventoryTab>('search');
   protected readonly selectedProductCode = signal('');
+  protected readonly checkedProductCodes = signal<ReadonlySet<string>>(new Set());
   protected readonly searchTerm = signal('');
   protected readonly categoryFilter = signal('Todas');
   protected readonly brandFilter = signal('Todas');
@@ -213,6 +214,15 @@ export class InventoryComponent {
   });
 
   protected readonly categoryOptions = computed(() => this.unique(this.products().map((product) => product.categoria)));
+  protected readonly checkedVisibleCount = computed(() =>
+    this.filteredProducts().filter((product) => this.checkedProductCodes().has(product.codigo)).length,
+  );
+  protected readonly allVisibleChecked = computed(() =>
+    this.filteredProducts().length > 0 && this.checkedVisibleCount() === this.filteredProducts().length,
+  );
+  protected readonly someVisibleChecked = computed(() =>
+    this.checkedVisibleCount() > 0 && !this.allVisibleChecked(),
+  );
   protected readonly brandOptions = computed(() => this.unique(this.products().map((product) => product.marca)));
 
   protected readonly metrics = computed<InventoryMetric[]>(() => {
@@ -354,6 +364,26 @@ export class InventoryComponent {
   protected selecionarProduto(codigo: string): void {
     this.selectedProductCode.set(codigo);
     this.activeTab.set('details');
+  }
+
+  protected marcarProduto(codigo: string, checked: boolean): void {
+    this.checkedProductCodes.update((current) => {
+      const next = new Set(current);
+      if (checked) next.add(codigo);
+      else next.delete(codigo);
+      return next;
+    });
+  }
+
+  protected marcarTodosVisiveis(checked: boolean): void {
+    this.checkedProductCodes.update((current) => {
+      const next = new Set(current);
+      for (const product of this.filteredProducts()) {
+        if (checked) next.add(product.codigo);
+        else next.delete(product.codigo);
+      }
+      return next;
+    });
   }
 
   protected voltarPesquisa(): void {
