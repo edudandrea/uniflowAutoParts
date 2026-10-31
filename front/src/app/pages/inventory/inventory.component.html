@@ -10,6 +10,9 @@
 
 
     <div class="hero-actions">
+      <button class="secondary-action" type="button" [disabled]="loading()" (click)="carregarEstoque()">
+        Atualizar estoque
+      </button>
       <button class="secondary-action" type="button" (click)="abrirImportacaoNfe()">
         <app-icon name="file-up" />
         Importar XML NF-e
@@ -25,6 +28,7 @@
     </div>
   </header>
 
+  @if (!loading() && !loadError()) {
   <section class="metrics-grid" aria-label="Resumo do estoque">
     @for (metric of metrics(); track metric.label) {
       <article class="metric-card" [class.danger]="metric.tone === 'danger'">
@@ -40,26 +44,26 @@
       </article>
     }
 
-    <article class="turnover-card">
-      <div class="donut" aria-hidden="true">72%</div>
-      <div>
-        <p>Giro de estoque</p>
-        <strong>Bom desempenho</strong>
-      </div>
-      <app-icon name="chevron-right" />
-    </article>
   </section>
+  }
 
   <nav class="inventory-tabs" aria-label="Cadastro de estoque">
     <button type="button" [class.active]="activeTab() === 'search'" (click)="activeTab.set('search')">
       <app-icon name="search" />
       Pesquisa de itens
     </button>
-    <button type="button" [class.active]="activeTab() === 'details'" (click)="activeTab.set('details')">
+    <button type="button" [disabled]="!selectedProduct()" [class.active]="activeTab() === 'details'" (click)="activeTab.set('details')">
       <app-icon name="package" />
       Dados do item
     </button>
   </nav>
+
+  @if (loadError()) {
+    <p role="alert">{{ loadError() }} <button type="button" (click)="carregarEstoque()">Tentar novamente</button></p>
+  }
+  @if (loading()) {
+    <p role="status">Carregando estoque...</p>
+  }
 
   @if (activeTab() === 'search') {
     <section class="inventory-search-tab">
@@ -67,7 +71,7 @@
         <header class="panel-title">
           <div>
             <h2>Pesquisar estoque</h2>
-            <p>Busque por codigo, descricao, marca, fabricante ou codigo de barras.</p>
+            <p>Busque por codigo, descricao, marca ou codigo do fabricante.</p>
           </div>
           <strong>{{ filteredProducts().length }} item(ns)</strong>
         </header>
@@ -154,7 +158,7 @@
                 <td>{{ product.descricao }}</td>
                 <td>{{ product.marca }}</td>
                 <td>{{ product.categoria }}</td>
-                <td>{{ product.localizacao }}</td>
+                <td>{{ product.localizacao || 'Nao informada' }}</td>
                 <td [class.zero-stock]="product.estoque === 0">{{ product.estoque }}</td>
                 <td>{{ product.minimo }}</td>
                 <td>{{ product.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) }}</td>
@@ -166,8 +170,10 @@
                 <td colspan="12">
                   <div class="empty-list">
                     <app-icon name="boxes" />
-                    <strong>Nenhum item encontrado</strong>
-                    <small>Ajuste a pesquisa ou limpe os filtros para ver todos os itens.</small>
+                    <strong>{{ loading() ? 'Carregando estoque...' : loadError() ? 'Estoque indisponivel' : 'Nenhum item encontrado' }}</strong>
+                    @if (!loading() && !loadError()) {
+                      <small>{{ products().length ? 'Ajuste a pesquisa ou limpe os filtros.' : 'Nenhum produto cadastrado para esta empresa.' }}</small>
+                    }
                   </div>
                 </td>
               </tr>
@@ -225,7 +231,6 @@
             <dl>
               <div><dt>Código interno</dt><dd>{{ product.codigo }}</dd></div>
               <div><dt>Código fabricante</dt><dd>{{ product.fabricante || '-' }}</dd></div>
-              <div><dt>Unidade</dt><dd>UN</dd></div>
               <div><dt>NCM</dt><dd>{{ product.ncm || '-' }}</dd></div>
             </dl>
           </section>
@@ -307,114 +312,11 @@
             </dl>
           </section>
 
-          <section class="record-grid" aria-label="Posição e histórico do estoque">
-            <article class="info-list-card">
-              <h3>Saldo por local</h3>
-              <dl>
-                <div><dt>Estoque Principal</dt><dd>{{ product.estoque }}</dd></div>
-                <div><dt>Balcão</dt><dd>{{ product.estoque > 4 ? 4 : product.estoque }}</dd></div>
-                <div><dt>Depósito 01</dt><dd>{{ product.estoque > 2 ? 2 : product.estoque }}</dd></div>
-              </dl>
-            </article>
 
-            <article class="info-list-card">
-              <h3>Últimas movimentações</h3>
-              <dl>
-                <div><dt>02/10/2026</dt><dd>Saída -2</dd></div>
-                <div><dt>01/10/2026</dt><dd>Entrada +10</dd></div>
-                <div><dt>28/09/2026</dt><dd>Saída -1</dd></div>
-              </dl>
-            </article>
-          </section>
 
         </article>
       </section>
     }
-  }
-
-  @if (showProductModal()) {
-    <div class="modal-backdrop" role="presentation">
-      <section class="product-modal" role="dialog" aria-modal="true" aria-labelledby="new-product-title">
-        <header>
-          <div>
-            <p>Novo produto</p>
-            <h2 id="new-product-title">Cadastrar item no estoque</h2>
-          </div>
-          <button class="close-button" type="button" aria-label="Fechar" (click)="fecharNovoProduto()">
-            <app-icon name="x" />
-          </button>
-        </header>
-
-        <form [formGroup]="productForm" (ngSubmit)="cadastrarProduto()" class="product-form">
-          <label>
-            <span>Codigo</span>
-            <input type="text" formControlName="codigo" />
-          </label>
-          <label class="wide">
-            <span>Descricao</span>
-            <input type="text" formControlName="descricao" />
-          </label>
-          <label>
-            <span>Marca</span>
-            <input type="text" formControlName="marca" />
-          </label>
-          <label>
-            <span>Categoria</span>
-            <select formControlName="categoria">
-              <option>Filtros</option>
-              <option>Freios</option>
-              <option>Oleos</option>
-              <option>Suspensao</option>
-              <option>Motor</option>
-              <option>Eletrica</option>
-              <option>Carroceria</option>
-              <option>Outros</option>
-            </select>
-          </label>
-          <label>
-            <span>Localizacao</span>
-            <input type="text" formControlName="localizacao" />
-          </label>
-          <label>
-            <span>Estoque</span>
-            <input type="number" formControlName="estoque" min="0" />
-          </label>
-          <label>
-            <span>Estoque minimo</span>
-            <input type="number" formControlName="minimo" min="0" />
-          </label>
-          <label>
-            <span>Valor unitario</span>
-            <input type="number" formControlName="valor" min="0" step="0.01" />
-          </label>
-          <label>
-            <span>Cod. fabricante</span>
-            <input type="text" formControlName="fabricante" />
-          </label>
-          <label>
-            <span>Cod. barras</span>
-            <input type="text" formControlName="barras" />
-          </label>
-          <label>
-            <span>NCM</span>
-            <input type="text" formControlName="ncm" />
-          </label>
-          <label>
-            <span>Peso</span>
-            <input type="text" formControlName="peso" />
-          </label>
-          <label class="wide">
-            <span>URL da imagem</span>
-            <input type="url" formControlName="imagemUrl" placeholder="https://..." />
-          </label>
-
-          <footer>
-            <button class="cancel-button" type="button" (click)="fecharNovoProduto()">Cancelar</button>
-            <button class="primary-action" type="submit">Salvar produto</button>
-          </footer>
-        </form>
-      </section>
-    </div>
   }
 
   @if (showNfeImportModal()) {

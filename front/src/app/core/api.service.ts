@@ -4,6 +4,7 @@ import { environment } from '../../environments/environment';
 
 import {
   Categoria,
+  EstoqueProduto,
   CadastroEndereco,
   ClienteResumoResponse,
   CriarCadastroEnderecoPayload,
@@ -24,6 +25,10 @@ import {
 export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = environment.apiUrl;
+
+  listarEstoque(empresaId: number) {
+    return this.http.get<EstoqueProduto[]>(`${this.apiUrl}/estoque`, { params: { empresaId } });
+  }
 
   criarCliente(payload: CriarClientePayload) {
     return this.http.post<ClienteResumoResponse>(`${this.apiUrl}/clientes`, payload);

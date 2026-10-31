@@ -1,7 +1,9 @@
-import { Component, computed, inject, signal } from '@angular/core';
-import { FormBuilder, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
-import { ImportarNfeResponse } from '../../core/app-models';
+import { EstoqueProduto, ImportarNfeResponse } from '../../core/app-models';
 import { ApiService } from '../../core/api.service';
 import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
@@ -20,18 +22,9 @@ interface InventoryCategory {
   total: string;
 }
 
-interface InventoryProduct {
-  codigo: string;
-  descricao: string;
-  marca: string;
-  categoria: string;
+interface InventoryProduct extends EstoqueProduto {
   localizacao: string;
-  estoque: number;
-  minimo: number;
-  valor: number;
-  fabricante: string;
   barras: string;
-  ncm: string;
   peso: string;
   imagemUrl: string;
 }
@@ -45,16 +38,18 @@ interface XmlPrecheck {
 
 @Component({
   selector: 'app-inventory',
-  imports: [FormsModule, ReactiveFormsModule, AppIconComponent],
+  imports: [FormsModule, AppIconComponent],
   templateUrl: './inventory.component.html',
   styleUrl: './inventory.component.scss',
 })
-export class InventoryComponent {
+export class InventoryComponent implements OnInit {
   private readonly api = inject(ApiService);
-  private readonly fb = inject(FormBuilder);
+  private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly tenantId = 1;
 
-  protected readonly showProductModal = signal(false);
+  protected readonly loading = signal(false);
+  protected readonly loadError = signal('');
   protected readonly showNfeImportModal = signal(false);
   protected readonly activeTab = signal<InventoryTab>('search');
   protected readonly selectedProductCode = signal('');
@@ -72,128 +67,7 @@ export class InventoryComponent {
     message: 'Selecione um XML para validar a estrutura da NF-e.',
   });
 
-  protected readonly products = signal<InventoryProduct[]>([
-    {
-      codigo: 'W610/3',
-      descricao: 'Filtro de oleo do motor',
-      marca: 'Mann Filter',
-      categoria: 'Filtros',
-      localizacao: 'Estoque Principal',
-      estoque: 24,
-      minimo: 8,
-      valor: 42.9,
-      fabricante: 'W610/3',
-      barras: '4011558123456',
-      ncm: '8421.23.00',
-      peso: '0,280 kg',
-      imagemUrl: '',
-    },
-    {
-      codigo: 'BP5678',
-      descricao: 'Pastilha de freio dianteira',
-      marca: 'Bosch',
-      categoria: 'Freios',
-      localizacao: 'Deposito 01',
-      estoque: 8,
-      minimo: 6,
-      valor: 289.9,
-      fabricante: 'BP5678',
-      barras: '7891104567890',
-      ncm: '8708.30.19',
-      peso: '1,120 kg',
-      imagemUrl: '',
-    },
-    {
-      codigo: 'GP332',
-      descricao: 'Amortecedor dianteiro',
-      marca: 'Cofap',
-      categoria: 'Suspensao',
-      localizacao: 'Rua A-12',
-      estoque: 0,
-      minimo: 4,
-      valor: 359.9,
-      fabricante: 'GP332',
-      barras: '7894561230332',
-      ncm: '8708.80.00',
-      peso: '3,400 kg',
-      imagemUrl: '',
-    },
-    {
-      codigo: 'OC593',
-      descricao: 'Filtro de oleo',
-      marca: 'Mahle',
-      categoria: 'Filtros',
-      localizacao: 'Estoque Principal',
-      estoque: 12,
-      minimo: 8,
-      valor: 39.5,
-      fabricante: 'OC593',
-      barras: '7890000000593',
-      ncm: '8421.23.00',
-      peso: '0,290 kg',
-      imagemUrl: '',
-    },
-    {
-      codigo: 'N-1234',
-      descricao: 'Pastilha de freio dianteira',
-      marca: 'Cobreq',
-      categoria: 'Freios',
-      localizacao: 'Deposito 01',
-      estoque: 3,
-      minimo: 5,
-      valor: 219,
-      fabricante: 'N-1234',
-      barras: '7890000012340',
-      ncm: '8708.30.19',
-      peso: '1,080 kg',
-      imagemUrl: '',
-    },
-    {
-      codigo: 'VKBAS2521',
-      descricao: 'Rolamento de roda',
-      marca: 'SKF',
-      categoria: 'Suspensao',
-      localizacao: 'Rua B-02',
-      estoque: 5,
-      minimo: 4,
-      valor: 189,
-      fabricante: 'VKBAS2521',
-      barras: '7316572521000',
-      ncm: '8482.10.10',
-      peso: '0,720 kg',
-      imagemUrl: '',
-    },
-    {
-      codigo: 'L1234',
-      descricao: 'Lampada H7 12V 55W',
-      marca: 'Osram',
-      categoria: 'Eletrica',
-      localizacao: 'Rua C-05',
-      estoque: 56,
-      minimo: 20,
-      valor: 28.9,
-      fabricante: 'L1234',
-      barras: '4050300012345',
-      ncm: '8539.21.10',
-      peso: '0,040 kg',
-      imagemUrl: '',
-    },
-    {
-      codigo: 'PSL55',
-      descricao: 'Filtro de combustivel',
-      marca: 'Tecfil',
-      categoria: 'Filtros',
-      localizacao: 'Estoque Principal',
-      estoque: 0,
-      minimo: 10,
-      valor: 49.9,
-      fabricante: 'PSL55',
-      barras: '7891344000550',
-      ncm: '8421.23.00',
-      peso: '0,180 kg',
-      imagemUrl: '',
-    },
-  ]);
+  protected readonly products = signal<InventoryProduct[]>([]);
 
   protected readonly selectedProduct = computed(() => {
     return this.products().find((product) => product.codigo === this.selectedProductCode()) ?? this.products()[0] ?? null;
@@ -230,7 +104,7 @@ export class InventoryComponent {
     const totalItems = products.reduce((total, product) => total + product.estoque, 0);
     const stockValue = products.reduce((total, product) => total + product.estoque * product.valor, 0);
     const lowStock = products.filter((product) => product.estoque > 0 && product.estoque <= product.minimo).length;
-    const noStock = products.filter((product) => product.estoque === 0).length;
+    const noStock = products.filter((product) => product.estoque <= 0).length;
 
     return [
       { icon: 'boxes', tone: 'success', label: 'Total de itens', value: this.formatNumber(totalItems), delta: 'base atual', caption: '' },
@@ -247,39 +121,36 @@ export class InventoryComponent {
     return Array.from(counts.entries()).map(([label, total]) => ({ icon: 'tags', label, total: `${total} itens` }));
   });
 
-  protected readonly productForm = this.fb.nonNullable.group({
-    codigo: ['', [Validators.required]],
-    descricao: ['', [Validators.required]],
-    marca: ['', [Validators.required]],
-    categoria: ['Filtros', [Validators.required]],
-    localizacao: ['', [Validators.required]],
-    estoque: [0, [Validators.required, Validators.min(0)]],
-    minimo: [0, [Validators.required, Validators.min(0)]],
-    valor: [0, [Validators.required, Validators.min(0)]],
-    fabricante: [''],
-    barras: [''],
-    ncm: [''],
-    peso: [''],
-    imagemUrl: [''],
-  });
+  ngOnInit(): void {
+    this.carregarEstoque();
+  }
+
+  protected carregarEstoque(): void {
+    if (this.loading()) return;
+    this.loading.set(true);
+    this.loadError.set('');
+    this.api.listarEstoque(this.tenantId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (products) => {
+        this.products.set(products.map((product) => ({
+          ...product,
+          localizacao: '',
+          barras: '',
+          peso: '',
+          imagemUrl: '',
+        })));
+        this.checkedProductCodes.set(new Set());
+        this.loading.set(false);
+      },
+      error: () => {
+        this.products.set([]);
+        this.loadError.set('Nao foi possivel carregar o estoque. Tente novamente.');
+        this.loading.set(false);
+      },
+    });
+  }
 
   protected abrirNovoProduto(): void {
-    this.productForm.reset({
-      codigo: '',
-      descricao: '',
-      marca: '',
-      categoria: 'Filtros',
-      localizacao: '',
-      estoque: 0,
-      minimo: 0,
-      valor: 0,
-      fabricante: '',
-      barras: '',
-      ncm: '',
-      peso: '',
-      imagemUrl: '',
-    });
-    this.showProductModal.set(true);
+    void this.router.navigate(['/app/produtos']);
   }
 
   protected abrirImportacaoNfe(): void {
@@ -291,10 +162,6 @@ export class InventoryComponent {
       message: 'Selecione um XML para validar a estrutura da NF-e.',
     });
     this.showNfeImportModal.set(true);
-  }
-
-  protected fecharNovoProduto(): void {
-    this.showProductModal.set(false);
   }
 
   protected fecharImportacaoNfe(): void {
@@ -340,25 +207,13 @@ export class InventoryComponent {
         this.importedNfe.set(result);
         this.importMessage.set('NF-e importada e pronta para conferencia.');
         this.importingNfe.set(false);
+        this.carregarEstoque();
       },
       error: (error) => {
         this.importMessage.set(error?.error || 'Nao foi possivel importar o XML da NF-e.');
         this.importingNfe.set(false);
       },
     });
-  }
-
-  protected cadastrarProduto(): void {
-    if (this.productForm.invalid) {
-      this.productForm.markAllAsTouched();
-      return;
-    }
-
-    const product = this.productForm.getRawValue();
-    this.products.update((products) => [product, ...products]);
-    this.selectedProductCode.set(product.codigo);
-    this.activeTab.set('details');
-    this.showProductModal.set(false);
   }
 
   protected selecionarProduto(codigo: string): void {
@@ -398,7 +253,7 @@ export class InventoryComponent {
   }
 
   protected statusFor(product: InventoryProduct): 'Sem estoque' | 'Estoque baixo' | 'Em estoque' {
-    if (product.estoque === 0) {
+    if (product.estoque <= 0) {
       return 'Sem estoque';
     }
 

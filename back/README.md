@@ -50,3 +50,16 @@ Não use `EnsureCreated` junto com esse fluxo de migrations.
 Nos logs de inicialização, procure `Preparando o banco PostgreSQL` e
 `Banco PostgreSQL atualizado`. Se houver falha, consulte a exceção registrada
 imediatamente depois de `Falha ao preparar o banco PostgreSQL`.
+
+## Consulta de estoque
+
+`GET /api/estoque?empresaId=1` retorna os produtos de `CadastroItens` da empresa,
+com marca, categoria, preço e mínimo cadastrados. O saldo é calculado a partir
+dos movimentos de `Estoques` da mesma empresa e produto. Movimentos do tipo
+`Saida` ou `Saída` descontam o valor absoluto da quantidade; os demais somam
+a quantidade com seu sinal. Produtos sem movimentos têm saldo zero.
+
+A importação de XML existente salva uma entrada para conferência e não grava
+movimentos em `Estoques`; portanto, importar uma nota ainda não aumenta o saldo.
+Localização, peso, imagem e código de barras não estão no cadastro atual do
+produto e não recebem valores fictícios na tela.

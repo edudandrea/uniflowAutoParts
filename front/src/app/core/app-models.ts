@@ -166,6 +166,19 @@ export interface DocumentoUploadResponse {
   size: number;
 }
 
+export interface EstoqueProduto {
+  id: number;
+  codigo: string;
+  descricao: string;
+  marca: string;
+  categoria: string;
+  estoque: number;
+  minimo: number;
+  valor: number;
+  fabricante: string;
+  ncm: string;
+}
+
 export interface Produto {
   id: number;
   empresaId: number;
