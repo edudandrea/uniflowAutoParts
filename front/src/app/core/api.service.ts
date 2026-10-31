@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
+import { environment } from '../../environments/environment';
 
 import {
   Categoria,
@@ -22,7 +23,7 @@ import {
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = 'http://localhost:5031/api';
+  private readonly apiUrl = environment.apiUrl;
 
   criarCliente(payload: CriarClientePayload) {
     return this.http.post<ClienteResumoResponse>(`${this.apiUrl}/clientes`, payload);
