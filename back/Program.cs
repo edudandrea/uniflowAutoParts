@@ -19,12 +19,17 @@ builder.Services.AddSingleton<
 
 // PostgreSQL - conexão conforme ambiente
 var connectionString = builder.Configuration
-    .GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException(
-        "Connection string DefaultConnection não configurada.");
+    .GetConnectionString("DefaultConnection");
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "Configure ConnectionStrings__DefaultConnection no serviço da API antes de iniciar. " +
+        "A conexão deve apontar para um servidor PostgreSQL existente.");
+}
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    options.UseNpgsql(connectionString, postgres => postgres.EnableRetryOnFailure()));
 
 // CORS - origens configuradas por ambiente
 var allowedOrigins = builder.Configuration
@@ -42,6 +47,25 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Cria o banco, se necessário, e aplica apenas as migrations pendentes.
+// A API só aceita requisições depois que o esquema estiver atualizado.
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    try
+    {
+        app.Logger.LogInformation("Preparando o banco PostgreSQL e aplicando migrations pendentes.");
+        await db.Database.MigrateAsync();
+        app.Logger.LogInformation("Banco PostgreSQL atualizado. API pronta para iniciar.");
+    }
+    catch (Exception exception)
+    {
+        app.Logger.LogCritical(exception,
+            "Falha ao preparar o banco PostgreSQL. A inicialização da API será interrompida.");
+        throw;
+    }
+}
 
 // OpenAPI somente em desenvolvimento
 if (app.Environment.IsDevelopment())
