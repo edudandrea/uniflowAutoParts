@@ -359,3 +359,5 @@ C:\Users\Eduardo\AppData\Local\Temp\uniflow-nfe-95a0f9b3b99043339c4a1e6427f03bcc
 C:\Users\Eduardo\AppData\Local\Temp\uniflow-nfe-95a0f9b3b99043339c4a1e6427f03bcc\api\UniflowAutoParts.Api.runtimeconfig.json
 C:\Users\Eduardo\AppData\Local\Temp\uniflow-nfe-95a0f9b3b99043339c4a1e6427f03bcc\api\UniflowAutoParts.Api.dll
 C:\Users\Eduardo\AppData\Local\Temp\uniflow-nfe-95a0f9b3b99043339c4a1e6427f03bcc\api\UniflowAutoParts.Api.pdb
+D:\Dev\UniflouAutoParts\back\bin\Debug\net10.0\AWSSDK.Core.dll
+D:\Dev\UniflouAutoParts\back\bin\Debug\net10.0\AWSSDK.S3.dll

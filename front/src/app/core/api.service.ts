@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { environment } from '../../environments/environment';
+import { FiscalCertificate } from './fiscal-certificate.service';
 
 import {
   Categoria,
@@ -25,6 +26,14 @@ import {
 export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = environment.apiUrl;
+
+  validarCertificado(certificate: FiscalCertificate) {
+    return this.http.post<{ validade: string }>(`${this.apiUrl}/fiscal/certificado/validar`, certificate);
+  }
+
+  consultarStatusSefaz(certificate: FiscalCertificate) {
+    return this.http.post<{ codigo: string; motivo: string }>(`${this.apiUrl}/fiscal/sefaz/status`, certificate);
+  }
 
   listarEstoque(empresaId: number) {
     return this.http.get<EstoqueProduto[]>(`${this.apiUrl}/estoque`, { params: { empresaId } });

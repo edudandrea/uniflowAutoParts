@@ -44,3 +44,21 @@
     </aside>
   </div>
 </section>
+<dialog #reviewDialog class="sale-review" aria-labelledby="sale-review-title">
+  <header class="review-header"><div><h2 id="sale-review-title">Revisar venda</h2><p>Confira os dados antes de solicitar a nota fiscal.</p></div><button type="button" aria-label="Fechar revisão" (click)="closeReview()"><app-icon name="x" /></button></header>
+  <div class="review-body">
+    <section><h3>Cliente</h3><strong>{{ cliente()?.nomeRazaoSocial }}</strong><p>{{ cliente()?.cpfCnpj }} · {{ cliente()?.email || 'E-mail não informado' }}</p></section>
+    <div class="table-wrap"><table><caption>Itens da venda</caption><thead><tr><th>Produto</th><th>Quantidade</th><th>Valor unitário</th><th>Desconto</th><th>Total</th></tr></thead><tbody>
+      @for (item of itens(); track item.produto.id) { <tr><td>{{ item.produto.descricao }}</td><td>{{ item.quantidade }}</td><td>{{ currency(item.preco) }}</td><td>{{ item.desconto }}%</td><td>{{ currency(itemTotal(item)) }}</td></tr> }
+    </tbody></table></div>
+    <div class="review-columns">
+      <section><h3>Dados da operação</h3><dl><div><dt>Vendedor</dt><dd>{{ vendedor || 'Não informado' }}</dd></div><div><dt>Documento</dt><dd>{{ modelo === '55' ? 'NF-e' : 'NFC-e' }} · Série {{ serie }}</dd></div><div><dt>CFOP</dt><dd>{{ cfop }}</dd></div></dl><p>{{ natureza }}</p><p class="review-environment">RS · Homologação · Sem valor fiscal</p></section>
+      <section><h3>Valores e pagamentos</h3><dl><div><dt>Subtotal</dt><dd>{{ currency(subtotal()) }}</dd></div><div><dt>Descontos</dt><dd>{{ currency(itemDiscount() + (desconto || 0)) }}</dd></div><div><dt>Frete</dt><dd>{{ currency(frete || 0) }}</dd></div><div><dt>Outras despesas</dt><dd>{{ currency(despesas || 0) }}</dd></div>@for (payment of pagamentos(); track payment.id) {<div><dt>{{ payment.forma }}</dt><dd>{{ currency(payment.valor) }}</dd></div>}</dl></section>
+    </div>
+    @if (observacoes) { <section><h3>Observações</h3><p class="review-notes">{{ observacoes }}</p></section> }
+    <div class="grand-total"><span>Total da venda</span><strong>{{ currency(total()) }}</strong></div>
+    @if (fiscalMessage()) { <div class="notice error" role="alert">{{ fiscalMessage() }}</div> }
+    <p>O DANFE em PDF e o XML estarão disponíveis após a autorização da SEFAZ.</p>
+  </div>
+  <footer class="review-footer"><button type="button" (click)="closeReview()">Voltar à venda</button><a routerLink="/app/configuracoes/certificado-digital" (click)="closeReview()">Configurar certificado</a><button type="button" disabled title="Disponível após a autorização da nota">Salvar XML</button><button type="button" disabled title="Configuração de e-mail será feita depois">Enviar por e-mail</button><button class="invoice-button" type="button" (click)="requestInvoice()"><app-icon name="file-text" />Nota fiscal</button></footer>
+</dialog>

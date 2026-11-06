@@ -13,6 +13,7 @@ import { ProductsComponent } from './pages/products/products.component';
 import { PurchasesComponent } from './pages/purchases/purchases.component';
 import { SuppliersComponent } from './pages/suppliers/suppliers.component';
 import { SalesComponent } from './pages/sales/sales.component';
+import { FiscalSettingsComponent } from './pages/fiscal-settings/fiscal-settings.component';
 
 export const routes: Routes = [
   {
@@ -37,6 +38,7 @@ export const routes: Routes = [
       { path: 'configuracoes/enderecos', component: AddressesComponent },
       { path: 'configuracoes/categorias', component: CategoriesComponent },
       { path: 'configuracoes/marcas', component: BrandsComponent },
+      { path: 'configuracoes/certificado-digital', component: FiscalSettingsComponent },
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       { path: '**', redirectTo: 'dashboard' },
     ],

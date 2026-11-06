@@ -52,6 +52,7 @@ export class CompanyShellComponent {
         { label: 'Cadastro de enderecos', icon: 'map-pin', path: '/app/configuracoes/enderecos' },
         { label: 'Categorias', icon: 'tags', path: '/app/configuracoes/categorias' },
         { label: 'Marcas', icon: 'badge', path: '/app/configuracoes/marcas' },
+        { label: 'Certificado e Tributações', icon: 'lock', path: '/app/configuracoes/certificado-digital' },
       ],
     },
   ];

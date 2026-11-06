@@ -1,0 +1,45 @@
+﻿<section class="fiscal-page">
+  <nav class="breadcrumb" aria-label="Localização"><app-icon name="settings" [size]="13" /><span>Configurações</span><app-icon name="chevron-right" [size]="13" /><strong>Tributação e Certificado Digital</strong></nav>
+  <header class="page-heading">
+    <div class="heading-copy"><span class="heading-icon"><app-icon name="settings" [size]="29" /></span><div><h1>Tributação e Certificado Digital</h1><p>Configure o certificado A1 e os parâmetros fiscais para emissão de NF-e e NFC-e.</p></div></div>
+    <div class="fiscal-art" aria-hidden="true"><div class="art-orbit"></div><div class="art-paper"><strong>NF-e</strong><span></span><span></span><span></span></div><div class="art-seal"><app-icon name="check" [size]="24" /></div></div>
+  </header>
+  <nav class="section-tabs" aria-label="Seções das configurações fiscais">
+    <button type="button" [class.active]="activeTab() === 'all'" [attr.aria-pressed]="activeTab() === 'all'" (click)="activeTab.set('all')"><app-icon name="file-text" [size]="18" />Configurações fiscais</button>
+    <button type="button" [class.active]="activeTab() === 'certificate'" [attr.aria-pressed]="activeTab() === 'certificate'" (click)="activeTab.set('certificate')"><app-icon name="badge-check" [size]="18" />Certificado digital</button>
+    <button type="button" [class.active]="activeTab() === 'tax'" [attr.aria-pressed]="activeTab() === 'tax'" (click)="activeTab.set('tax')"><app-icon name="sliders-horizontal" [size]="18" />Parametrizações</button>
+  </nav>
+
+  <section class="card certificate-card" [hidden]="activeTab() === 'tax'" aria-labelledby="certificate-title">
+    <header class="card-heading"><span class="section-icon"><app-icon name="badge-check" [size]="25" /></span><div><h2 id="certificate-title">Certificado Digital (A1)</h2><p>Utilizado para autenticação e assinatura das notas fiscais (NF-e/NFC-e).</p></div><span class="status-pill" [class.configured]="savedName() && certificateStatus() !== 'Certificado vencido'"><span class="status-dot"></span>{{ certificateStatus() }}</span></header>
+    <div class="certificate-overview">
+      <div class="certificate-visual" [class.installed]="savedName()"><app-icon name="file-text" [size]="44" /><strong>{{ savedName() ? 'Certificado A1 cadastrado' : 'Cadastre seu certificado A1' }}</strong><span>{{ savedName() ? 'Pronto para consultar os serviços fiscais' : 'Importe o arquivo para começar' }}</span></div>
+      <dl class="certificate-details"><div><dt><app-icon name="file-text" [size]="16" />Arquivo</dt><dd>{{ savedName() || 'Nenhum certificado cadastrado' }}</dd></div><div><dt><app-icon name="map-pin" [size]="16" />UF do emitente</dt><dd>Rio Grande do Sul (RS)</dd></div><div><dt><app-icon name="lock" [size]="16" />Ambiente</dt><dd>Homologação · sem valor fiscal</dd></div><div><dt><app-icon name="calendar" [size]="16" />Validade</dt><dd>{{ savedName() ? certificateExpiry() : 'Disponível após a validação' }}</dd></div></dl>
+    </div>
+    <div class="certificate-actions"><button type="button" [disabled]="busy()" (click)="showUpload.set(!showUpload())" [attr.aria-expanded]="showUpload()"><app-icon name="upload" [size]="16" />{{ savedName() ? 'Substituir certificado' : 'Cadastrar certificado' }}</button><button type="button" [disabled]="busy() || !savedName()" (click)="testConnection()"><app-icon name="link" [size]="16" />{{ busy() ? 'Aguarde...' : 'Testar conexão SEFAZ/RS' }}</button><button class="danger" type="button" [disabled]="busy() || !savedName()" (click)="remove()"><app-icon name="trash-2" [size]="16" />Remover certificado</button></div>
+    <form class="upload-form" [hidden]="!showUpload()" (ngSubmit)="save()">
+      <div class="upload-fields"><label>Certificado digital A1 <span class="required">*</span><input type="file" accept=".pfx,.p12" [disabled]="busy()" (change)="selectFile($event)" /><small>Arquivo .pfx ou .p12 de até 1 MB.</small></label><label>Senha do certificado <span class="required">*</span><input type="password" name="certificatePassword" [(ngModel)]="password" autocomplete="off" [disabled]="busy()" placeholder="Informe a senha do certificado" /></label></div>
+      <p class="storage-note"><app-icon name="lock" [size]="16" />O certificado e a senha ficam salvos neste navegador e são enviados ao backend para validação. Utilize um dispositivo de confiança: scripts da aplicação podem acessar esses dados.</p>
+      <button class="primary" type="submit" [disabled]="busy()"><app-icon name="save" [size]="16" />{{ busy() ? 'Validando...' : 'Validar e salvar certificado' }}</button>
+    </form>
+    @if (message()) { <p class="feedback" role="status"><app-icon name="info" [size]="17" />{{ message() }}</p> }
+  </section>
+
+  <section class="card tax-card" [hidden]="activeTab() === 'certificate'" aria-labelledby="tax-title">
+    <header class="card-heading"><span class="section-icon"><app-icon name="boxes" [size]="25" /></span><div><h2 id="tax-title">Tributação da empresa</h2><p>Defina os códigos e alíquotas padrão usados na emissão das notas fiscais.</p></div></header>
+    <form (ngSubmit)="saveTax()">
+      <div class="tax-intro"><label>Regime tributário <span class="required">*</span><select name="regime" [(ngModel)]="tax.regime" (ngModelChange)="tax.icmsCode = ''"><option value="">Selecione o regime tributário</option><option value="1">Simples Nacional</option><option value="2">Simples Nacional — excesso de sublimite</option><option value="3">Regime normal</option><option value="4">Simples Nacional — MEI</option></select></label><aside class="tax-notice"><app-icon name="info" [size]="18" /><div><strong>Importante</strong><p>As regras podem variar conforme o produto, o destinatário e a operação. Consulte sempre o seu contador.</p></div></aside></div>
+      <div class="tax-grid">
+        <label>{{ tax.regime === '1' || tax.regime === '4' ? 'CSOSN do ICMS' : 'CST do ICMS' }} <span class="required">*</span><input name="icmsCode" [(ngModel)]="tax.icmsCode" inputmode="numeric" [maxLength]="tax.regime === '1' || tax.regime === '4' ? 3 : 2" placeholder="Informe o código" /></label>
+        <label>CST do PIS <span class="required">*</span><input name="pisCode" [(ngModel)]="tax.pisCode" inputmode="numeric" maxlength="2" placeholder="Informe o código" /></label>
+        <label>CST da COFINS <span class="required">*</span><input name="cofinsCode" [(ngModel)]="tax.cofinsCode" inputmode="numeric" maxlength="2" placeholder="Informe o código" /></label>
+        <label>Alíquota do ICMS (%)<span class="percentage-input"><input type="number" name="icmsRate" [(ngModel)]="tax.icmsRate" min="0" max="100" step="0.0001" placeholder="0,00" /><span>%</span></span></label>
+        <label>Alíquota do PIS (%)<span class="percentage-input"><input type="number" name="pisRate" [(ngModel)]="tax.pisRate" min="0" max="100" step="0.0001" placeholder="0,00" /><span>%</span></span></label>
+        <label>Alíquota da COFINS (%)<span class="percentage-input"><input type="number" name="cofinsRate" [(ngModel)]="tax.cofinsRate" min="0" max="100" step="0.0001" placeholder="0,00" /><span>%</span></span></label>
+      </div>
+      <p class="tax-help">Os parâmetros são salvos neste navegador. A geração e transmissão da NF-e ainda não estão disponíveis.</p>
+      <footer class="tax-actions"><button class="primary" type="submit"><app-icon name="save" [size]="16" />Salvar tributação</button><button type="button" (click)="restoreTax()"><app-icon name="arrow-left" [size]="15" />Restaurar configuração salva</button></footer>
+    </form>
+    @if (taxMessage()) { <p class="feedback" role="status"><app-icon name="info" [size]="17" />{{ taxMessage() }}</p> }
+  </section>
+</section>

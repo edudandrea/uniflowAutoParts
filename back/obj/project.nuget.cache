@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "YApt66iuX6Y=",
+  "dgSpecHash": "ZO4w+Sz9ynk=",
   "success": true,
-  "projectFilePath": "C:\\Projects\\UniflowAutoParts\\back\\UniflowAutoParts.Api.csproj",
+  "projectFilePath": "D:\\Dev\\UniflouAutoParts\\back\\UniflowAutoParts.Api.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Eduardo\\.nuget\\packages\\awssdk.core\\4.0.102.8\\awssdk.core.4.0.102.8.nupkg.sha512",
     "C:\\Users\\Eduardo\\.nuget\\packages\\awssdk.s3\\4.0.104.1\\awssdk.s3.4.0.104.1.nupkg.sha512",

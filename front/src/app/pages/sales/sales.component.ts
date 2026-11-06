@@ -1,10 +1,11 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { ClienteResumoResponse, Produto } from '../../core/app-models';
 import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
+import { FiscalCertificateService } from '../../core/fiscal-certificate.service';
 
 interface SaleItem { produto: Produto; quantidade: number; preco: number; desconto: number }
 interface Payment { id: number; forma: string; valor: number }
@@ -21,6 +22,25 @@ interface SaleDraft {
 })
 export class SalesComponent {
   private readonly api = inject(ApiService);
+  private readonly certificateStore = inject(FiscalCertificateService);
+  private readonly reviewDialog = viewChild<ElementRef<HTMLDialogElement>>('reviewDialog');
+  protected readonly fiscalMessage = signal('');
+
+  protected requestInvoice(): void {
+    try {
+      if (!this.certificateStore.load()) {
+        this.fiscalMessage.set('Cadastre o certificado digital A1 em Configurações > Certificado digital. Nenhuma nota foi enviada à SEFAZ.');
+        return;
+      }
+      this.fiscalMessage.set('A emissão da NF-e ainda não está implementada. Faltam a configuração tributária do emitente, a geração e assinatura do XML e o processamento da autorização. Nenhuma nota foi enviada à SEFAZ.');
+    } catch {
+      this.fiscalMessage.set('Não foi possível ler o certificado. Cadastre novamente em Configurações > Certificado digital.');
+    }
+  }
+
+  protected closeReview(): void {
+    this.reviewDialog()?.nativeElement.close();
+  }
   private readonly draftKey = 'uniflow:venda:rascunho:empresa-1';
   protected readonly clientes = signal<ClienteResumoResponse[]>([]);
   protected readonly produtos = signal<Produto[]>([]);
@@ -133,6 +153,10 @@ export class SalesComponent {
     if (this.desconto < 0 || this.frete < 0 || this.despesas < 0 || this.desconto > this.subtotal() - this.itemDiscount()) { this.message.set('Revise os descontos, frete e despesas da venda.'); return; }
     if (this.balance() !== 0) { this.message.set('O valor dos pagamentos deve ser igual ao total da venda.'); return; }
     if (this.emitir && (!/^\d{4}$/.test(this.cfop) || !/^\d{1,3}$/.test(this.serie) || !this.natureza.trim())) { this.message.set('Preencha a natureza da operação, um CFOP de 4 dígitos e uma série válida.'); return; }
-    if (this.saveDraft()) this.message.set(this.emitir ? 'Rascunho salvo. A emissão da nota aguarda a configuração do serviço emissor. Nenhuma nota fiscal foi emitida.' : 'Rascunho salvo. A conclusão da venda e a baixa de estoque aguardam a integração de vendas no backend.');
+    if (this.saveDraft()) {
+      this.message.set('');
+      this.fiscalMessage.set('');
+      this.reviewDialog()?.nativeElement.showModal();
+    }
   }
 }

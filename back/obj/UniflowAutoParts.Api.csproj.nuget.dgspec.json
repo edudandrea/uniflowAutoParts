@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Projects\\UniflowAutoParts\\back\\UniflowAutoParts.Api.csproj": {}
+    "D:\\Dev\\UniflouAutoParts\\back\\UniflowAutoParts.Api.csproj": {}
   },
   "projects": {
-    "C:\\Projects\\UniflowAutoParts\\back\\UniflowAutoParts.Api.csproj": {
+    "D:\\Dev\\UniflouAutoParts\\back\\UniflowAutoParts.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Projects\\UniflowAutoParts\\back\\UniflowAutoParts.Api.csproj",
+        "projectUniqueName": "D:\\Dev\\UniflouAutoParts\\back\\UniflowAutoParts.Api.csproj",
         "projectName": "UniflowAutoParts.Api",
-        "projectPath": "C:\\Projects\\UniflowAutoParts\\back\\UniflowAutoParts.Api.csproj",
+        "projectPath": "D:\\Dev\\UniflouAutoParts\\back\\UniflowAutoParts.Api.csproj",
         "packagesPath": "C:\\Users\\Eduardo\\.nuget\\packages\\",
-        "outputPath": "C:\\Projects\\UniflowAutoParts\\back\\obj\\",
+        "outputPath": "D:\\Dev\\UniflouAutoParts\\back\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Eduardo\\AppData\\Roaming\\NuGet\\NuGet.Config"

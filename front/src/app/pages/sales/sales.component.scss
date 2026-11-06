@@ -136,3 +136,21 @@ dl { margin: 0; font-size: 11px; color: #6b819a; > div { display: flex; justify-
     gap: 6px;
   }
 }
+.sale-review { width: min(900px, calc(100vw - 32px)); max-height: calc(100dvh - 40px); padding: 0; border: 1px solid #dbe5ee; border-radius: 16px; color: var(--ink, #18364c); box-shadow: 0 24px 80px #123f4633;
+  &::backdrop { background: #102c46a6; }
+  h2 { margin: 0; font-size: 21px; } h3 { font-size: 14px; margin: 0 0 12px; }
+  p { font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+  caption { text-align: left; font-weight: 600; padding: 16px 0; }
+  td, th { padding: 12px 8px; text-align: left; }
+  button, a { font-size: 12px; min-height: 40px; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+}
+.review-header, .review-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 20px 24px; background: #f5f9fc; }
+.review-header p { margin: 5px 0 0; color: #6b819a; }
+.review-body { padding: 24px; }
+.review-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0; }
+.review-environment { color: #967636; background: #fbf7ed; padding: 10px; border-radius: 6px; }
+.review-notes { white-space: pre-wrap; }
+.review-footer { flex-wrap: wrap; border-top: 1px solid #dbe5ee; }
+.review-footer .invoice-button { background: #009b6b; color: white; border-color: #009b6b; }
+@media (max-width: 600px) { .review-columns { grid-template-columns: 1fr; } .review-header, .review-footer, .review-body { padding: 16px; } }
