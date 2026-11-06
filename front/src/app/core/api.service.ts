@@ -20,12 +20,50 @@ import {
   Marca,
   Produto,
   ProdutoListaResponse,
+  NotaFiscalFiltros,
+  NotaFiscalListaResponse,
+  NotaFiscalEventoResponse,
 } from './app-models';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = environment.apiUrl;
+
+  listarNotasFiscais(empresaId: number, pagina: number, filtros: NotaFiscalFiltros) {
+    const params: Record<string, string | number> = { empresaId, pagina };
+    for (const [key, value] of Object.entries(filtros)) {
+      if (value !== '' && value !== null) params[key] = value;
+    }
+    return this.http.get<NotaFiscalListaResponse>(`${this.apiUrl}/notas-fiscais`, { params });
+  }
+
+  baixarNotaFiscal(empresaId: number, id: number, formato: 'pdf' | 'xml') {
+    return this.http.get(`${this.apiUrl}/notas-fiscais/${id}/${formato}`, {
+      params: { empresaId }, responseType: 'blob',
+    });
+  }
+
+  registrarEventoFiscal(empresaId: number, id: number, acao: 'cancelar' | 'carta-correcao', texto: string, certificado: FiscalCertificate) {
+    return this.http.post<NotaFiscalEventoResponse>(`${this.apiUrl}/notas-fiscais/${id}/${acao}`, {
+      texto, base64: certificado.base64, password: certificado.password,
+    }, { params: { empresaId } });
+  }
+
+  importarNotaFiscal(empresaId: number, xml: File, pdf: File | null) {
+    const form = new FormData();
+    form.append('empresaId', String(empresaId));
+    form.append('xml', xml);
+    if (pdf) form.append('pdf', pdf);
+    return this.http.post<{ id: number }>(`${this.apiUrl}/notas-fiscais/importar`, form);
+  }
+
+  consultarNotaFiscal(empresaId: number, id: number, certificado: FiscalCertificate) {
+    return this.http.post<{ codigo: string; motivo: string; situacao: string; pendente: boolean }>(
+      `${this.apiUrl}/notas-fiscais/${id}/consultar`,
+      { base64: certificado.base64, password: certificado.password }, { params: { empresaId } },
+    );
+  }
 
   validarCertificado(certificate: FiscalCertificate) {
     return this.http.post<{ validade: string }>(`${this.apiUrl}/fiscal/certificado/validar`, certificate);

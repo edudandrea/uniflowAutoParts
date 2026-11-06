@@ -6,8 +6,13 @@ using Microsoft.EntityFrameworkCore;
 var builder = WebApplication.CreateBuilder(args);
 
 // Controllers e OpenAPI
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.AddService<TenantActionFilter>();
+    options.Filters.Add<CsrfValidationFilter>();
+});
 builder.Services.AddOpenApi();
+builder.Services.AddScoped<SefazEventosService>();
 
 // Cloudflare R2
 builder.Services.Configure<CloudflareR2Options>(
@@ -27,6 +32,8 @@ if (string.IsNullOrWhiteSpace(connectionString))
         "Configure ConnectionStrings__DefaultConnection no serviço da API antes de iniciar. " +
         "A conexão deve apontar para um servidor PostgreSQL existente.");
 }
+
+builder.AddHubAuthentication(connectionString);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString, postgres => postgres.EnableRetryOnFailure()));
@@ -80,6 +87,19 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("FrontendPolicy");
 
+// A origem publica configurada evita confiar em headers de proxy enviados pelo cliente.
+var hub = app.Services.GetRequiredService<HubAuthSettings>();
+app.Use(async (context, next) =>
+{
+    if (hub.PublicOrigin is { } origin)
+    {
+        context.Request.Scheme = origin.Scheme;
+        context.Request.Host = HostString.FromUriComponent(origin);
+    }
+    await next();
+});
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();

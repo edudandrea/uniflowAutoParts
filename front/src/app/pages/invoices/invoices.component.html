@@ -1,0 +1,118 @@
+<section class="invoices-page">
+  <header class="invoice-hero">
+    <div class="hero-heading">
+      <span class="hero-icon"><app-icon name="file-text" [size]="32" /></span>
+      <div><span class="eyebrow">GESTÃO FISCAL</span><h1>Notas Fiscais (NF-e / NFC-e)</h1>
+        <p>Acompanhe, consulte e baixe as notas fiscais eletrônicas emitidas.</p></div>
+    </div>
+    <div class="hero-document" aria-hidden="true"><b>NF-e</b><i></i><i></i><i></i><span><app-icon name="check" [size]="26" /></span></div>
+  </header>
+
+  @if (message()) { <div class="notice" role="status"><app-icon name="info" /><span>{{ message() }}</span><button type="button" aria-label="Fechar mensagem" (click)="message.set('')"><app-icon name="x" [size]="16" /></button></div> }
+
+  @if (data(); as result) {
+    <div class="metrics-grid" [class.refreshing]="loading()">
+      <article class="metric"><span class="metric-icon blue"><app-icon name="file-text" [size]="25" /></span><div><p>Notas emitidas</p><strong>{{ result.resumo.emitidas }}</strong><small>Conforme os filtros aplicados</small></div></article>
+      <article class="metric"><span class="metric-icon green"><app-icon name="badge-check" [size]="25" /></span><div><p>Autorizadas</p><strong>{{ result.resumo.autorizadas }}</strong><small>Com autorização de uso</small></div></article>
+      <article class="metric"><span class="metric-icon amber"><app-icon name="calendar" [size]="25" /></span><div><p>Em processamento</p><strong>{{ result.resumo.processando }}</strong><small>Aguardando autorização</small></div></article>
+      <article class="metric"><span class="metric-icon red"><app-icon name="x" [size]="25" /></span><div><p>Canceladas</p><strong>{{ result.resumo.canceladas }}</strong><small>Cancelamento confirmado</small></div></article>
+      <article class="metric total"><span class="metric-icon green"><app-icon name="circle-dollar-sign" [size]="25" /></span><div><p>Valor total autorizado</p><strong>{{ formatCurrency(result.resumo.valorTotal) }}</strong><small>Somente notas autorizadas</small></div></article>
+    </div>
+  }
+
+  <form class="filters-panel" (ngSubmit)="search()">
+    <div class="filters-main">
+      <label class="search-field"><span>Pesquisar nota</span><div class="input-icon"><app-icon name="search" [size]="18" /><input type="search" name="busca" [(ngModel)]="filters.busca" placeholder="Número, chave de acesso, cliente..." /></div></label>
+      <label><span>Tipo</span><select name="tipo" [(ngModel)]="filters.tipo"><option value="">Todos</option><option value="NFe">NF-e</option><option value="NFCe">NFC-e</option></select></label>
+      <label><span>Situação</span><select name="situacao" [(ngModel)]="filters.situacao"><option value="">Todas</option><option>Autorizada</option><option value="Processando">Em processamento</option><option>Cancelada</option><option>Rejeitada</option></select></label>
+      <fieldset class="date-range"><legend>Período de emissão</legend><label><span class="sr-only">Emissão de</span><input type="date" name="de" [(ngModel)]="filters.de" [max]="filters.ate" /></label><span>—</span><label><span class="sr-only">Emissão até</span><input type="date" name="ate" [(ngModel)]="filters.ate" [min]="filters.de" /></label></fieldset>
+      <button class="outline advanced-toggle" type="button" [attr.aria-expanded]="showAdvanced()" aria-controls="advanced-filters" (click)="showAdvanced.set(!showAdvanced())"><app-icon name="sliders-horizontal" [size]="17" />Filtros avançados</button>
+      <button class="primary" type="submit" [disabled]="loading()"><app-icon name="search" [size]="17" />Pesquisar</button>
+    </div>
+    <div id="advanced-filters" [hidden]="!showAdvanced()">
+      @if (showAdvanced()) {
+        <div class="advanced-grid">
+          <label><span>Série</span><input type="text" name="serie" [(ngModel)]="filters.serie" placeholder="Todas as séries" /></label>
+          <label><span>Ambiente</span><select name="ambiente" [(ngModel)]="filters.ambiente"><option value="">Todos</option><option value="1">Produção</option><option value="2">Homologação</option></select></label>
+          <label><span>Valor mínimo (R$)</span><input type="number" name="valorMinimo" min="0" step="0.01" [(ngModel)]="filters.valorMinimo" /></label>
+          <label><span>Valor máximo (R$)</span><input type="number" name="valorMaximo" min="0" step="0.01" [(ngModel)]="filters.valorMaximo" /></label>
+          <button class="outline" type="button" [disabled]="loading()" (click)="clearFilters()">Limpar filtros</button>
+        </div>
+      }
+    </div>
+  </form>
+
+  <section class="invoices-panel" aria-label="Notas fiscais cadastradas" [attr.aria-busy]="loading()">
+    <header class="panel-header"><div><h2>Notas fiscais <span>({{ data()?.total ?? 0 }})</span></h2><p>Documentos de saída da sua empresa</p></div><div class="panel-actions"><button class="outline" type="button" (click)="openImport()"><app-icon name="upload" [size]="17" />Importar XML</button><button class="outline" type="button" [disabled]="loading() || !data()?.notas?.length" (click)="exportPage()"><app-icon name="download" [size]="17" />Exportar página</button></div></header>
+    @if (loading()) {
+      <div class="empty-state" role="status"><app-icon name="file-text" [size]="36" /><h3>Carregando notas fiscais...</h3></div>
+    } @else if (loadError()) {
+      <div class="empty-state" role="alert"><app-icon name="info" [size]="36" /><h3>{{ loadError() }}</h3><button class="outline" type="button" (click)="loadPage(page())">Tentar novamente</button></div>
+    } @else {
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Tabela de notas fiscais">
+        <table>
+          <thead><tr><th scope="col">Número</th><th scope="col">Série</th><th scope="col" aria-sort="descending">Emissão <app-icon name="chevron-down" [size]="12" /></th><th scope="col">Cliente</th><th scope="col">Tipo</th><th scope="col" class="amount">Valor (R$)</th><th scope="col">Situação</th><th scope="col">Chave de acesso</th><th scope="col">Ações</th></tr></thead>
+          <tbody>
+            @for (nota of data()?.notas ?? []; track nota.id) {
+              <tr>
+                <td class="invoice-number">{{ nota.numero }}</td><td>{{ nota.serie }}</td><td class="date-cell">{{ nota.emissao | date:'dd/MM/yyyy HH:mm':'-0300' }}</td>
+                <td class="client-cell"><strong>{{ nota.cliente || 'Consumidor não identificado' }}</strong><small>{{ nota.documentoCliente }}</small></td>
+                <td><span class="type-label">{{ typeLabel(nota.tipo) }}</span><small class="environment" [class.test]="nota.ambiente === 2">{{ nota.ambiente === 2 ? 'Homologação' : 'Produção' }}</small></td>
+                <td class="amount">{{ formatCurrency(nota.valor) }}</td>
+                <td><span class="status" [class.authorized]="nota.situacao === 'Autorizada'" [class.cancelled]="nota.situacao === 'Cancelada'" [class.processing]="nota.situacao === 'Processando'" [class.rejected]="nota.situacao === 'Rejeitada'"><app-icon [name]="nota.situacao === 'Autorizada' ? 'check' : nota.situacao === 'Cancelada' || nota.situacao === 'Rejeitada' ? 'x' : 'calendar'" [size]="13" />{{ nota.situacao === 'Processando' ? 'Em processamento' : nota.situacao }}</span></td>
+                <td><div class="key-cell"><span class="access-key" [title]="nota.chaveAcesso">{{ nota.chaveAcesso }}</span><button type="button" class="small-icon" (click)="copyKey(nota)" [attr.aria-label]="'Copiar chave da nota ' + nota.numero" title="Copiar chave de acesso"><app-icon name="file-text" [size]="15" /></button></div></td>
+                <td><div class="row-actions">
+                  <button class="action" type="button" title="Consultar situação na SEFAZ" [attr.aria-label]="'Consultar nota ' + nota.numero + ' na SEFAZ'" [disabled]="consulting() !== null || nota.ambiente !== 2 || !nota.chaveAcesso.startsWith('43') || nota.chaveAcesso[34] !== '1'" (click)="consult(nota)"><app-icon name="search" [size]="15" /></button>
+                  <button class="action" type="button" [disabled]="!nota.temPdf || downloading() !== null" [title]="nota.temPdf ? 'Baixar PDF' : 'PDF não anexado à nota'" [attr.aria-label]="'Baixar PDF da nota ' + nota.numero" (click)="download(nota, 'pdf')"><app-icon name="file-text" [size]="15" />PDF</button>
+                  <button class="action" type="button" [disabled]="downloading() !== null" [attr.aria-label]="'Baixar XML da nota ' + nota.numero" (click)="download(nota, 'xml')"><app-icon name="download" [size]="15" />XML</button>
+                  <button class="action correction" type="button" [disabled]="!nota.podeCorrigir" [title]="nota.bloqueioEventos || (nota.tipo === 'NFCe' ? 'Carta de correção disponível somente para NF-e' : 'Registrar carta de correção')" (click)="openEvent(nota, 'carta-correcao')"><app-icon name="pencil" [size]="15" />Carta de correção</button>
+                  <button class="action danger" type="button" [disabled]="!nota.podeCancelar" [title]="nota.bloqueioEventos || 'Cancelar nota fiscal'" (click)="openEvent(nota, 'cancelar')"><app-icon name="x" [size]="15" />Cancelar</button>
+                </div></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="9"><div class="empty-state"><span class="empty-icon"><app-icon name="receipt-text" [size]="34" /></span><h3>Nenhuma nota fiscal encontrada</h3><p>Revise os filtros ou importe o XML autorizado de uma nota emitida pela sua empresa.</p><button class="outline" type="button" (click)="clearFilters()">Limpar filtros</button></div></td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <footer class="pagination"><span class="page-size">Exibir <b>10</b> por página</span><p>Mostrando {{ firstResult() }} a {{ lastResult() }} de {{ data()?.total ?? 0 }} registros</p><nav aria-label="Paginação das notas fiscais">
+        <button type="button" aria-label="Primeira página" [disabled]="page() === 1" (click)="loadPage(1)">1ª</button>
+        <button type="button" aria-label="Página anterior" [disabled]="page() === 1" (click)="loadPage(page() - 1)"><app-icon name="chevron-left" [size]="17" /></button>
+        @for (number of pages(); track number) { <button type="button" [class.current]="page() === number" [attr.aria-current]="page() === number ? 'page' : null" [attr.aria-label]="'Página ' + number" (click)="loadPage(number)">{{ number }}</button> }
+        <button type="button" aria-label="Próxima página" [disabled]="page() === totalPages()" (click)="loadPage(page() + 1)"><app-icon name="chevron-right" [size]="17" /></button>
+        <button type="button" aria-label="Última página" [disabled]="page() === totalPages()" (click)="loadPage(totalPages())">{{ totalPages() }}ª</button>
+      </nav></footer>
+    }
+  </section>
+  <p class="integration-note"><app-icon name="lock" [size]="14" />Eventos disponíveis para RS em homologação, com certificado A1. Notas de produção permitem consulta e download.</p>
+</section>
+
+<dialog #eventDialog class="fiscal-dialog" aria-labelledby="event-title" (cancel)="$event.preventDefault(); closeEvent()">
+  <form (ngSubmit)="submitEvent()">
+    <header><div><span class="eyebrow">EVENTO FISCAL · HOMOLOGAÇÃO RS</span><h2 id="event-title">{{ event()?.acao === 'cancelar' ? 'Cancelar nota fiscal' : 'Carta de correção' }}</h2></div><button class="small-icon" type="button" aria-label="Fechar" [disabled]="busy()" (click)="closeEvent()"><app-icon name="x" /></button></header>
+    @if (event(); as selected) {
+      <div class="selected-invoice"><strong>{{ typeLabel(selected.nota.tipo) }} {{ selected.nota.numero }} · Série {{ selected.nota.serie }}</strong><span>{{ selected.nota.cliente || 'Consumidor não identificado' }}</span><small>{{ selected.nota.chaveAcesso }}</small></div>
+      @if (selected.acao === 'cancelar') {
+        <p>Informe a justificativa para solicitar o cancelamento à SEFAZ. A nota só será marcada como cancelada após a confirmação do evento.</p>
+      } @else {
+        <p>A correção mais recente deve incluir todas as correções anteriores. Não utilize a CC-e para alterar valores, impostos, remetente, destinatário ou datas.</p>
+      }
+      <label><span>{{ selected.acao === 'cancelar' ? 'Justificativa do cancelamento' : 'Texto da correção' }}</span><textarea name="texto" [(ngModel)]="eventText" rows="6" required minlength="15" [maxlength]="selected.acao === 'cancelar' ? 255 : 1000" [disabled]="busy()" autofocus aria-describedby="text-limit"></textarea></label>
+      <small id="text-limit">{{ eventText.trim().length }} / {{ selected.acao === 'cancelar' ? 255 : 1000 }} caracteres · mínimo de 15</small>
+    }
+    @if (eventError()) { <p class="error" role="alert">{{ eventError() }}</p> }
+    <footer><button class="outline" type="button" [disabled]="busy()" (click)="closeEvent()">Voltar</button><button [class.danger-primary]="event()?.acao === 'cancelar'" class="primary" type="submit" [disabled]="busy() || eventText.trim().length < 15"><app-icon name="send" [size]="17" />{{ busy() ? 'Aguardando a SEFAZ...' : 'Transmitir à SEFAZ' }}</button></footer>
+  </form>
+</dialog>
+
+<dialog #importDialog class="fiscal-dialog" aria-labelledby="import-title" (cancel)="$event.preventDefault(); closeImport()">
+  <form (ngSubmit)="importInvoice()">
+    <header><div><span class="eyebrow">DOCUMENTOS EMITIDOS</span><h2 id="import-title">Importar nota fiscal</h2></div><button class="small-icon" type="button" aria-label="Fechar importação" [disabled]="importing()" (click)="closeImport()"><app-icon name="x" /></button></header>
+    <p>Selecione o XML processado com protocolo de autorização (nfeProc). O emitente deve ser a sua empresa. Esta importação não emite uma nova nota.</p>
+    <label><span>XML autorizado · até 5 MB</span><input type="file" name="xml" accept=".xml,application/xml,text/xml" (change)="selectFile($event, 'xml')" [disabled]="importing()" required /></label>
+    <label><span>PDF / DANFE correspondente · opcional, até 5 MB</span><input type="file" name="pdf" accept=".pdf,application/pdf" (change)="selectFile($event, 'pdf')" [disabled]="importing()" /></label>
+    <p class="hint">O PDF anexado ficará disponível para download. A importação não gera um DANFE nem consulta eventos posteriores à autorização.</p>
+    @if (importError()) { <p class="error" role="alert">{{ importError() }}</p> }
+    <footer><button class="outline" type="button" [disabled]="importing()" (click)="closeImport()">Voltar</button><button class="primary" type="submit" [disabled]="importing()"><app-icon name="upload" [size]="17" />{{ importing() ? 'Importando...' : 'Importar nota' }}</button></footer>
+  </form>
+</dialog>

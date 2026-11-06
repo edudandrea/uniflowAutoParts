@@ -1,4 +1,5 @@
-﻿import { Injectable } from '@angular/core';
+﻿import { inject, Injectable } from '@angular/core';
+import { SessionService } from './session.service';
 
 export interface FiscalCertificate {
   validUntil?: string;
@@ -21,8 +22,9 @@ export interface FiscalTaxSettings {
 
 @Injectable({ providedIn: 'root' })
 export class FiscalCertificateService {
-  private readonly key = 'uniflow:certificado:empresa-1';
-  private readonly taxKey = 'uniflow:tributacao:empresa-1';
+  private readonly session = inject(SessionService);
+  private get key(): string { return this.session.storageKey('certificado'); }
+  private get taxKey(): string { return this.session.storageKey('tributacao'); }
 
   loadTax(): FiscalTaxSettings | null {
     const raw = localStorage.getItem(this.taxKey);

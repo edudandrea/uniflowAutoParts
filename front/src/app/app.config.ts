@@ -1,5 +1,6 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { sessionInterceptor } from './core/session.service';
 import { provideRouter } from '@angular/router';
 import {
   LucideArrowDown,
@@ -77,7 +78,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideHttpClient(),
+    provideHttpClient(withInterceptors([sessionInterceptor])),
     provideLucideConfig({ strokeWidth: 1.8, size: 20 }),
     provideLucideIcons(
       LucideArrowDown,

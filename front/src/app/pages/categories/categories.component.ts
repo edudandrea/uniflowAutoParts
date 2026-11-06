@@ -1,3 +1,4 @@
+import { SessionService } from '../../core/session.service';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
@@ -13,8 +14,9 @@ import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 })
 export class CategoriesComponent {
   private readonly api = inject(ApiService);
+  private readonly session = inject(SessionService);
   private readonly fb = inject(FormBuilder);
-  private readonly tenantId = 1;
+  private get tenantId(): number { return this.session.empresaId; }
 
   protected readonly categorias = signal<Categoria[]>([]);
   protected readonly busca = signal('');

@@ -10,7 +10,9 @@ namespace back.Models
         public int Id { get; set; }
         public string RazaoSocial { get; set; } = string.Empty;
         public string NomeFantasia { get; set; } = string.Empty;
-        public string Cnpj { get; set; } = string.Empty;
+        public string? Cnpj { get; set; }
+        public string? HubIssuer { get; set; }
+        public string? HubTenantId { get; set; }
         public string? Telefone { get; set; }
         public string? Email { get; set; }
         public string? EmailFiscal { get; set; }

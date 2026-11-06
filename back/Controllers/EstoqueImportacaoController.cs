@@ -14,7 +14,7 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
 {
     [HttpPost("importar-nfe")]
     [Consumes("multipart/form-data")]
-    public async Task<ActionResult<ImportarNfeResponse>> ImportarNfe([FromForm] IFormFile arquivo, [FromForm] long tenantId = 1)
+    public async Task<ActionResult<ImportarNfeResponse>> ImportarNfe([FromForm] IFormFile arquivo, [FromForm] long tenantId = 0)
     {
         if (tenantId <= 0)
         {

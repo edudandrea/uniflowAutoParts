@@ -1,3 +1,4 @@
+import { SessionService } from '../../core/session.service';
 import { Component, computed, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -22,6 +23,7 @@ interface SaleDraft {
 })
 export class SalesComponent {
   private readonly api = inject(ApiService);
+  private readonly session = inject(SessionService);
   private readonly certificateStore = inject(FiscalCertificateService);
   private readonly reviewDialog = viewChild<ElementRef<HTMLDialogElement>>('reviewDialog');
   protected readonly fiscalMessage = signal('');
@@ -41,7 +43,7 @@ export class SalesComponent {
   protected closeReview(): void {
     this.reviewDialog()?.nativeElement.close();
   }
-  private readonly draftKey = 'uniflow:venda:rascunho:empresa-1';
+  private get draftKey(): string { return this.session.storageKey('venda:rascunho'); }
   protected readonly clientes = signal<ClienteResumoResponse[]>([]);
   protected readonly produtos = signal<Produto[]>([]);
   protected readonly cliente = signal<ClienteResumoResponse | null>(null);
@@ -80,13 +82,13 @@ export class SalesComponent {
 
   protected loadCatalog(): void {
     this.loading.set(true); this.loadError.set('');
-    forkJoin({ clientes: this.api.listarClientes(1), produtos: this.api.listarProdutos(1, 1, 100) }).subscribe({
+    forkJoin({ clientes: this.api.listarClientes(this.session.empresaId), produtos: this.api.listarProdutos(this.session.empresaId, 1, 100) }).subscribe({
       next: ({ clientes, produtos }) => {
         this.clientes.set(clientes.filter(c => c.ativo && c.relacionamento !== 2));
         this.produtos.set(produtos.produtos.filter(p => p.ativo));
         // Load the remaining catalog pages so product search is not limited to the first page.
         const pages = Math.ceil(produtos.total / 100);
-        if (pages > 1) forkJoin(Array.from({ length: pages - 1 }, (_, i) => this.api.listarProdutos(1, i + 2, 100))).subscribe({
+        if (pages > 1) forkJoin(Array.from({ length: pages - 1 }, (_, i) => this.api.listarProdutos(this.session.empresaId, i + 2, 100))).subscribe({
           next: results => { this.produtos.update(p => [...p, ...results.flatMap(r => r.produtos.filter(x => x.ativo))]); this.loading.set(false); },
           error: () => { this.loading.set(false); this.loadError.set('Não foi possível carregar todo o catálogo. Tente novamente.'); },
         });

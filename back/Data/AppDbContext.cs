@@ -1,12 +1,17 @@
 using back.Models;
+using back.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace back.Data
 {
-    public class AppDbContext : DbContext
+    public partial class AppDbContext : DbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+        private readonly TenantContext? tenant;
+        private int CurrentEmpresaId => tenant?.EmpresaId ?? 0;
+
+        public AppDbContext(DbContextOptions<AppDbContext> options, TenantContext? tenant = null) : base(options)
         {
+            this.tenant = tenant;
         }
 
         public DbSet<Empresas> Empresas => Set<Empresas>();
@@ -23,13 +28,50 @@ namespace back.Data
         public DbSet<EntradaCompra> EntradasCompra => Set<EntradaCompra>();
         public DbSet<EntradaCompraItem> EntradaCompraItens => Set<EntradaCompraItem>();
         public DbSet<Users> Users => Set<Users>();
+        public DbSet<NotaFiscal> NotasFiscais => Set<NotaFiscal>();
+        public DbSet<NotaFiscalEvento> NotaFiscalEventos => Set<NotaFiscalEvento>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
+            modelBuilder.Entity<Empresas>().HasQueryFilter(e => e.Id == CurrentEmpresaId);
+            modelBuilder.Entity<Users>().HasQueryFilter(e => e.EmpresaId == CurrentEmpresaId);
+            modelBuilder.Entity<Cliente>().HasQueryFilter(e => e.TenantId == CurrentEmpresaId);
+            modelBuilder.Entity<CadastroEndereco>().HasQueryFilter(e => e.EmpresaId == CurrentEmpresaId);
+            modelBuilder.Entity<Categoria>().HasQueryFilter(e => e.TenantId == CurrentEmpresaId);
+            modelBuilder.Entity<Marca>().HasQueryFilter(e => e.TenantId == CurrentEmpresaId);
+            modelBuilder.Entity<CadastroItens>().HasQueryFilter(e => e.EmpresaId == CurrentEmpresaId);
+            modelBuilder.Entity<Estoque>().HasQueryFilter(e => e.EmpresaId == CurrentEmpresaId);
+            modelBuilder.Entity<EntradaCompra>().HasQueryFilter(e => e.TenantId == CurrentEmpresaId);
+            modelBuilder.Entity<NotaFiscal>().HasQueryFilter(e => e.EmpresaId == CurrentEmpresaId);
+            modelBuilder.Entity<Endereco>().HasQueryFilter(e => e.Cliente != null && e.Cliente.TenantId == CurrentEmpresaId);
+            modelBuilder.Entity<ClienteContato>().HasQueryFilter(e => e.Cliente.TenantId == CurrentEmpresaId);
+            modelBuilder.Entity<ClienteDadosComerciais>().HasQueryFilter(e => e.Cliente.TenantId == CurrentEmpresaId);
+            modelBuilder.Entity<ClienteVeiculo>().HasQueryFilter(e => e.Cliente != null && e.Cliente.TenantId == CurrentEmpresaId);
+            modelBuilder.Entity<EntradaCompraItem>().HasQueryFilter(e => e.EntradaCompra != null && e.EntradaCompra.TenantId == CurrentEmpresaId);
+            modelBuilder.Entity<NotaFiscalEvento>().HasQueryFilter(e => e.NotaFiscal.EmpresaId == CurrentEmpresaId);
+
+            modelBuilder.Entity<NotaFiscal>(entity =>
+            {
+                entity.HasIndex(e => new { e.EmpresaId, e.ChaveAcesso, e.Ambiente }).IsUnique();
+                entity.HasIndex(e => new { e.EmpresaId, e.Emissao });
+                entity.Property(e => e.Valor).HasPrecision(18, 2);
+                entity.Property(e => e.ChaveAcesso).HasMaxLength(44);
+                entity.HasOne<Empresas>().WithMany().HasForeignKey(e => e.EmpresaId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(e => e.Eventos).WithOne(e => e.NotaFiscal)
+                    .HasForeignKey(e => e.NotaFiscalId).OnDelete(DeleteBehavior.Cascade);
+            });
+            modelBuilder.Entity<NotaFiscalEvento>(entity =>
+            {
+                entity.HasIndex(e => new { e.NotaFiscalId, e.Tipo, e.Sequencia });
+            });
+
             modelBuilder.Entity<Empresas>(entity =>
             {
+                entity.Property(e => e.HubIssuer).HasMaxLength(500);
+                entity.Property(e => e.HubTenantId).HasMaxLength(200);
+                entity.HasIndex(e => new { e.HubIssuer, e.HubTenantId }).IsUnique();
                 entity.HasIndex(e => e.Cnpj).IsUnique();
 
                 entity.HasMany<Users>()
@@ -40,7 +82,9 @@ namespace back.Data
 
             modelBuilder.Entity<Users>(entity =>
             {
-                entity.HasIndex(e => e.EmailNormalizado).IsUnique();
+                entity.HasIndex(e => e.EmailNormalizado);
+                entity.Property(e => e.HubSubject).HasMaxLength(200);
+                entity.HasIndex(e => new { e.EmpresaId, e.HubSubject }).IsUnique();
                 entity.HasIndex(e => e.EmpresaId);
 
                 entity.Property(e => e.Nome).HasMaxLength(160);

@@ -1,3 +1,4 @@
+import { SessionService } from '../../core/session.service';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
@@ -46,8 +47,9 @@ interface Customer {
 })
 export class CustomersComponent {
   private readonly api = inject(ApiService);
+  private readonly session = inject(SessionService);
   private readonly fb = inject(FormBuilder);
-  private readonly empresaId = 1;
+  private get empresaId(): number { return this.session.empresaId; }
 
   protected readonly showCustomerModal = signal(false);
   protected readonly selectedCustomerId = signal('');

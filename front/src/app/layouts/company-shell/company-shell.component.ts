@@ -1,4 +1,5 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
+import { SessionService } from '../../core/session.service';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
@@ -16,6 +17,19 @@ interface CompanyMenuItem {
   styleUrl: './company-shell.component.scss',
 })
 export class CompanyShellComponent {
+  protected readonly session = inject(SessionService);
+  protected readonly signingOut = signal(false);
+  protected readonly sessionError = signal('');
+
+  protected logout(): void {
+    if (this.signingOut()) return;
+    this.signingOut.set(true);
+    this.session.logout().subscribe({
+      next: result => window.location.assign(result.portalUrl || '/entrar'),
+      error: () => { this.signingOut.set(false); this.sessionError.set('Nao foi possivel encerrar a sessao. Tente novamente.'); },
+    });
+  }
+
   protected readonly logoUnavailable = signal(false);
   protected readonly expandedMenus = signal<Record<string, boolean>>({});
   protected readonly mobileMenuOpen = signal(false);

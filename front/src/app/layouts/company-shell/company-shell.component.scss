@@ -334,3 +334,8 @@ nav {
     font-size: 0.86rem;
   }
 }
+
+.session-bar { display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-bottom:16px;padding:14px 18px;border:1px solid #deeaed;border-radius:10px;background:#ffffffd9; }
+.session-company { display:grid;gap:4px;margin-right:auto; }.session-label { color:#129775;font-size:.6rem;letter-spacing:.13em;font-weight:700; }.session-company strong,.session-user strong { color:#203e55;font-size:.83rem; }.session-company small,.session-user small { color:#7890a3;font-size:.68rem; }
+.session-user { display:flex;align-items:center;gap:10px;color:#268a78; }.session-user div { display:grid;gap:4px; }.session-actions { display:flex;align-items:center;gap:12px; }.session-actions a { color:#178371;font-size:.72rem;text-decoration:none; }.session-actions button { min-height:34px;padding:0 10px;background:#eff7f5;color:#28766a;font-size:.7rem; }
+@media(max-width:600px) { .session-bar { padding:12px;gap:12px; }.session-company { width:100%; }.session-actions { width:100%;justify-content:space-between; } }

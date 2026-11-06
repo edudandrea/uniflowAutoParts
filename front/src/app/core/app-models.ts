@@ -1,3 +1,56 @@
+export interface NotaFiscal {
+  id: number;
+  numero: string;
+  serie: string;
+  emissao: string;
+  cliente: string;
+  documentoCliente: string;
+  tipo: 'NFe' | 'NFCe';
+  situacao: 'Autorizada' | 'Processando' | 'Cancelada' | 'Rejeitada';
+  valor: number;
+  chaveAcesso: string;
+  ambiente: number;
+  temPdf: boolean;
+  podeCancelar: boolean;
+  podeCorrigir: boolean;
+  bloqueioEventos: string | null;
+}
+
+export interface NotaFiscalResumo {
+  emitidas: number;
+  autorizadas: number;
+  processando: number;
+  canceladas: number;
+  valorTotal: number;
+}
+
+export interface NotaFiscalFiltros {
+  busca: string;
+  tipo: string;
+  situacao: string;
+  de: string;
+  ate: string;
+  serie: string;
+  ambiente: string;
+  valorMinimo: number | null;
+  valorMaximo: number | null;
+}
+
+export interface NotaFiscalListaResponse {
+  pagina: number;
+  tamanhoPagina: number;
+  total: number;
+  resumo: NotaFiscalResumo;
+  notas: NotaFiscal[];
+}
+
+export interface NotaFiscalEventoResponse {
+  codigo: string;
+  motivo: string;
+  protocolo: string;
+  sequencia: number;
+}
+
 export interface CriarClientePayload {
   empresaId: number;
   tipoPessoa: number;

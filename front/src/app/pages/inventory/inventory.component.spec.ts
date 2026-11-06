@@ -1,3 +1,5 @@
+import { SessionService } from '../../core/session.service';
+import { sessionStub } from '../../../testing/session.fixture';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
@@ -22,7 +24,7 @@ describe('InventoryComponent API integration', () => {
     TestBed.overrideComponent(AppIconComponent, { set: { template: '', imports: [] } });
     await TestBed.configureTestingModule({
       imports: [InventoryComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [{ provide: SessionService, useFactory: sessionStub }, provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(InventoryComponent);

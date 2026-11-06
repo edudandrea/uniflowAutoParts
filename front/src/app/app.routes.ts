@@ -1,3 +1,4 @@
+import { companySessionGuard } from './core/session.service';
 import { Routes } from '@angular/router';
 
 import { CompanyShellComponent } from './layouts/company-shell/company-shell.component';
@@ -16,8 +17,12 @@ import { SalesComponent } from './pages/sales/sales.component';
 import { FiscalSettingsComponent } from './pages/fiscal-settings/fiscal-settings.component';
 
 export const routes: Routes = [
+  { path: 'sso', loadComponent: () => import('./pages/hub-login/hub-login.component').then(m => m.HubLoginComponent) },
+  { path: 'entrar', loadComponent: () => import('./pages/hub-login/hub-login.component').then(m => m.HubLoginComponent) },
   {
     path: 'app',
+    canActivate: [companySessionGuard],
+    canActivateChild: [companySessionGuard],
     component: CompanyShellComponent,
     children: [
       { path: 'dashboard', component: DashboardComponent },
@@ -27,6 +32,7 @@ export const routes: Routes = [
       { path: 'aplicacoes', component: ApplicationsComponent },
       { path: 'compras', component: PurchasesComponent },
       { path: 'vendas', component: SalesComponent },
+      { path: 'notas', loadComponent: () => import('./pages/invoices/invoices.component').then(m => m.InvoicesComponent) },
       { path: 'fornecedores', component: SuppliersComponent },
       { path: 'financeiro', redirectTo: 'financeiro/visao-geral', pathMatch: 'full' },
       { path: 'financeiro/visao-geral', component: FinancialComponent },

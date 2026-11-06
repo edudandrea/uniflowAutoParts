@@ -2,22 +2,17 @@
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.19.
 
-## API e Railway
+## HUB, API e Railway
 
-O build de produção (`npm run build`) e `npm run start:railway` usam
-`https://back-production-b172.up.railway.app/api`, configurado em
-`src/environments/environment.ts`. O desenvolvimento (`npm start`) usa
-`http://localhost:5031/api` por meio de `environment.development.ts`.
+O frontend acessa a API em `/api` no mesmo dominio, utilizando o proxy de
+`proxy.conf.cjs`. No Railway, configure `API_PROXY_TARGET` com a origem real
+do backend, sem `/api` no final. Em desenvolvimento, o padrao e
+`http://localhost:5031`.
 
-Depois de publicar as alterações, faça um novo deploy do frontend no Railway.
-Se a URL pública do backend mudar, atualize `environment.ts` e gere outro build.
-
-No serviço **backend** do Railway, configure a variável
-`Cors__AllowedOrigins__0=https://front-production-0fc8.up.railway.app`
-(sem barra no final). Se o domínio do frontend for diferente, use a origem
-correta. A API lê essa configuração em `Program.cs` para permitir as chamadas
-do navegador. Para desenvolvimento local, pode adicionar
-`Cors__AllowedOrigins__1=http://localhost:4200` no ambiente da API local.
+O acesso a `/app/**` exige uma sessao autenticada pelo HUB. A URL de entrada
+central e `/sso`; a empresa e o usuario sao obtidos da API, sem ID fixo.
+Configure o projeto no HUB e o backend conforme [HUB_SSO.md](../docs/HUB_SSO.md).
+O UniflowPeople nao e modificado por este projeto.
 
 ## Development server
 

@@ -69,6 +69,15 @@
   </aside>
 
   <section class="company-content">
+    @if (session.session(); as identity) {
+      <header class="session-bar">
+        <div class="session-company"><span class="session-label">EMPRESA</span><strong>{{ identity.empresa?.nome || 'Empresa vinculada ao HUB' }}</strong><small>{{ identity.empresa?.cnpj || 'Dados cadastrais pendentes' }}</small></div>
+        <div class="session-user"><app-icon name="user" [size]="20" /><div><strong>{{ identity.usuario?.nome }}</strong><small>{{ identity.usuario?.email }}</small></div></div>
+        <div class="session-actions">@if (identity.portalUrl) { <a [href]="identity.portalUrl">Minhas aplica&#231;&#245;es</a> }<button type="button" [disabled]="signingOut()" (click)="logout()">{{ signingOut() ? 'Saindo...' : 'Sair do sistema' }}</button></div>
+      </header>
+      @if (sessionError()) { <p role="alert">{{ sessionError() }}</p> }
+    }
+
     <router-outlet />
   </section>
 </main>

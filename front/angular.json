@@ -69,7 +69,8 @@
         "serve": {
           "builder": "@angular/build:dev-server",
           "options": {
-            "allowedHosts": ["front-production-0fc8.up.railway.app"]
+            "allowedHosts": ["front-production-0fc8.up.railway.app", "parts.uniflowtech.com.br"],
+            "proxyConfig": "proxy.conf.cjs"
           },
           "configurations": {
             "production": {

@@ -8,6 +8,7 @@ namespace back.Models
         public string Email { get; set; } = string.Empty;
         public string EmailNormalizado { get; set; } = string.Empty;
         public string PasswordHash { get; set; } = string.Empty;
+        public string? HubSubject { get; set; }
         public PerfilUsuario Perfil { get; set; }
         public bool Ativo { get; set; } = true;
         public DateTime CriadoEm { get; set; } = DateTime.UtcNow;

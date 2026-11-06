@@ -1,3 +1,4 @@
+import { SessionService } from '../../core/session.service';
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -44,9 +45,10 @@ interface XmlPrecheck {
 })
 export class InventoryComponent implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly session = inject(SessionService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
-  private readonly tenantId = 1;
+  private get tenantId(): number { return this.session.empresaId; }
 
   protected readonly loading = signal(false);
   protected readonly loadError = signal('');
