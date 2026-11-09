@@ -47,7 +47,7 @@ No servico **frontend**, configure:
 API_PROXY_TARGET=https://DOMINIO_REAL_DO_BACKEND
 ```
 
-Use a origem do backend, sem `/api` no final. O comando `npm run start:railway`
+Use a origem do backend, sem `/api` no final. No Docker de producao, o Nginx encaminha `/api/**` ao backend informado em `API_PROXY_TARGET`, preservando os caminhos de login, sessao e callback. O container exige uma origem HTTP(S) sem caminho, query ou credenciais. O comando `npm run start:railway`
 usa o proxy configurado em `angular.json`. O navegador acessa `/api` no proprio
 dominio `parts.uniflowtech.com.br`, inclusive no callback OIDC. Isso mantem o
 cookie HttpOnly no dominio do sistema e evita depender de cookies de terceiros
@@ -168,3 +168,18 @@ do projeto no HUB e publicacao; nao foi executado com credenciais de clientes.
 Referencias: [cliente OIDC ASP.NET Core](https://learn.microsoft.com/aspnet/core/security/authentication/configure-oidc-web-authentication),
 [filtros por tenant no EF Core](https://learn.microsoft.com/ef/core/querying/filters),
 [proxy do Angular CLI](https://angular.dev/tools/cli/serve).
+
+## Diagnostico de entrada e proxy
+
+Na central, use `https://parts.uniflowtech.com.br/sso` como entrada SSO.
+A rota `/entrar` e a tela de entrada manual; o caminho `/sso` inicia OIDC.
+
+Acesse `https://parts.uniflowtech.com.br/api/auth/session` sem login:
+o retorno deve ser JSON com `authenticated: false` e `available: true`.
+HTML com titulo UniFlow AutoParts indica que `/api` caiu no frontend:
+confira o proxy Nginx e a variavel API_PROXY_TARGET no servico frontend.
+`available: false` indica que HubAuth__Enabled/configuracao da API esta pendente.
+
+`/api/auth/login` deve iniciar o redirecionamento ao emissor OIDC, sem
+retornar index.html. O callback `/api/auth/callback` tambem deve chegar ao
+backend; ele so conclui com o state, nonce e codigo de um login valido.

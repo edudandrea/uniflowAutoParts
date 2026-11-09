@@ -4,7 +4,7 @@ This project was generated using [Angular CLI](https://github.com/angular/angula
 
 ## HUB, API e Railway
 
-O frontend acessa a API em `/api` no mesmo dominio, utilizando o proxy de
+O frontend acessa a API em `/api` no mesmo dominio. O Docker de producao usa o proxy Nginx configurado em `nginx.conf`; o servidor Angular usa o proxy de
 `proxy.conf.cjs`. No Railway, configure `API_PROXY_TARGET` com a origem real
 do backend, sem `/api` no final. Em desenvolvimento, o padrao e
 `http://localhost:5031`.
