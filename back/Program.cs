@@ -93,8 +93,7 @@ app.Use(async (context, next) =>
 {
     if (hub.PublicOrigin is { } origin)
     {
-        context.Request.Scheme = origin.Scheme;
-        context.Request.Host = HostString.FromUriComponent(origin);
+        HubAuthentication.ApplyPublicOrigin(context.Request, origin);
     }
     await next();
 });

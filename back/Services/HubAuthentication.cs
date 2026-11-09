@@ -152,6 +152,15 @@ public static class HubAuthentication
         });
     }
 
+    public static void ApplyPublicOrigin(HttpRequest request, Uri origin)
+    {
+        request.Scheme = origin.Scheme;
+        // OIDC compares redirect_uri exactly: omit the default HTTPS/HTTP port.
+        request.Host = origin.IsDefaultPort
+            ? new HostString(origin.IdnHost)
+            : new HostString(origin.IdnHost, origin.Port);
+    }
+
     public static bool ValidProjectClaims(ClaimsPrincipal principal, int projectId) =>
         principal.FindAll("project_id").Count() == 1 && principal.FindFirstValue("project_id") == projectId.ToString(CultureInfo.InvariantCulture) &&
         principal.FindAll("tenant_id").Count() == 1 && !string.IsNullOrWhiteSpace(principal.FindFirstValue("tenant_id")) &&
