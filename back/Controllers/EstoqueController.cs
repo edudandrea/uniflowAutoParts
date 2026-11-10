@@ -44,7 +44,8 @@ public class EstoqueController(AppDbContext db) : ControllerBase
                 produto.Descricao,
                 produto.Marca != null && produto.Marca.TenantId == empresaId ? produto.Marca.Nome : "",
                 produto.Categoria != null && produto.Categoria.TenantId == empresaId ? produto.Categoria.Nome : "",
-                saldo == null ? 0 : saldo.Quantidade,
+                // O LEFT JOIN retorna NULL para produtos sem movimentos; tratar no SQL.
+                (int?)saldo.Quantidade ?? 0,
                 produto.EstoqueMinimo,
                 produto.Preco,
                 produto.Codfabricante == 0 ? "" : produto.Codfabricante.ToString(),
