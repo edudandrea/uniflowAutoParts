@@ -62,7 +62,6 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
 
         var ide = Filho(infNfe, "ide");
         var emit = Filho(infNfe, "emit");
-        var dest = Filho(infNfe, "dest");
         var total = infNfe.Descendants().FirstOrDefault(element => element.Name.LocalName == "ICMSTot");
 
         if (ide is null || emit is null)
@@ -76,8 +75,6 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
             return BadRequest(erroTipoNota);
         }
 
-        await using var transaction = await db.Database.BeginTransactionAsync();
-
         var fornecedor = await ObterOuCriarFornecedor(tenantId, emit);
         var itens = await MontarItens(infNfe, tenantId);
 
@@ -89,7 +86,6 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
         var entrada = new EntradaCompra
         {
             TenantId = tenantId,
-            FornecedorId = fornecedor.Id,
             Fornecedor = fornecedor,
             ChaveNfe = chaveNfe,
             NumeroNfe = Texto(ide, "nNF") ?? string.Empty,
@@ -111,8 +107,9 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
         };
 
         db.EntradasCompra.Add(entrada);
+        // Uma unica gravacao usa a transacao implicita do EF, compativel com
+        // EnableRetryOnFailure, e salva fornecedor, nota e itens atomicamente.
         await db.SaveChangesAsync();
-        await transaction.CommitAsync();
 
         return Created($"/api/estoque/entradas/{entrada.Id}", ToResponse(entrada, fornecedor));
     }
@@ -151,7 +148,6 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
         };
 
         db.Clientes.Add(fornecedor);
-        await db.SaveChangesAsync();
 
         return fornecedor;
     }
