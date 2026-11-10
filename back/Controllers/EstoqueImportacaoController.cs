@@ -3,6 +3,7 @@ using System.Xml.Linq;
 using back.Contracts;
 using back.Data;
 using back.Models;
+using back.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -111,6 +112,7 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
 
         if (jaImportada.HasValue)
         {
+            await CadastrarProdutosPendentes(jaImportada.Value, tenantId);
             return Conflict(new { message = $"NF-e {chaveNfe} ja foi importada.", entradaCompraId = jaImportada.Value });
         }
 
@@ -130,7 +132,7 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
         }
 
         var fornecedor = await ObterOuCriarFornecedor(tenantId, emit);
-        var itens = await MontarItens(infNfe, tenantId);
+        var itens = MontarItens(infNfe);
 
         if (itens.Count == 0)
         {
@@ -161,11 +163,27 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
         };
 
         db.EntradasCompra.Add(entrada);
+        await new NfeProdutosService(db).AssociarAsync(entrada);
         // Uma unica gravacao usa a transacao implicita do EF, compativel com
-        // EnableRetryOnFailure, e salva fornecedor, nota e itens atomicamente.
+        // EnableRetryOnFailure, e salva fornecedor, produtos, nota e itens atomicamente.
         await db.SaveChangesAsync();
 
         return Created($"/api/estoque/entradas/{entrada.Id}", ToResponse(entrada, fornecedor));
+    }
+
+    [HttpPost("entradas/{id:long}/produtos")]
+    public async Task<ActionResult<ImportarNfeResponse>> CadastrarProdutosPendentes(long id, [FromQuery] long tenantId = 0)
+    {
+        if (tenantId <= 0) return BadRequest("TenantId e obrigatorio.");
+        var entrada = await db.EntradasCompra.Include(e => e.Fornecedor).Include(e => e.Itens)
+            .SingleOrDefaultAsync(e => e.Id == id && e.TenantId == tenantId);
+        if (entrada is null) return NotFound();
+        if (entrada.Status != "Conferida")
+        {
+            await new NfeProdutosService(db).AssociarAsync(entrada);
+            await db.SaveChangesAsync();
+        }
+        return Ok(ToResponse(entrada, entrada.Fornecedor));
     }
 
     private async Task<Cliente> ObterOuCriarFornecedor(long tenantId, XElement emit)
@@ -206,7 +224,7 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
         return fornecedor;
     }
 
-    private async Task<List<EntradaCompraItem>> MontarItens(XElement infNfe, long tenantId)
+    private static List<EntradaCompraItem> MontarItens(XElement infNfe)
     {
         var itens = new List<EntradaCompraItem>();
 
@@ -219,9 +237,6 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
             }
 
             var codigoFornecedor = Texto(prod, "cProd") ?? string.Empty;
-            var produto = int.TryParse(codigoFornecedor, out var sku)
-                ? await db.CadastroItens.AsNoTracking().FirstOrDefaultAsync(item => item.EmpresaId == tenantId && item.SKU == sku)
-                : null;
 
             var quantidadeComercial = Decimal(prod, "qCom");
             var valorProduto = Decimal(prod, "vProd");
@@ -229,7 +244,6 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
 
             itens.Add(new EntradaCompraItem
             {
-                ProdutoId = produto?.Id,
                 NumeroItem = int.TryParse(det.Attribute("nItem")?.Value, out var numeroItem) ? numeroItem : itens.Count + 1,
                 CodigoFornecedor = codigoFornecedor,
                 Ean = Texto(prod, "cEAN"),

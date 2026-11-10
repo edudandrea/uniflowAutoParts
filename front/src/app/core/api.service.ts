@@ -163,6 +163,10 @@ export class ApiService {
     return this.http.get<ImportarNfeResponse>(`${this.apiUrl}/estoque/entradas/${id}`, { params: { tenantId } });
   }
 
+  cadastrarProdutosNfe(tenantId: number, id: number) {
+    return this.http.post<ImportarNfeResponse>(`${this.apiUrl}/estoque/entradas/${id}/produtos`, {}, { params: { tenantId } });
+  }
+
   salvarConferenciaNfe(tenantId: number, id: number,
     itens: { numeroItem: number; produtoId: number | null; quantidadeRecebida: number }[], concluir: boolean) {
     return this.http.put<ImportarNfeResponse>(`${this.apiUrl}/estoque/entradas/${id}/conferencia`,

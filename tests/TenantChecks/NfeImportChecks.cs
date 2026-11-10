@@ -67,7 +67,8 @@ internal static class NfeImportChecks
             }
             catch (PurchaseSaveException) { }
             db.ChangeTracker.Clear();
-            Check(!await db.Clientes.AnyAsync() && !await db.EntradasCompra.AnyAsync() && !await db.EntradaCompraItens.AnyAsync(),
+            Check(!await db.Clientes.AnyAsync() && !await db.EntradasCompra.AnyAsync() && !await db.EntradaCompraItens.AnyAsync() &&
+                !await db.CadastroItens.AnyAsync() && !await db.Categorias.AnyAsync() && !await db.Marcas.AnyAsync(),
                 "Falha na importacao deixou dados parcialmente salvos.");
         }
 
@@ -87,9 +88,9 @@ internal static class NfeImportChecks
         }
         await using (var db = new AppDbContext(options, tenant))
         {
-            db.Categorias.Add(new Categoria { Id = 1, TenantId = 1, Nome = "Categoria" });
-            db.Marcas.Add(new Marca { Id = 1, TenantId = 1, Nome = "Marca" });
-            db.CadastroItens.Add(new CadastroItens { Id = 17, EmpresaId = 1, SKU = 1700, Descricao = "Peca", CategoriaId = 1, MarcaId = 1 });
+            db.Categorias.Add(new Categoria { Id = 101, TenantId = 1, Nome = "Categoria" });
+            db.Marcas.Add(new Marca { Id = 101, TenantId = 1, Nome = "Marca" });
+            db.CadastroItens.Add(new CadastroItens { Id = 17, EmpresaId = 1, SKU = 1700, Descricao = "Peca", CategoriaId = 101, MarcaId = 101 });
             await db.SaveChangesAsync();
             var controller = new EstoqueImportacaoController(db);
             var lista = (OkObjectResult)(await controller.ListarEntradas(1)).Result!;

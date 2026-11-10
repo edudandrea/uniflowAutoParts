@@ -366,7 +366,7 @@
               <app-icon name="file-text" />
               <span class="xml-file-details">
                 <strong>{{ selectedXmlFile()?.name || 'Selecione o XML autorizado da compra' }}</strong>
-                <small>Clique para {{ selectedXmlFile() ? 'trocar o arquivo' : 'selecionar o arquivo' }}. A chave de acesso será validada para evitar duplicidade.</small>
+                <small>Produtos que ainda não existem serão cadastrados e associados automaticamente. A chave da nota evita importações duplicadas.</small>
               </span>
               <input type="file" aria-label="Selecionar XML da NF-e" accept=".xml,text/xml,application/xml" (change)="selecionarXml($event)" />
             </label>
@@ -497,6 +497,9 @@
                 <p>Confira o produto e a quantidade recebida de cada item. Salvar permite retomar depois. A conferência não movimenta o saldo de estoque.</p>
                 @if (loadError()) { <p role="alert">{{ loadError() }} <button type="button" (click)="carregarEstoque()">Carregar produtos</button></p> }
                 <button class="secondary-action" type="button" [disabled]="savingConference()" (click)="salvarConferencia(false)">Salvar conferência</button>
+                @if (nfe.produtosPendentes > 0) {
+                  <button class="secondary-action" type="button" [disabled]="savingConference()" (click)="cadastrarProdutosPendentes()">Cadastrar produtos pendentes</button>
+                }
                 <button class="primary-action" type="button" [disabled]="savingConference() || nfe.produtosPendentes > 0" (click)="salvarConferencia(true)">{{ savingConference() ? 'Salvando...' : 'Concluir conferência' }}</button>
               }
             </footer>

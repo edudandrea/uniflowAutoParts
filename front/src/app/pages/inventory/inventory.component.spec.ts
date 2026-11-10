@@ -126,8 +126,49 @@ describe('InventoryComponent API integration', () => {
     http.expectOne(req => req.url.endsWith('/estoque/importar-nfe')).flush({ message: 'Já importada', entradaCompraId: 7 },
       { status: 409, statusText: 'Conflict' });
     http.expectOne(req => req.url === `${entriesUrl}/7`).flush(nota); fixture.detectChanges();
+    request().flush([product]); fixture.detectChanges();
     expect(element.querySelector('[role="dialog"]')?.textContent).toContain('Conferir itens da NF-e');
     expect(element.querySelector('[role="dialog"]')?.textContent).toContain('Peca da NF-e');
+  });
+
+  it('creates missing products for an older note and fills the association list without losing received quantities', async () => {
+    request().flush([]); fixture.detectChanges();
+    clickButton('Conferir NF-e');
+    http.expectOne(req => req.url === entriesUrl).flush([resumo]); fixture.detectChanges();
+    clickButton('Conferir itens');
+    http.expectOne(req => req.url === `${entriesUrl}/7`).flush(nota); fixture.detectChanges(); await fixture.whenStable();
+    const quantity = element.querySelector<HTMLInputElement>('.received-quantity')!;
+    quantity.value = '1.5'; quantity.dispatchEvent(new Event('input')); fixture.detectChanges();
+    clickButton('Cadastrar produtos pendentes');
+    const save = http.expectOne(req => req.url === `${entriesUrl}/7/conferencia`);
+    expect(save.request.body.itens[0].quantidadeRecebida).toBe(1.5);
+    http.expectNone(req => req.url === `${entriesUrl}/7/produtos`);
+    const salva = { ...nota, produtosPendentes: 0, produtosIdentificados: 1,
+      itens: [{ ...nota.itens[0], produtoId: 17, produtoIdentificado: true, quantidadeRecebida: 1.5 }] };
+    save.flush({ ...nota, itens: [{ ...nota.itens[0], quantidadeRecebida: 1.5 }] });
+    http.expectOne(req => req.url === `${entriesUrl}/7/produtos` && req.method === 'POST' && req.params.get('tenantId') === '1').flush(salva);
+    request().flush([product]); fixture.detectChanges(); await fixture.whenStable();
+    const select = element.querySelector<HTMLSelectElement>('select[aria-label="Produto do item 1"]')!;
+    expect(select.selectedOptions[0].textContent).toContain(product.descricao);
+    expect(element.querySelector<HTMLInputElement>('.received-quantity')?.value).toBe('1.5');
+    expect(element.querySelector('[role="dialog"]')?.textContent).toContain('Produtos cadastrados e associados');
+  });
+
+  it('refreshes products automatically after a successful XML import', async () => {
+    request().flush([]); fixture.detectChanges();
+    clickButton('Importar XML NF-e');
+    const file = new File(['<xml/>'], 'nota.xml', { type: 'text/xml' });
+    Object.defineProperty(file, 'text', { value: async () => '<NFe><infNFe><ide><mod>55</mod></ide><det><prod/></det></infNFe></NFe>' });
+    const input = element.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(input, 'files', { value: [file] });
+    input.dispatchEvent(new Event('change')); await fixture.whenStable(); fixture.detectChanges();
+    clickButton('Importar e conferir');
+    http.expectOne(req => req.url.endsWith('/estoque/importar-nfe')).flush({ ...nota, produtosIdentificados: 1, produtosPendentes: 0,
+      itens: [{ ...nota.itens[0], produtoId: 17, produtoIdentificado: true }] });
+    request().flush([product]); fixture.detectChanges(); await fixture.whenStable();
+    const select = element.querySelector<HTMLSelectElement>('select[aria-label="Produto do item 1"]')!;
+    expect(select.selectedOptions[0].textContent).toContain(product.descricao);
+    expect(element.querySelector('[role="dialog"]')?.textContent).not.toContain('Cadastrar produtos pendentes');
   });
 
   it('loads persisted items and computes stock indicators from the response', () => {

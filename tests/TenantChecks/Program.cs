@@ -48,6 +48,7 @@ var checks = 0;
 void Check(bool condition, string label) { if (!condition) throw new Exception(label); checks++; }
 await HubRedirectChecks.RunAsync();
 await NfeImportChecks.RunAsync();
+await NfeProductChecks.RunAsync();
 TenantContext Tenant(int id) => new(new HttpContextAccessor { HttpContext = new DefaultHttpContext { User = ChecksAuthentication.Principal(id) } });
 
 var directoryOptions = new DbContextOptionsBuilder<HubDirectoryDbContext>().UseInMemoryDatabase("tenant-checks", root).Options;

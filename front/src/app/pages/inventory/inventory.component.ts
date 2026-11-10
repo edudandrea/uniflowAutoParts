@@ -3,6 +3,7 @@ import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angula
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { concatMap } from 'rxjs';
 
 import { EntradaCompraResumo, EstoqueProduto, ImportarNfeResponse } from '../../core/app-models';
 import { ApiService } from '../../core/api.service';
@@ -242,6 +243,30 @@ export class InventoryComponent implements OnInit {
     });
   }
 
+  protected cadastrarProdutosPendentes(): void {
+    const nota = this.importedNfe();
+    if (!nota || this.savingConference() || nota.status === 'Conferida') return;
+    this.savingConference.set(true);
+    this.conferenceError.set('');
+    // Salva primeiro as quantidades e os vinculos editados na conferencia.
+    this.api.salvarConferenciaNfe(this.tenantId, nota.entradaCompraId, nota.itens.map(item => ({
+      numeroItem: item.numeroItem, produtoId: item.produtoId, quantidadeRecebida: item.quantidadeRecebida,
+    })), false).pipe(
+      concatMap(() => this.api.cadastrarProdutosNfe(this.tenantId, nota.entradaCompraId)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (salva) => {
+        this.importedNfe.set(salva);
+        this.importMessage.set(salva.produtosPendentes > 0
+          ? 'Há produtos com mais de um cadastro correspondente. Selecione o produto correto na lista.'
+          : 'Produtos cadastrados e associados. Revise os itens antes de concluir a conferência.');
+        this.savingConference.set(false);
+        this.carregarEstoque();
+      },
+      error: () => { this.conferenceError.set('Não foi possível cadastrar os produtos. Tente novamente.'); this.savingConference.set(false); },
+    });
+  }
+
   protected async selecionarXml(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0] ?? null;
@@ -283,11 +308,13 @@ export class InventoryComponent implements OnInit {
         this.importedNfe.set(result);
         this.importMessage.set('NF-e importada e pronta para conferencia.');
         this.importingNfe.set(false);
+        this.carregarEstoque();
         if (this.activeTab() === 'conferences') this.carregarEntradas();
       },
       error: (error) => {
         this.importingNfe.set(false);
         if (error.status === 409 && error.error?.entradaCompraId) {
+          this.carregarEstoque();
           this.conferirEntrada(error.error.entradaCompraId);
           return;
         }
