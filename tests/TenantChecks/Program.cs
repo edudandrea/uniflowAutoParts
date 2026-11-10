@@ -86,7 +86,7 @@ for (var tenantId = 1; tenantId <= 2; tenantId++)
     var products = await productResponse.Content.ReadFromJsonAsync<JsonElement>();
     Check(products.GetProperty("total").GetInt32() == 1 && products.GetProperty("produtos")[0].GetProperty("empresaId").GetInt32() == tenantId, "Produtos nao isolados por empresa.");
     var stock = await client.GetFromJsonAsync<JsonElement>("/api/estoque");
-    Check(stock.GetArrayLength() == 1 && stock[0].GetProperty("estoque").GetInt32() == tenantId * 5, "Saldo de estoque vazou entre empresas.");
+    Check(stock.GetArrayLength() == 1 && stock[0].GetProperty("estoque").GetDecimal() == tenantId * 5, "Saldo de estoque vazou entre empresas.");
     var customers = await client.GetFromJsonAsync<JsonElement>("/api/clientes");
     Check(customers.GetArrayLength() == 1 && customers[0].GetProperty("empresaId").GetInt32() == tenantId, "Clientes nao isolados.");
     var entradas = await client.GetFromJsonAsync<JsonElement>("/api/estoque/entradas");

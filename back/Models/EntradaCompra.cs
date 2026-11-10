@@ -22,6 +22,7 @@ namespace back.Models
         public decimal ValorOutrasDespesas { get; set; }
         public decimal ValorTotal { get; set; }
         public string Status { get; set; } = "Conferencia";
+        public long VersaoEstoque { get; set; }
         public string XmlOriginal { get; set; } = string.Empty;
         public DateTime ImportadoEm { get; set; } = DateTime.UtcNow;
         public ICollection<EntradaCompraItem> Itens { get; set; } = [];

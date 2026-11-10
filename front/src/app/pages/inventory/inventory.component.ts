@@ -234,10 +234,11 @@ export class InventoryComponent implements OnInit {
         this.importedNfe.set(salva);
         this.importMessage.set(concluir ? 'Conferência concluída.' : 'Conferência salva. Você pode retomá-la pela opção Conferir NF-e.');
         this.savingConference.set(false);
+        this.carregarEstoque();
         if (this.activeTab() === 'conferences') this.carregarEntradas();
       },
       error: (error) => {
-        this.conferenceError.set(typeof error.error === 'string' ? error.error : 'Não foi possível salvar a conferência.');
+        this.conferenceError.set(this.mensagemErro(error, 'Não foi possível salvar a conferência.'));
         this.savingConference.set(false);
       },
     });
@@ -306,7 +307,9 @@ export class InventoryComponent implements OnInit {
     this.api.importarXmlNfeCompra(this.tenantId, file).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (result) => {
         this.importedNfe.set(result);
-        this.importMessage.set('NF-e importada e pronta para conferencia.');
+        this.importMessage.set(result.jaImportada
+          ? 'Esta NF-e já estava importada. Os saldos foram conferidos sem duplicar a entrada.'
+          : 'NF-e importada. As quantidades dos produtos associados foram lançadas no estoque. Confira os itens recebidos.');
         this.importingNfe.set(false);
         this.carregarEstoque();
         if (this.activeTab() === 'conferences') this.carregarEntradas();
@@ -318,7 +321,7 @@ export class InventoryComponent implements OnInit {
           this.conferirEntrada(error.error.entradaCompraId);
           return;
         }
-        this.conferenceError.set(typeof error.error === 'string' ? error.error : 'Não foi possível importar o XML da NF-e.');
+        this.conferenceError.set(this.mensagemErro(error, 'Não foi possível importar o XML da NF-e.'));
       },
     });
   }
@@ -326,6 +329,18 @@ export class InventoryComponent implements OnInit {
   protected selecionarProduto(codigo: string): void {
     this.selectedProductCode.set(codigo);
     this.activeTab.set('details');
+  }
+
+  private mensagemErro(error: { error?: unknown }, padrao: string): string {
+    const body = error.error;
+    if (typeof body === 'string' && body.trim()) return body;
+    if (body && typeof body === 'object') {
+      const detalhes = body as Record<string, unknown>;
+      for (const campo of ['message', 'detail', 'title']) {
+        if (typeof detalhes[campo] === 'string' && detalhes[campo]) return detalhes[campo] as string;
+      }
+    }
+    return padrao;
   }
 
   protected marcarProduto(codigo: string, checked: boolean): void {

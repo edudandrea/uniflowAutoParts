@@ -82,6 +82,7 @@ describe('InventoryComponent API integration', () => {
     const salva = { ...nota, produtosIdentificados: 1, produtosPendentes: 0,
       itens: [{ ...nota.itens[0], produtoId: 17, produtoIdentificado: true, quantidadeRecebida: 1.5 }] };
     save.flush(salva);
+    request().flush([product]);
     http.expectOne(req => req.url === entriesUrl).flush([resumo]); fixture.detectChanges();
     (element.querySelector('.close-button') as HTMLButtonElement).click(); fixture.detectChanges();
     expect(element.querySelector('[role="dialog"]')).toBeNull();
@@ -108,6 +109,7 @@ describe('InventoryComponent API integration', () => {
     const concluir = http.expectOne(req => req.url.endsWith('/conferencia'));
     expect(concluir.request.body.concluir).toBe(true);
     concluir.flush({ ...vinculada, status: 'Conferida' });
+    request().flush([product]);
     http.expectOne(req => req.url === entriesUrl).flush([{ ...resumo, status: 'Conferida' }]); fixture.detectChanges();
     await fixture.whenStable();
     expect(element.querySelector<HTMLInputElement>('.received-quantity')?.disabled).toBe(true);
@@ -170,6 +172,39 @@ describe('InventoryComponent API integration', () => {
     expect(select.selectedOptions[0].textContent).toContain(product.descricao);
     expect(element.querySelector('[role="dialog"]')?.textContent).not.toContain('Cadastrar produtos pendentes');
   });
+
+  it('reopens a repeated XML successfully and refreshes its stock without showing an object as an error', async () => {
+    request().flush([product]); fixture.detectChanges();
+    clickButton('Importar XML NF-e');
+    const file = new File(['<xml/>'], 'nota.xml', { type: 'text/xml' });
+    Object.defineProperty(file, 'text', { value: async () => '<NFe><infNFe><ide><mod>55</mod></ide><det><prod/></det></infNFe></NFe>' });
+    const input = element.querySelector<HTMLInputElement>('input[type="file"]')!;
+    Object.defineProperty(input, 'files', { value: [file] });
+    input.dispatchEvent(new Event('change')); await fixture.whenStable(); fixture.detectChanges();
+    clickButton('Importar e conferir');
+    http.expectOne(req => req.url.endsWith('/estoque/importar-nfe')).flush({ ...nota, jaImportada: true });
+    request().flush([{ ...product, estoque: 2 }]); fixture.detectChanges();
+    expect(element.querySelector('[role="dialog"]')?.textContent).toContain('sem duplicar a entrada');
+    expect(element.textContent).not.toContain('[object Object]');
+    expect(element.querySelector('.metric-card strong')?.textContent).toBe('2');
+  });
+
+  it.each([{ message: 'Esta nota já foi importada.' }, { detail: 'Falha na validação da nota.' }])(
+    'shows structured API error messages as readable text: %j', async (body) => {
+      request().flush([]); fixture.detectChanges();
+      clickButton('Importar XML NF-e');
+      const file = new File(['<xml/>'], 'nota.xml', { type: 'text/xml' });
+      Object.defineProperty(file, 'text', { value: async () => '<NFe><infNFe><ide><mod>55</mod></ide><det><prod/></det></infNFe></NFe>' });
+      const input = element.querySelector<HTMLInputElement>('input[type="file"]')!;
+      Object.defineProperty(input, 'files', { value: [file] });
+      input.dispatchEvent(new Event('change')); await fixture.whenStable(); fixture.detectChanges();
+      clickButton('Importar e conferir');
+      http.expectOne(req => req.url.endsWith('/estoque/importar-nfe')).flush(body, { status: 400, statusText: 'Bad Request' });
+      fixture.detectChanges();
+      expect(element.querySelector('[role="alert"]')?.textContent).toContain('message' in body ? body.message : body.detail);
+      expect(element.textContent).not.toContain('[object Object]');
+    },
+  );
 
   it('loads persisted items and computes stock indicators from the response', () => {
     expect(element.textContent).toContain('Carregando estoque');

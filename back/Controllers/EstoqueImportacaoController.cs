@@ -6,6 +6,7 @@ using back.Models;
 using back.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace back.Controllers;
 
@@ -62,8 +63,13 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
             item.ProdutoId = recebido.ProdutoId;
             item.QuantidadeRecebida = recebido.QuantidadeRecebida;
         }
-        if (request.Concluir) entrada.Status = "Conferida";
-        await db.SaveChangesAsync();
+        if (request.Concluir)
+        {
+            entrada.Status = "Conferida";
+            entrada.VersaoEstoque++;
+        }
+        await new NfeEstoqueService(db).SincronizarAsync(entrada);
+        if (!await SalvarAlteracoesAsync()) return Conflict("A nota foi atualizada por outra operacao. Reabra a conferencia e tente novamente.");
         return Ok(ToResponse(entrada, entrada.Fornecedor));
     }
 
@@ -112,8 +118,10 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
 
         if (jaImportada.HasValue)
         {
-            await CadastrarProdutosPendentes(jaImportada.Value, tenantId);
-            return Conflict(new { message = $"NF-e {chaveNfe} ja foi importada.", entradaCompraId = jaImportada.Value });
+            var existente = await CadastrarProdutosPendentes(jaImportada.Value, tenantId);
+            if (existente.Result is OkObjectResult { Value: ImportarNfeResponse resposta })
+                return Ok(resposta with { JaImportada = true });
+            return existente;
         }
 
         var ide = Filho(infNfe, "ide");
@@ -164,9 +172,10 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
 
         db.EntradasCompra.Add(entrada);
         await new NfeProdutosService(db).AssociarAsync(entrada);
+        await new NfeEstoqueService(db).SincronizarAsync(entrada);
         // Uma unica gravacao usa a transacao implicita do EF, compativel com
-        // EnableRetryOnFailure, e salva fornecedor, produtos, nota e itens atomicamente.
-        await db.SaveChangesAsync();
+        // EnableRetryOnFailure, e salva fornecedor, produtos, nota, itens e saldos atomicamente.
+        if (!await SalvarAlteracoesAsync()) return Conflict("Outra operacao atualizou o cadastro. Importe a nota novamente.");
 
         return Created($"/api/estoque/entradas/{entrada.Id}", ToResponse(entrada, fornecedor));
     }
@@ -181,9 +190,21 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
         if (entrada.Status != "Conferida")
         {
             await new NfeProdutosService(db).AssociarAsync(entrada);
-            await db.SaveChangesAsync();
         }
+        await new NfeEstoqueService(db).SincronizarAsync(entrada);
+        if (!await SalvarAlteracoesAsync()) return Conflict("A nota foi atualizada por outra operacao. Reabra a conferencia e tente novamente.");
         return Ok(ToResponse(entrada, entrada.Fornecedor));
+    }
+
+    private async Task<bool> SalvarAlteracoesAsync()
+    {
+        try { await db.SaveChangesAsync(); return true; }
+        catch (DbUpdateConcurrencyException) { return false; }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException
+            { SqlState: PostgresErrorCodes.UniqueViolation, ConstraintName: "IX_Estoques_EntradaCompraItemId" or
+                "IX_EntradasCompra_TenantId_ChaveNfe" or "IX_CadastroItens_EmpresaId_SKU" or
+                "IX_Marcas_TenantId_Nome" or "IX_Categorias_TenantId_Nome_CategoriaPaiId" })
+        { return false; }
     }
 
     private async Task<Cliente> ObterOuCriarFornecedor(long tenantId, XElement emit)

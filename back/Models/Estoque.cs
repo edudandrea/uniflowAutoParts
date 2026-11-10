@@ -10,8 +10,11 @@ namespace back.Models
         public int Id { get; set; }
         public int EmpresaId { get; set; }
         public int ItemId { get; set; }
+        public CadastroItens? Produto { get; set; }
+        public long? EntradaCompraItemId { get; set; }
+        public EntradaCompraItem? EntradaCompraItem { get; set; }
         public string Tipo { get; set; } = string.Empty;
-        public int Quantidade { get; set; }
+        public decimal Quantidade { get; set; }
         public double CustoUnitario { get; set; }
         public double PrecoVenda { get; set; }
         public double PrecoPromocional { get; set; }

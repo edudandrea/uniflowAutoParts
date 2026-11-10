@@ -49,7 +49,7 @@ internal static class StockPostgresChecks
                 (typeof(string), "Não informada"), (typeof(string), "Importados de NF-e")
             };
             if (projection.Contains("e0.\"ItemId\"")) columns.Add((typeof(int), DBNull.Value));
-            columns.Add((typeof(int), projection.Contains("COALESCE(e0.\"Quantidade\", 0)") ? 0 : DBNull.Value));
+            columns.Add((typeof(decimal), projection.Contains("COALESCE(e0.\"Quantidade\", 0") ? 0m : DBNull.Value));
             columns.AddRange([(typeof(int), 0), (typeof(double), 0d), (typeof(string), ""), (typeof(string), "")]);
             var table = new DataTable();
             foreach (var column in columns) table.Columns.Add("col" + table.Columns.Count, column.Type);

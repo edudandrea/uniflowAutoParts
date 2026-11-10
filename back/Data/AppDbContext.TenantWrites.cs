@@ -64,10 +64,9 @@ public partial class AppDbContext
                     fk.PrincipalKey.Properties.Select(p => candidate.Property(p.Name).CurrentValue).SequenceEqual(values));
                 if (!added && !await Exists(fk.PrincipalEntityType, fk.PrincipalKey.Properties, values)) throw new TenantAccessException();
             }
-            // Estes identificadores ainda nao possuem FK configurada no modelo legado.
-            if (entry.Entity is Estoque stock && (!await Exists(Model.FindEntityType(typeof(CadastroItens))!,
-                    Model.FindEntityType(typeof(CadastroItens))!.FindPrimaryKey()!.Properties, [stock.ItemId]) ||
-                !await Exists(Model.FindEntityType(typeof(Users))!, Model.FindEntityType(typeof(Users))!.FindPrimaryKey()!.Properties, [stock.UsuarioId])))
+            // O usuario do movimento ainda nao possui FK configurada no modelo legado.
+            if (entry.Entity is Estoque stock &&
+                !await Exists(Model.FindEntityType(typeof(Users))!, Model.FindEntityType(typeof(Users))!.FindPrimaryKey()!.Properties, [stock.UsuarioId]))
                 throw new TenantAccessException();
         }
 

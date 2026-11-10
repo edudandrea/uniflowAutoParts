@@ -6,7 +6,7 @@ public record EstoqueResponse(
     string Descricao,
     string Marca,
     string Categoria,
-    int Estoque,
+    decimal Estoque,
     int Minimo,
     double Valor,
     string Fabricante,

@@ -494,7 +494,7 @@
               @if (nfe.status === 'Conferida') {
                 <p role="status">Conferência concluída.</p>
               } @else {
-                <p>Confira o produto e a quantidade recebida de cada item. Salvar permite retomar depois. A conferência não movimenta o saldo de estoque.</p>
+                <p>As quantidades dos produtos associados entram no estoque ao importar. Ajuste o recebido e salve para atualizar o saldo. Concluir bloqueia novas alterações.</p>
                 @if (loadError()) { <p role="alert">{{ loadError() }} <button type="button" (click)="carregarEstoque()">Carregar produtos</button></p> }
                 <button class="secondary-action" type="button" [disabled]="savingConference()" (click)="salvarConferencia(false)">Salvar conferência</button>
                 @if (nfe.produtosPendentes > 0) {

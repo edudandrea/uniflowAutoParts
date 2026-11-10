@@ -8,6 +8,7 @@ namespace back.Data
     {
         private readonly TenantContext? tenant;
         private int CurrentEmpresaId => tenant?.EmpresaId ?? 0;
+        internal int CurrentUsuarioId => tenant?.UsuarioId ?? 0;
 
         public AppDbContext(DbContextOptions<AppDbContext> options, TenantContext? tenant = null) : base(options)
         {
@@ -223,10 +224,16 @@ namespace back.Data
             modelBuilder.Entity<Estoque>(entity =>
             {
                 entity.HasIndex(e => new { e.EmpresaId, e.ItemId });
+                entity.Property(e => e.Quantidade).HasPrecision(18, 4);
+                entity.HasIndex(e => e.EntradaCompraItemId).IsUnique();
+                entity.HasOne(e => e.EntradaCompraItem).WithOne().HasForeignKey<Estoque>(e => e.EntradaCompraItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(e => e.Produto).WithMany().HasForeignKey(e => e.ItemId).OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<EntradaCompra>(entity =>
             {
+                entity.Property(e => e.VersaoEstoque).IsConcurrencyToken();
                 entity.HasIndex(e => new { e.TenantId, e.ChaveNfe }).IsUnique();
                 entity.HasIndex(e => e.FornecedorId);
                 entity.Property(e => e.ChaveNfe).HasMaxLength(44);

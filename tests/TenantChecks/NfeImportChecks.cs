@@ -26,8 +26,7 @@ internal static class NfeImportChecks
         {
             HttpContext = new DefaultHttpContext { User = ChecksAuthentication.Principal(1) }
         });
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase($"nfe-import-{Guid.NewGuid()}").Options;
+        var options = await NfeTestDatabase.CreateAsync();
 
         async Task<ActionResult<ImportarNfeResponse>> Import(AppDbContext db, string content)
         {
@@ -50,13 +49,12 @@ internal static class NfeImportChecks
             Check(entrada.Itens.Single().EntradaCompraId == entrada.Id && entrada.Itens.Single().CustoUnitario == 12.50m,
                 "Itens ou custo nao foram persistidos corretamente.");
             Check(entrada.DataEmissao == new DateTime(2026, 11, 6, 12, 0, 0, DateTimeKind.Utc), "Data da nota incorreta.");
-            Check((await Import(db, xml)).Result is ConflictObjectResult, "Aceitou NF-e duplicada.");
+            Check((await Import(db, xml)).Result is OkObjectResult { Value: ImportarNfeResponse { JaImportada: true } }, "Nao reabriu NF-e existente.");
             Check(await db.Clientes.CountAsync() == 1 && await db.EntradasCompra.CountAsync() == 1, "Duplicidade criou registros extras.");
         }
 
         // Uma falha na gravacao da nota nao pode deixar um fornecedor salvo isoladamente.
-        var failingOptions = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase($"nfe-import-failure-{Guid.NewGuid()}")
+        var failingOptions = new DbContextOptionsBuilder<AppDbContext>(await NfeTestDatabase.CreateAsync())
             .AddInterceptors(new RejectPurchaseSave()).Options;
         await using (var db = new AppDbContext(failingOptions, tenant))
         {
@@ -68,7 +66,7 @@ internal static class NfeImportChecks
             catch (PurchaseSaveException) { }
             db.ChangeTracker.Clear();
             Check(!await db.Clientes.AnyAsync() && !await db.EntradasCompra.AnyAsync() && !await db.EntradaCompraItens.AnyAsync() &&
-                !await db.CadastroItens.AnyAsync() && !await db.Categorias.AnyAsync() && !await db.Marcas.AnyAsync(),
+                !await db.CadastroItens.AnyAsync() && !await db.Categorias.AnyAsync() && !await db.Marcas.AnyAsync() && !await db.Estoques.AnyAsync(),
                 "Falha na importacao deixou dados parcialmente salvos.");
         }
 
@@ -117,7 +115,8 @@ internal static class NfeImportChecks
             Check(saved.Status == "Conferida" && saved.Itens.Single().ProdutoId == 17 && saved.Itens.Single().QuantidadeRecebida == 1.5m,
                 "Conferencia nao persistiu status, produto e quantidade.");
             Check((await controller.SalvarConferencia(id, draft, 1)).Result is ConflictObjectResult, "Permitiu alterar conferencia concluida.");
-            Check(!await db.Estoques.AnyAsync(), "Conferencia criou movimento de estoque indevido.");
+            Check(await db.Estoques.CountAsync() == 2 && await db.Estoques.Where(e => e.ItemId == 17).SumAsync(e => e.Quantidade) == 1.5m,
+                "Conferencia nao atualizou o movimento de estoque sem duplicidade.");
 
             var otherTenant = new TenantContext(new HttpContextAccessor { HttpContext = new DefaultHttpContext { User = ChecksAuthentication.Principal(2) } });
             await using var otherDb = new AppDbContext(options, otherTenant);

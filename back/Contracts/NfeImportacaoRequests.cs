@@ -21,7 +21,8 @@ public record ImportarNfeResponse(
     int ProdutosIdentificados,
     int ProdutosPendentes,
     IReadOnlyCollection<ImportarNfeItemResponse> Itens,
-    string Status);
+    string Status,
+    bool JaImportada = false);
 
 public record EntradaCompraResumoResponse(long EntradaCompraId, string NumeroNfe, string Serie,
     string ChaveNfe, string FornecedorNome, DateTime ImportadoEm, decimal ValorTotal, string Status);

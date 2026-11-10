@@ -66,8 +66,15 @@ dos movimentos de `Estoques` da mesma empresa e produto. Movimentos do tipo
 `Saida` ou `Saída` descontam o valor absoluto da quantidade; os demais somam
 a quantidade com seu sinal. Produtos sem movimentos têm saldo zero.
 
-A importação de XML existente salva uma entrada para conferência e não grava
-movimentos em `Estoques`; portanto, importar uma nota ainda não aumenta o saldo.
+A importação da NF-e cadastra produtos ausentes e lança uma entrada em `Estoques`
+para cada item associado, usando a quantidade recebida (inicialmente a quantidade
+comercial do XML). Quantidades fracionadas são preservadas com quatro casas decimais.
+Reimportar uma chave existente reabre a nota e completa movimentos ausentes, sem
+duplicar o saldo. Salvar a conferência ajusta o movimento do item; concluir bloqueia
+novas alterações. Itens sem produto associado ficam pendentes de entrada no estoque.
+Notas importadas antes desta atualização podem ser reimportadas para completar seus
+movimentos. A migration `AddNfeStockMovements` adiciona o vínculo único por item e
+amplia `Estoques.Quantidade` de inteiro para decimal, preservando as quantidades atuais.
 Localização, peso, imagem e código de barras não estão no cadastro atual do
 produto e não recebem valores fictícios na tela.
 

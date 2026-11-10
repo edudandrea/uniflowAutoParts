@@ -327,6 +327,7 @@ export interface ImportarNfeItemResponse {
 }
 
 export interface ImportarNfeResponse {
+  jaImportada?: boolean;
   status: string;
   entradaCompraId: number;
   chaveNfe: string;

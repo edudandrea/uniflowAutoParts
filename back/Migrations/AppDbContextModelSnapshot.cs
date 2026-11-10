@@ -722,6 +722,10 @@ namespace UniflowAutoParts.Api.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<long>("VersaoEstoque")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bigint");
+
                     b.Property<string>("XmlOriginal")
                         .IsRequired()
                         .HasColumnType("text");
@@ -874,6 +878,9 @@ namespace UniflowAutoParts.Api.Migrations
                     b.Property<int>("EmpresaId")
                         .HasColumnType("integer");
 
+                    b.Property<long?>("EntradaCompraItemId")
+                        .HasColumnType("bigint");
+
                     b.Property<int>("ItemId")
                         .HasColumnType("integer");
 
@@ -883,8 +890,9 @@ namespace UniflowAutoParts.Api.Migrations
                     b.Property<double>("PrecoVenda")
                         .HasColumnType("double precision");
 
-                    b.Property<int>("Quantidade")
-                        .HasColumnType("integer");
+                    b.Property<decimal>("Quantidade")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)");
 
                     b.Property<string>("Tipo")
                         .IsRequired()
@@ -894,6 +902,11 @@ namespace UniflowAutoParts.Api.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("EntradaCompraItemId")
+                        .IsUnique();
+
+                    b.HasIndex("ItemId");
 
                     b.HasIndex("EmpresaId", "ItemId");
 
@@ -1265,6 +1278,24 @@ namespace UniflowAutoParts.Api.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("EntradaCompra");
+
+                    b.Navigation("Produto");
+                });
+
+            modelBuilder.Entity("back.Models.Estoque", b =>
+                {
+                    b.HasOne("back.Models.EntradaCompraItem", "EntradaCompraItem")
+                        .WithOne()
+                        .HasForeignKey("back.Models.Estoque", "EntradaCompraItemId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("back.Models.CadastroItens", "Produto")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("EntradaCompraItem");
 
                     b.Navigation("Produto");
                 });
