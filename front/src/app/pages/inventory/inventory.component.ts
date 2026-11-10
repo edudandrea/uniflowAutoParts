@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
-import { EstoqueProduto, ImportarNfeResponse } from '../../core/app-models';
+import { EntradaCompraResumo, EstoqueProduto, ImportarNfeResponse } from '../../core/app-models';
 import { ApiService } from '../../core/api.service';
 import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
@@ -30,7 +30,7 @@ interface InventoryProduct extends EstoqueProduto {
   imagemUrl: string;
 }
 
-type InventoryTab = 'search' | 'details';
+type InventoryTab = 'search' | 'details' | 'conferences';
 
 interface XmlPrecheck {
   status: 'idle' | 'valid' | 'invalid';
@@ -64,6 +64,11 @@ export class InventoryComponent implements OnInit {
   protected readonly importingNfe = signal(false);
   protected readonly importMessage = signal('');
   protected readonly importedNfe = signal<ImportarNfeResponse | null>(null);
+  protected readonly entradasCompra = signal<EntradaCompraResumo[]>([]);
+  protected readonly loadingEntradas = signal(false);
+  protected readonly entradasError = signal('');
+  protected readonly savingConference = signal(false);
+  protected readonly conferenceError = signal('');
   protected readonly xmlPrecheck = signal<XmlPrecheck>({
     status: 'idle',
     message: 'Selecione um XML para validar a estrutura da NF-e.',
@@ -156,6 +161,7 @@ export class InventoryComponent implements OnInit {
   }
 
   protected abrirImportacaoNfe(): void {
+    this.conferenceError.set('');
     this.selectedXmlFile.set(null);
     this.importedNfe.set(null);
     this.importMessage.set('');
@@ -167,7 +173,73 @@ export class InventoryComponent implements OnInit {
   }
 
   protected fecharImportacaoNfe(): void {
+    if (this.importingNfe() || this.savingConference()) return;
     this.showNfeImportModal.set(false);
+  }
+
+  protected abrirConferencias(): void {
+    this.activeTab.set('conferences');
+    this.carregarEntradas();
+  }
+
+  protected carregarEntradas(): void {
+    this.loadingEntradas.set(true);
+    this.entradasError.set('');
+    this.api.listarEntradasCompra(this.tenantId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (entradas) => { this.entradasCompra.set(entradas); this.loadingEntradas.set(false); },
+      error: () => { this.entradasError.set('Não foi possível carregar as notas importadas.'); this.loadingEntradas.set(false); },
+    });
+  }
+
+  protected conferirEntrada(id: number): void {
+    if (this.importingNfe() || this.savingConference()) return;
+    this.selectedXmlFile.set(null);
+    this.importedNfe.set(null);
+    this.importMessage.set('Carregando conferência...');
+    this.conferenceError.set('');
+    this.showNfeImportModal.set(true);
+    this.importingNfe.set(true);
+    this.api.obterEntradaCompra(this.tenantId, id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (nota) => { this.importedNfe.set(nota); this.importMessage.set(''); this.importingNfe.set(false); },
+      error: () => { this.conferenceError.set('Não foi possível abrir a conferência. Tente novamente pela lista de notas.'); this.importMessage.set(''); this.importingNfe.set(false); },
+    });
+  }
+
+  protected alterarItem(numeroItem: number, campo: 'produtoId' | 'quantidadeRecebida', valor: number | null): void {
+    this.importedNfe.update(nota => {
+      if (!nota || nota.status === 'Conferida') return nota;
+      const itens = nota.itens.map(item => item.numeroItem === numeroItem
+        ? { ...item, [campo]: valor, produtoIdentificado: campo === 'produtoId' ? valor !== null : item.produtoIdentificado }
+        : item);
+      const produtosIdentificados = itens.filter(item => item.produtoIdentificado).length;
+      return { ...nota, itens, produtosIdentificados, produtosPendentes: itens.length - produtosIdentificados };
+    });
+    this.importMessage.set('Alterações pendentes. Salve a conferência antes de fechar.');
+  }
+
+  protected salvarConferencia(concluir: boolean): void {
+    const nota = this.importedNfe();
+    if (!nota || this.savingConference() || nota.status === 'Conferida') return;
+    this.conferenceError.set('');
+    if (nota.itens.some(item => item.quantidadeRecebida == null || !Number.isFinite(item.quantidadeRecebida) || item.quantidadeRecebida < 0)) {
+      this.conferenceError.set('Informe uma quantidade recebida válida para cada item.');
+      return;
+    }
+    this.savingConference.set(true);
+    this.api.salvarConferenciaNfe(this.tenantId, nota.entradaCompraId, nota.itens.map(item => ({
+      numeroItem: item.numeroItem, produtoId: item.produtoId, quantidadeRecebida: item.quantidadeRecebida,
+    })), concluir).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (salva) => {
+        this.importedNfe.set(salva);
+        this.importMessage.set(concluir ? 'Conferência concluída.' : 'Conferência salva. Você pode retomá-la pela opção Conferir NF-e.');
+        this.savingConference.set(false);
+        if (this.activeTab() === 'conferences') this.carregarEntradas();
+      },
+      error: (error) => {
+        this.conferenceError.set(typeof error.error === 'string' ? error.error : 'Não foi possível salvar a conferência.');
+        this.savingConference.set(false);
+      },
+    });
   }
 
   protected async selecionarXml(event: Event): Promise<void> {
@@ -189,6 +261,8 @@ export class InventoryComponent implements OnInit {
   }
 
   protected importarXmlNfe(): void {
+    if (this.importingNfe() || this.savingConference()) return;
+    this.conferenceError.set('');
     const file = this.selectedXmlFile();
     if (!file) {
       this.importMessage.set('Selecione o XML autorizado da NF-e de compra.');
@@ -204,16 +278,20 @@ export class InventoryComponent implements OnInit {
     this.importMessage.set('');
     this.importedNfe.set(null);
 
-    this.api.importarXmlNfeCompra(this.tenantId, file).subscribe({
+    this.api.importarXmlNfeCompra(this.tenantId, file).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (result) => {
         this.importedNfe.set(result);
         this.importMessage.set('NF-e importada e pronta para conferencia.');
         this.importingNfe.set(false);
-        this.carregarEstoque();
+        if (this.activeTab() === 'conferences') this.carregarEntradas();
       },
       error: (error) => {
-        this.importMessage.set(error?.error || 'Nao foi possivel importar o XML da NF-e.');
         this.importingNfe.set(false);
+        if (error.status === 409 && error.error?.entradaCompraId) {
+          this.conferirEntrada(error.error.entradaCompraId);
+          return;
+        }
+        this.conferenceError.set(typeof error.error === 'string' ? error.error : 'Não foi possível importar o XML da NF-e.');
       },
     });
   }

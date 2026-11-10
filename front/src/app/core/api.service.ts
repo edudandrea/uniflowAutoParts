@@ -6,6 +6,7 @@ import { FiscalCertificate } from './fiscal-certificate.service';
 import {
   Categoria,
   EstoqueProduto,
+  EntradaCompraResumo,
   CadastroEndereco,
   ClienteResumoResponse,
   CriarCadastroEnderecoPayload,
@@ -152,5 +153,19 @@ export class ApiService {
     formData.append('arquivo', arquivo);
 
     return this.http.post<ImportarNfeResponse>(`${this.apiUrl}/estoque/importar-nfe`, formData);
+  }
+
+  listarEntradasCompra(tenantId: number) {
+    return this.http.get<EntradaCompraResumo[]>(`${this.apiUrl}/estoque/entradas`, { params: { tenantId } });
+  }
+
+  obterEntradaCompra(tenantId: number, id: number) {
+    return this.http.get<ImportarNfeResponse>(`${this.apiUrl}/estoque/entradas/${id}`, { params: { tenantId } });
+  }
+
+  salvarConferenciaNfe(tenantId: number, id: number,
+    itens: { numeroItem: number; produtoId: number | null; quantidadeRecebida: number }[], concluir: boolean) {
+    return this.http.put<ImportarNfeResponse>(`${this.apiUrl}/estoque/entradas/${id}/conferencia`,
+      { itens, concluir }, { params: { tenantId } });
   }
 }

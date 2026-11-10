@@ -10,6 +10,7 @@
 
 
     <div class="hero-actions">
+      <button class="secondary-action" type="button" (click)="abrirConferencias()">Conferir NF-e</button>
       <button class="secondary-action" type="button" [disabled]="loading()" (click)="carregarEstoque()">
         Atualizar estoque
       </button>
@@ -48,6 +49,7 @@
   }
 
   <nav class="inventory-tabs" aria-label="Cadastro de estoque">
+    <button type="button" [class.active]="activeTab() === 'conferences'" (click)="abrirConferencias()">Notas importadas</button>
     <button type="button" [class.active]="activeTab() === 'search'" (click)="activeTab.set('search')">
       <app-icon name="search" />
       Pesquisa de itens
@@ -63,6 +65,31 @@
   }
   @if (loading()) {
     <p role="status">Carregando estoque...</p>
+  }
+
+  @if (activeTab() === 'conferences') {
+    <section class="stock-panel">
+      <header class="panel-title">
+        <div><h2>Conferir itens das notas importadas</h2><p>Retome a conferência sem importar o XML novamente.</p></div>
+        <button class="secondary-action" type="button" [disabled]="loadingEntradas()" (click)="carregarEntradas()">Atualizar notas</button>
+      </header>
+      @if (loadingEntradas()) { <p role="status">Carregando notas importadas...</p> }
+      @if (entradasError()) { <p role="alert">{{ entradasError() }}</p> }
+      @if (!loadingEntradas() && !entradasError()) {
+        <div class="table-wrap"><table>
+          <thead><tr><th>NF-e / Série</th><th>Fornecedor</th><th>Importação</th><th>Total</th><th>Situação</th><th>Ações</th></tr></thead>
+          <tbody>
+            @for (entrada of entradasCompra(); track entrada.entradaCompraId) {
+              <tr><td>{{ entrada.numeroNfe }}/{{ entrada.serie }}</td><td>{{ entrada.fornecedorNome }}</td>
+                <td>{{ formatDate(entrada.importadoEm) }}</td><td>{{ formatCurrency(entrada.valorTotal) }}</td>
+                <td>{{ entrada.status === 'Conferida' ? 'Conferida' : 'Em conferência' }}</td>
+                <td><button class="secondary-action" type="button" (click)="conferirEntrada(entrada.entradaCompraId)">{{ entrada.status === 'Conferida' ? 'Ver itens' : 'Conferir itens' }}</button></td>
+              </tr>
+            } @empty { <tr><td colspan="6">Nenhuma NF-e importada para conferir.</td></tr> }
+          </tbody>
+        </table></div>
+      }
+    </section>
   }
 
   @if (activeTab() === 'search') {
@@ -196,7 +223,7 @@
         </footer>
       </article>
     </section>
-  } @else {
+  } @else if (activeTab() === 'details') {
     @if (selectedProduct(); as product) {
       <section class="inventory-detail-tab">
         <aside class="item-summary-panel">
@@ -325,14 +352,15 @@
         <header>
           <div>
             <p>Importação de compra</p>
-            <h2 id="import-nfe-title">Importar XML da NF-e</h2>
+            <h2 id="import-nfe-title">{{ importedNfe() ? 'Conferir itens da NF-e' : 'Importar XML da NF-e' }}</h2>
           </div>
-          <button class="close-button" type="button" aria-label="Fechar" (click)="fecharImportacaoNfe()">
+          <button class="close-button" type="button" aria-label="Fechar" [disabled]="importingNfe() || savingConference()" (click)="fecharImportacaoNfe()">
             <app-icon name="x" />
           </button>
         </header>
 
         <div class="import-modal-body">
+          @if (!importedNfe()) {
           <section class="xml-upload-box" aria-label="Arquivo XML da compra">
             <label>
               <app-icon name="file-text" />
@@ -365,6 +393,8 @@
             </div>
           </section>
 
+          }
+          @if (conferenceError()) { <p class="import-message error" role="alert">{{ conferenceError() }}</p> }
           @if (importMessage()) {
             <p class="import-message" [class.error]="!importedNfe()" role="status">{{ importMessage() }}</p>
           }
@@ -440,18 +470,36 @@
                       <td>{{ item.ncm || '-' }}</td>
                       <td>{{ item.cfop || '-' }}</td>
                       <td>{{ item.quantidadeComercial }} {{ item.unidadeComercial }}</td>
-                      <td>{{ item.quantidadeRecebida }} {{ item.unidadeComercial }}</td>
+                      <td><input class="received-quantity" type="number" min="0" step="0.0001"
+                        [attr.aria-label]="'Quantidade recebida do item ' + item.numeroItem"
+                        [disabled]="savingConference() || nfe.status === 'Conferida'" [ngModel]="item.quantidadeRecebida"
+                        (ngModelChange)="alterarItem(item.numeroItem, 'quantidadeRecebida', $event)" /> {{ item.unidadeComercial }}</td>
                       <td>{{ formatCurrency(item.custoUnitario) }}</td>
                       <td>
-                        <span class="status-pill" [class.ok]="item.produtoIdentificado" [class.low]="!item.produtoIdentificado">
-                          {{ item.produtoIdentificado ? 'Vinculado' : 'Associar produto' }}
-                        </span>
+                        <select [attr.aria-label]="'Produto do item ' + item.numeroItem" [ngModel]="item.produtoId"
+                          [disabled]="loading() || !!loadError() || savingConference() || nfe.status === 'Conferida'"
+                          (ngModelChange)="alterarItem(item.numeroItem, 'produtoId', $event)">
+                          <option [ngValue]="null">Associar produto</option>
+                          @for (produto of products(); track produto.id) {
+                            <option [ngValue]="produto.id">{{ produto.codigo }} — {{ produto.descricao }}</option>
+                          }
+                        </select>
                       </td>
                     </tr>
                   }
                 </tbody>
               </table>
             </div>
+            <footer class="conference-actions">
+              @if (nfe.status === 'Conferida') {
+                <p role="status">Conferência concluída.</p>
+              } @else {
+                <p>Confira o produto e a quantidade recebida de cada item. Salvar permite retomar depois. A conferência não movimenta o saldo de estoque.</p>
+                @if (loadError()) { <p role="alert">{{ loadError() }} <button type="button" (click)="carregarEstoque()">Carregar produtos</button></p> }
+                <button class="secondary-action" type="button" [disabled]="savingConference()" (click)="salvarConferencia(false)">Salvar conferência</button>
+                <button class="primary-action" type="button" [disabled]="savingConference() || nfe.produtosPendentes > 0" (click)="salvarConferencia(true)">{{ savingConference() ? 'Salvando...' : 'Concluir conferência' }}</button>
+              }
+            </footer>
           }
         </div>
       </section>

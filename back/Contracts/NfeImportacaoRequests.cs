@@ -20,7 +20,14 @@ public record ImportarNfeResponse(
     int TotalItens,
     int ProdutosIdentificados,
     int ProdutosPendentes,
-    IReadOnlyCollection<ImportarNfeItemResponse> Itens);
+    IReadOnlyCollection<ImportarNfeItemResponse> Itens,
+    string Status);
+
+public record EntradaCompraResumoResponse(long EntradaCompraId, string NumeroNfe, string Serie,
+    string ChaveNfe, string FornecedorNome, DateTime ImportadoEm, decimal ValorTotal, string Status);
+
+public record ConferirNfeRequest(IReadOnlyCollection<ConferirNfeItemRequest> Itens, bool Concluir = false);
+public record ConferirNfeItemRequest(int NumeroItem, int? ProdutoId, decimal QuantidadeRecebida);
 
 public record ImportarNfeItemResponse(
     int NumeroItem,

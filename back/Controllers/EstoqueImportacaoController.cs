@@ -12,6 +12,60 @@ namespace back.Controllers;
 [Route("api/estoque")]
 public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
 {
+    [HttpGet("entradas")]
+    public async Task<ActionResult<IReadOnlyCollection<EntradaCompraResumoResponse>>> ListarEntradas([FromQuery] long tenantId = 0)
+    {
+        if (tenantId <= 0) return BadRequest("TenantId e obrigatorio.");
+        return Ok(await db.EntradasCompra.AsNoTracking().Where(e => e.TenantId == tenantId)
+            .OrderByDescending(e => e.ImportadoEm).ThenByDescending(e => e.Id)
+            .Select(e => new EntradaCompraResumoResponse(e.Id, e.NumeroNfe, e.Serie, e.ChaveNfe,
+                e.Fornecedor != null ? e.Fornecedor.NomeRazaoSocial : "Fornecedor nao encontrado",
+                e.ImportadoEm, e.ValorTotal, e.Status)).ToListAsync());
+    }
+
+    [HttpGet("entradas/{id:long}")]
+    public async Task<ActionResult<ImportarNfeResponse>> ObterEntrada(long id, [FromQuery] long tenantId = 0)
+    {
+        if (tenantId <= 0) return BadRequest("TenantId e obrigatorio.");
+        var entrada = await db.EntradasCompra.AsNoTracking().Include(e => e.Fornecedor).Include(e => e.Itens)
+            .SingleOrDefaultAsync(e => e.Id == id && e.TenantId == tenantId);
+        return entrada is null ? NotFound() : Ok(ToResponse(entrada, entrada.Fornecedor));
+    }
+
+    [HttpPut("entradas/{id:long}/conferencia")]
+    public async Task<ActionResult<ImportarNfeResponse>> SalvarConferencia(long id, [FromBody] ConferirNfeRequest request,
+        [FromQuery] long tenantId = 0)
+    {
+        if (tenantId <= 0) return BadRequest("TenantId e obrigatorio.");
+        var entrada = await db.EntradasCompra.Include(e => e.Fornecedor).Include(e => e.Itens)
+            .SingleOrDefaultAsync(e => e.Id == id && e.TenantId == tenantId);
+        if (entrada is null) return NotFound();
+        if (entrada.Status == "Conferida") return Conflict("Esta NF-e ja foi conferida.");
+        if (request.Itens is null || request.Itens.Count != entrada.Itens.Count ||
+            request.Itens.Select(i => i.NumeroItem).Distinct().Count() != entrada.Itens.Count ||
+            request.Itens.Any(i => !entrada.Itens.Any(original => original.NumeroItem == i.NumeroItem)))
+            return BadRequest("Informe todos os itens da nota, sem repeticoes.");
+        if (request.Itens.Any(i => i.QuantidadeRecebida < 0 || i.QuantidadeRecebida >= 100000000000000m ||
+            decimal.Round(i.QuantidadeRecebida, 4) != i.QuantidadeRecebida))
+            return BadRequest("Informe quantidades recebidas validas, com ate quatro casas decimais.");
+        var produtoIds = request.Itens.Where(i => i.ProdutoId.HasValue).Select(i => i.ProdutoId!.Value).Distinct().ToArray();
+        var produtosValidos = await db.CadastroItens.AsNoTracking()
+            .CountAsync(p => p.EmpresaId == tenantId && produtoIds.Contains(p.Id));
+        if (produtosValidos != produtoIds.Length) return BadRequest("Selecione produtos cadastrados nesta empresa.");
+        if (request.Concluir && request.Itens.Any(i => i.ProdutoId is null))
+            return BadRequest("Associe todos os itens a produtos antes de concluir a conferencia.");
+        var recebidos = request.Itens.ToDictionary(i => i.NumeroItem);
+        foreach (var item in entrada.Itens)
+        {
+            var recebido = recebidos[item.NumeroItem];
+            item.ProdutoId = recebido.ProdutoId;
+            item.QuantidadeRecebida = recebido.QuantidadeRecebida;
+        }
+        if (request.Concluir) entrada.Status = "Conferida";
+        await db.SaveChangesAsync();
+        return Ok(ToResponse(entrada, entrada.Fornecedor));
+    }
+
     [HttpPost("importar-nfe")]
     [Consumes("multipart/form-data")]
     public async Task<ActionResult<ImportarNfeResponse>> ImportarNfe([FromForm] IFormFile arquivo, [FromForm] long tenantId = 0)
@@ -51,13 +105,13 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
             return BadRequest("Chave de acesso da NF-e invalida.");
         }
 
-        var jaImportada = await db.EntradasCompra.AnyAsync(entrada =>
+        var jaImportada = await db.EntradasCompra.AsNoTracking().Where(entrada =>
             entrada.TenantId == tenantId &&
-            entrada.ChaveNfe == chaveNfe);
+            entrada.ChaveNfe == chaveNfe).Select(entrada => (long?)entrada.Id).FirstOrDefaultAsync();
 
-        if (jaImportada)
+        if (jaImportada.HasValue)
         {
-            return Conflict($"NF-e {chaveNfe} ja foi importada.");
+            return Conflict(new { message = $"NF-e {chaveNfe} ja foi importada.", entradaCompraId = jaImportada.Value });
         }
 
         var ide = Filho(infNfe, "ide");
@@ -225,7 +279,7 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
         return null;
     }
 
-    private static ImportarNfeResponse ToResponse(EntradaCompra entrada, Cliente fornecedor)
+    private static ImportarNfeResponse ToResponse(EntradaCompra entrada, Cliente? fornecedor)
     {
         var itens = entrada.Itens
             .OrderBy(item => item.NumeroItem)
@@ -265,8 +319,8 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
             entrada.DataEmissao,
             entrada.DataEntrada,
             entrada.NaturezaOperacao,
-            fornecedor.NomeRazaoSocial,
-            fornecedor.CpfCnpj,
+            fornecedor?.NomeRazaoSocial ?? "Fornecedor nao encontrado",
+            fornecedor?.CpfCnpj ?? string.Empty,
             entrada.ValorProdutos,
             entrada.ValorFrete,
             entrada.ValorSeguro,
@@ -276,7 +330,8 @@ public class EstoqueImportacaoController(AppDbContext db) : ControllerBase
             itens.Count,
             produtosIdentificados,
             itens.Count - produtosIdentificados,
-            itens);
+            itens,
+            entrada.Status);
     }
 
     private static string ObterChaveNfe(XDocument document, XElement infNfe)

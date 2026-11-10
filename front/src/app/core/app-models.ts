@@ -327,6 +327,7 @@ export interface ImportarNfeItemResponse {
 }
 
 export interface ImportarNfeResponse {
+  status: string;
   entradaCompraId: number;
   chaveNfe: string;
   numeroNfe: string;
@@ -347,4 +348,15 @@ export interface ImportarNfeResponse {
   produtosIdentificados: number;
   produtosPendentes: number;
   itens: ImportarNfeItemResponse[];
+}
+
+export interface EntradaCompraResumo {
+  entradaCompraId: number;
+  numeroNfe: string;
+  serie: string;
+  chaveNfe: string;
+  fornecedorNome: string;
+  importadoEm: string;
+  valorTotal: number;
+  status: string;
 }

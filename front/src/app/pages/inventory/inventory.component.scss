@@ -1163,6 +1163,21 @@ tbody tr.selected {
   white-space: nowrap;
 }
 
+.nfe-items-table input,
+.nfe-items-table select {
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+}
+
+.received-quantity { width: 100px; }
+.nfe-items-table select { max-width: 300px; }
+.conference-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.conference-actions p { flex-basis: 100%; }
+
 .nfe-items-table td {
   padding-block: 12px;
   vertical-align: top;

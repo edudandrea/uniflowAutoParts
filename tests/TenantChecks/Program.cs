@@ -69,6 +69,9 @@ for (var tenantId = 1; tenantId <= 2; tenantId++)
     db.ClienteContatos.Add(new ClienteContato { Id = tenantId, ClienteId = tenantId, Nome = $"Contato {tenantId}" });
     db.Estoques.Add(new Estoque { Id = tenantId, EmpresaId = tenantId, ItemId = tenantId, UsuarioId = tenantId, Quantidade = tenantId * 5, Tipo = "Entrada" });
     db.NotasFiscais.Add(new NotaFiscal { Id = tenantId, EmpresaId = tenantId, Numero = tenantId.ToString(), ChaveAcesso = new string((char)(48 + tenantId), 44), Xml = $"<nfeProc>Empresa {tenantId}</nfeProc>", Pdf = [37, 80, 68, 70, 45], Ambiente = 2 });
+    db.EntradasCompra.Add(new EntradaCompra { Id = tenantId, TenantId = tenantId, FornecedorId = tenantId,
+        ChaveNfe = new string((char)(48 + tenantId), 44), NumeroNfe = tenantId.ToString(),
+        Itens = [new EntradaCompraItem { NumeroItem = 1, DescricaoXml = "Peca da empresa " + tenantId, QuantidadeComercial = 2, QuantidadeRecebida = 2 }] });
     await db.SaveChangesAsync();
 }
 Check((await client.GetAsync("/api/produtos?empresaId=1")).StatusCode == HttpStatusCode.Unauthorized, "API aceitou leitura sem autenticacao.");
@@ -84,6 +87,13 @@ for (var tenantId = 1; tenantId <= 2; tenantId++)
     Check(stock.GetArrayLength() == 1 && stock[0].GetProperty("estoque").GetInt32() == tenantId * 5, "Saldo de estoque vazou entre empresas.");
     var customers = await client.GetFromJsonAsync<JsonElement>("/api/clientes");
     Check(customers.GetArrayLength() == 1 && customers[0].GetProperty("empresaId").GetInt32() == tenantId, "Clientes nao isolados.");
+    var entradas = await client.GetFromJsonAsync<JsonElement>("/api/estoque/entradas");
+    Check(entradas.GetArrayLength() == 1 && entradas[0].GetProperty("entradaCompraId").GetInt64() == tenantId,
+        "Listagem de conferencias vazou entre empresas.");
+    Check((await client.GetAsync($"/api/estoque/entradas/{3 - tenantId}")).StatusCode == HttpStatusCode.NotFound,
+        "Leitura de conferencia acessou nota de outra empresa.");
+    Check((await client.GetAsync($"/api/estoque/entradas/{tenantId}")).StatusCode == HttpStatusCode.OK,
+        "Nao reabriu nota importada da propria empresa.");
     Check((await client.GetAsync($"/api/produtos?empresaId={3 - tenantId}")).StatusCode == HttpStatusCode.Forbidden, "Aceitou empresa adulterada na URL.");
     var sessionResponse = await client.GetAsync("/api/auth/session");
     var session = (await sessionResponse.Content.ReadFromJsonAsync<JsonElement>());
@@ -103,6 +113,14 @@ for (var tenantId = 1; tenantId <= 2; tenantId++)
     }
     client.DefaultRequestHeaders.Remove("X-Parts-CSRF");
     client.DefaultRequestHeaders.Add("X-Parts-CSRF", session.GetProperty("csrfToken").GetString());
+    var conferencia = new { itens = new[] { new { numeroItem = 1, produtoId = tenantId, quantidadeRecebida = 1.5m } }, concluir = false };
+    Check((await client.PutAsJsonAsync($"/api/estoque/entradas/{3 - tenantId}/conferencia", conferencia)).StatusCode == HttpStatusCode.NotFound,
+        "Conferencia alterou nota de outra empresa.");
+    var salva = await client.PutAsJsonAsync($"/api/estoque/entradas/{tenantId}/conferencia", conferencia);
+    Check(salva.StatusCode == HttpStatusCode.OK, "Nao salvou conferencia propria: " + await salva.Content.ReadAsStringAsync());
+    var reaberta = await client.GetFromJsonAsync<JsonElement>($"/api/estoque/entradas/{tenantId}");
+    Check(reaberta.GetProperty("itens")[0].GetProperty("quantidadeRecebida").GetDecimal() == 1.5m,
+        "Reabrir a nota perdeu quantidade conferida pela API.");
     var foreignWrite = await client.PostAsJsonAsync("/api/marcas", payload);
     Check(foreignWrite.StatusCode == HttpStatusCode.Forbidden, "Escrita com empresa adulterada retornou " + foreignWrite.StatusCode + ": " + await foreignWrite.Content.ReadAsStringAsync());
     Check((await client.PutAsJsonAsync($"/api/marcas/{3 - tenantId}", new { tenantId, nome = "Marca alheia", ativo = true })).StatusCode == HttpStatusCode.NotFound, "Atualizacao acessou registro de outra empresa pelo ID.");

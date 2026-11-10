@@ -85,7 +85,48 @@ internal static class NfeImportChecks
                 "Aceitou documento de outro modelo.");
             Check((await Import(db, "<xml")).Result is BadRequestObjectResult, "Aceitou XML corrompido.");
         }
-        Console.WriteLine("NF-e import checks passed. Somente banco descartavel local.");
+        await using (var db = new AppDbContext(options, tenant))
+        {
+            db.Categorias.Add(new Categoria { Id = 1, TenantId = 1, Nome = "Categoria" });
+            db.Marcas.Add(new Marca { Id = 1, TenantId = 1, Nome = "Marca" });
+            db.CadastroItens.Add(new CadastroItens { Id = 17, EmpresaId = 1, SKU = 1700, Descricao = "Peca", CategoriaId = 1, MarcaId = 1 });
+            await db.SaveChangesAsync();
+            var controller = new EstoqueImportacaoController(db);
+            var lista = (OkObjectResult)(await controller.ListarEntradas(1)).Result!;
+            Check(((IEnumerable<EntradaCompraResumoResponse>)lista.Value!).Count() == 2, "Notas importadas nao aparecem para retomada.");
+            var id = await db.EntradasCompra.Select(e => e.Id).FirstAsync();
+            var draft = new ConferirNfeRequest([new(1, null, 1.5m)]);
+            Check((await controller.SalvarConferencia(id, draft, 1)).Result is OkObjectResult, "Nao salvou conferencia parcial.");
+            db.ChangeTracker.Clear();
+            var reopened = (ImportarNfeResponse)((OkObjectResult)(await controller.ObterEntrada(id, 1)).Result!).Value!;
+            Check(reopened.Itens.Single().QuantidadeRecebida == 1.5m && reopened.Status == "Conferencia", "Reabertura perdeu conferencia salva.");
+            Check((await controller.SalvarConferencia(id, draft with { Concluir = true }, 1)).Result is BadRequestObjectResult,
+                "Concluiu conferencia com produto pendente.");
+            Check((await controller.SalvarConferencia(id, new([new(1, 999, 2)]), 1)).Result is BadRequestObjectResult,
+                "Aceitou produto nao cadastrado nesta empresa.");
+            Check((await controller.SalvarConferencia(id, new([new(1, 17, -1)]), 1)).Result is BadRequestObjectResult,
+                "Aceitou quantidade negativa.");
+            Check((await controller.SalvarConferencia(id, new([new(1, 17, 1.12345m)]), 1)).Result is BadRequestObjectResult,
+                "Aceitou quantidade que perderia precisao no banco.");
+            Check((await controller.SalvarConferencia(id, new([]), 1)).Result is BadRequestObjectResult, "Aceitou lista incompleta.");
+            Check((await controller.SalvarConferencia(id, new([new(1, 17, 1.5m)], true), 1)).Result is OkObjectResult,
+                "Nao concluiu conferencia valida.");
+            db.ChangeTracker.Clear();
+            var saved = await db.EntradasCompra.Include(e => e.Itens).SingleAsync(e => e.Id == id);
+            Check(saved.Status == "Conferida" && saved.Itens.Single().ProdutoId == 17 && saved.Itens.Single().QuantidadeRecebida == 1.5m,
+                "Conferencia nao persistiu status, produto e quantidade.");
+            Check((await controller.SalvarConferencia(id, draft, 1)).Result is ConflictObjectResult, "Permitiu alterar conferencia concluida.");
+            Check(!await db.Estoques.AnyAsync(), "Conferencia criou movimento de estoque indevido.");
+
+            var otherTenant = new TenantContext(new HttpContextAccessor { HttpContext = new DefaultHttpContext { User = ChecksAuthentication.Principal(2) } });
+            await using var otherDb = new AppDbContext(options, otherTenant);
+            var otherController = new EstoqueImportacaoController(otherDb);
+            Check((await otherController.ObterEntrada(id, 2)).Result is NotFoundResult, "Leu nota de outra empresa.");
+            Check((await otherController.SalvarConferencia(id, draft, 2)).Result is NotFoundResult, "Alterou conferencia de outra empresa.");
+            var otherList = (OkObjectResult)(await otherController.ListarEntradas(2)).Result!;
+            Check(!((IEnumerable<EntradaCompraResumoResponse>)otherList.Value!).Any(), "Listagem vazou notas entre empresas.");
+        }
+        Console.WriteLine("NF-e import and conference checks passed. Somente banco descartavel local.");
     }
 
     private static void Check(bool condition, string message)
