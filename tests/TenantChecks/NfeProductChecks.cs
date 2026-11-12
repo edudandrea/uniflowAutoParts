@@ -76,6 +76,10 @@ internal static class NfeProductChecks
                 "Importacao nao lancou as quantidades de todos os itens, ou reimportacao duplicou o estoque.");
             var saldo = (IReadOnlyCollection<EstoqueResponse>)((OkObjectResult)(await new EstoqueController(db).Listar(1, CancellationToken.None)).Result!).Value!;
             Check(saldo.Single(p => p.Id == filtroId).Estoque == 6m, "Saldo nao foi refletido pela API do estoque.");
+            Check(saldo.Single(p => p.Id == filtroId).Valor == 12.5,
+                "Estoque nao exibiu o custo importado para produto sem preco de venda.");
+            Check(saldo.Single(p => p.Id == 10).Valor == 149,
+                "Estoque substituiu o preco de venda cadastrado pelo custo da nota.");
         }
 
         // Movimentos anteriores permanecem; reimportacao e conferencia alteram somente os da nota.

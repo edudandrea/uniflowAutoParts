@@ -47,7 +47,8 @@ public class EstoqueController(AppDbContext db) : ControllerBase
                 // O LEFT JOIN retorna NULL para produtos sem movimentos; tratar no SQL.
                 (decimal?)saldo.Quantidade ?? 0,
                 produto.EstoqueMinimo,
-                produto.Preco,
+                // Produtos importados da NF-e possuem custo antes de definir o preco de venda.
+                produto.Preco == 0 ? produto.Custo : produto.Preco,
                 produto.Codfabricante == 0 ? "" : produto.Codfabricante.ToString(),
                 produto.NCM == 0 ? "" : produto.NCM.ToString()))
             .ToListAsync(cancellationToken);
