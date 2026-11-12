@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { environment } from '../../environments/environment';
-import { FiscalCertificate } from './fiscal-certificate.service';
+import { FiscalCertificate, FiscalTaxSettings } from './fiscal-certificate.service';
 
 import {
   Categoria,
@@ -68,6 +68,14 @@ export class ApiService {
 
   validarCertificado(certificate: FiscalCertificate) {
     return this.http.post<{ validade: string }>(`${this.apiUrl}/fiscal/certificado/validar`, certificate);
+  }
+
+  carregarTributacao() {
+    return this.http.get<FiscalTaxSettings | null>(`${this.apiUrl}/fiscal/tributacao`);
+  }
+
+  salvarTributacao(settings: FiscalTaxSettings) {
+    return this.http.put<FiscalTaxSettings>(`${this.apiUrl}/fiscal/tributacao`, settings);
   }
 
   consultarStatusSefaz(certificate: FiscalCertificate) {

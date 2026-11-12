@@ -13,7 +13,6 @@ import { InventoryComponent } from './pages/inventory/inventory.component';
 import { ProductsComponent } from './pages/products/products.component';
 import { PurchasesComponent } from './pages/purchases/purchases.component';
 import { SuppliersComponent } from './pages/suppliers/suppliers.component';
-import { SalesComponent } from './pages/sales/sales.component';
 import { FiscalSettingsComponent } from './pages/fiscal-settings/fiscal-settings.component';
 
 export const routes: Routes = [
@@ -31,7 +30,7 @@ export const routes: Routes = [
       { path: 'produtos', component: ProductsComponent },
       { path: 'aplicacoes', component: ApplicationsComponent },
       { path: 'compras', component: PurchasesComponent },
-      { path: 'vendas', component: SalesComponent },
+      { path: 'vendas', loadComponent: () => import('./pages/sales/sales.component').then(m => m.SalesComponent) },
       { path: 'notas', loadComponent: () => import('./pages/invoices/invoices.component').then(m => m.InvoicesComponent) },
       { path: 'fornecedores', component: SuppliersComponent },
       { path: 'financeiro', redirectTo: 'financeiro/visao-geral', pathMatch: 'full' },

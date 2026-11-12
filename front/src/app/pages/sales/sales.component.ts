@@ -1,5 +1,5 @@
 import { SessionService } from '../../core/session.service';
-import { Component, computed, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, ElementRef, HostListener, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
@@ -15,6 +15,7 @@ interface SaleDraft {
   tipo: string; vendedor: string; emitir: boolean; modelo: string; finalidade: string;
   natureza: string; cfop: string; serie: string; desconto: number; frete: number;
   despesas: number; observacoes: string;
+  vehicleName?: string; vehiclePlate?: string;
 }
 
 @Component({
@@ -26,6 +27,7 @@ export class SalesComponent {
   private readonly session = inject(SessionService);
   private readonly certificateStore = inject(FiscalCertificateService);
   private readonly reviewDialog = viewChild<ElementRef<HTMLDialogElement>>('reviewDialog');
+  private readonly productSearchInput = viewChild<ElementRef<HTMLInputElement>>('productSearchInput');
   protected readonly fiscalMessage = signal('');
 
   protected requestInvoice(): void {
@@ -75,6 +77,11 @@ export class SalesComponent {
   protected despesas = 0;
   protected observacoes = '';
   protected showExtras = false;
+  protected showOptions = false;
+  protected editingCustomer = false;
+  protected editingVehicle = false;
+  protected vehicleName = '';
+  protected vehiclePlate = '';
   protected readonly subtotal = computed(() => this.round(this.itens().reduce((sum, i) => sum + i.quantidade * i.preco, 0)));
   protected readonly itemDiscount = computed(() => this.round(this.itens().reduce((sum, i) => sum + i.quantidade * i.preco * i.desconto / 100, 0)));
 
@@ -97,7 +104,23 @@ export class SalesComponent {
       error: () => { this.loading.set(false); this.loadError.set('Não foi possível carregar clientes e produtos. Verifique se o backend está disponível e tente novamente.'); },
     });
   }
-  protected selectCustomer(c: ClienteResumoResponse): void { this.cliente.set(c); this.customerSearch.set(''); }
+  protected selectCustomer(c: ClienteResumoResponse): void { this.cliente.set(c); this.customerSearch.set(''); this.editingCustomer = false; }
+  protected focusProductSearch(): void { this.productSearchInput()?.nativeElement.focus(); }
+
+  @HostListener('document:keydown', ['$event'])
+  protected onSearchShortcut(event: KeyboardEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (event.key !== '/' || event.ctrlKey || event.altKey || event.metaKey ||
+      target?.closest('input, textarea, select, [contenteditable="true"], dialog') || this.reviewDialog()?.nativeElement.open) return;
+    event.preventDefault();
+    this.focusProductSearch();
+  }
+
+  protected preview(): void {
+    if (!this.itens().length) { this.message.set('Adicione pelo menos um produto para pré-visualizar a venda.'); return; }
+    this.fiscalMessage.set('');
+    this.reviewDialog()?.nativeElement.showModal();
+  }
   protected addProduct(produto: Produto): void {
     this.itens.update(items => {
       const existing = items.find(i => i.produto.id === produto.id);
@@ -123,7 +146,7 @@ export class SalesComponent {
   protected currency(value: number): string { return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
   private round(value: number): number { return Math.round((value + Number.EPSILON) * 100) / 100; }
   private draft(): SaleDraft {
-    return { cliente: this.cliente(), itens: this.itens(), pagamentos: this.pagamentos(), tipo: this.tipo, vendedor: this.vendedor, emitir: this.emitir, modelo: this.modelo, finalidade: this.finalidade, natureza: this.natureza, cfop: this.cfop, serie: this.serie, desconto: this.desconto, frete: this.frete, despesas: this.despesas, observacoes: this.observacoes };
+    return { cliente: this.cliente(), itens: this.itens(), pagamentos: this.pagamentos(), tipo: this.tipo, vendedor: this.vendedor, emitir: this.emitir, modelo: this.modelo, finalidade: this.finalidade, natureza: this.natureza, cfop: this.cfop, serie: this.serie, desconto: this.desconto, frete: this.frete, despesas: this.despesas, observacoes: this.observacoes, vehicleName: this.vehicleName, vehiclePlate: this.vehiclePlate };
   }
   protected saveDraft(): boolean {
     try { localStorage.setItem(this.draftKey, JSON.stringify(this.draft())); this.message.set('Rascunho salvo neste navegador. Você pode continuar depois.'); return true; }
@@ -139,6 +162,7 @@ export class SalesComponent {
       this.modelo = draft.modelo; this.finalidade = draft.finalidade; this.natureza = draft.natureza;
       this.cfop = draft.cfop; this.serie = draft.serie; this.desconto = draft.desconto;
       this.frete = draft.frete; this.despesas = draft.despesas; this.observacoes = draft.observacoes;
+      this.vehicleName = draft.vehicleName ?? ''; this.vehiclePlate = draft.vehiclePlate ?? '';
       this.message.set('Seu último rascunho foi recuperado.');
     } catch { this.message.set('Não foi possível recuperar o rascunho salvo.'); }
   }
@@ -146,6 +170,7 @@ export class SalesComponent {
     if ((this.itens().length || this.cliente()) && !window.confirm('Limpar a venda e excluir o rascunho salvo?')) return;
     this.cliente.set(null); this.itens.set([]); this.pagamentos.set([{ id: 1, forma: 'Pix', valor: 0 }]);
     this.desconto = 0; this.frete = 0; this.despesas = 0; this.observacoes = ''; this.vendedor = '';
+    this.vehicleName = ''; this.vehiclePlate = ''; this.editingVehicle = false; this.editingCustomer = false;
     this.customerSearch.set(''); this.productSearch.set(''); this.message.set('');
     try { localStorage.removeItem(this.draftKey); } catch { this.message.set('A venda foi limpa, mas não foi possível excluir o rascunho salvo.'); }
   }

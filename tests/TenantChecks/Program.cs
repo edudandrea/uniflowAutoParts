@@ -115,6 +115,21 @@ for (var tenantId = 1; tenantId <= 2; tenantId++)
     }
     client.DefaultRequestHeaders.Remove("X-Parts-CSRF");
     client.DefaultRequestHeaders.Add("X-Parts-CSRF", session.GetProperty("csrfToken").GetString());
+    Check((await client.GetAsync("/api/fiscal/tributacao")).StatusCode == HttpStatusCode.NoContent,
+        "Empresa sem tributacao recebeu configuracao de outra empresa.");
+    var taxSettings = new { regime = "1", icmsCode = "101", pisCode = "49", cofinsCode = "49",
+        icmsRate = (decimal?)null, pisRate = tenantId + 0.1234m, cofinsRate = 0m };
+    Check((await client.PutAsJsonAsync("/api/fiscal/tributacao", taxSettings)).StatusCode == HttpStatusCode.OK,
+        "Nao salvou tributacao da empresa autenticada.");
+    Check((await client.PutAsJsonAsync("/api/fiscal/tributacao", taxSettings)).StatusCode == HttpStatusCode.OK,
+        "Nao atualizou tributacao existente.");
+    var taxRead = await client.GetFromJsonAsync<JsonElement>("/api/fiscal/tributacao");
+    Check(taxRead.GetProperty("pisRate").GetDecimal() == tenantId + 0.1234m && taxRead.GetProperty("icmsRate").ValueKind == JsonValueKind.Null,
+        "Leitura perdeu aliquotas ou acessou tributacao de outra empresa.");
+    Check((await client.PutAsJsonAsync("/api/fiscal/tributacao", new { regime = "1", icmsCode = "00", pisCode = "49", cofinsCode = "49", pisRate = 1 })).StatusCode == HttpStatusCode.BadRequest,
+        "Tributacao aceitou codigo incompativel com o regime.");
+    Check((await client.PutAsJsonAsync("/api/fiscal/tributacao", new { regime = "1", icmsCode = "101", pisCode = "49", cofinsCode = "49", pisRate = 101 })).StatusCode == HttpStatusCode.BadRequest,
+        "Tributacao aceitou aliquota invalida.");
     var conferencia = new { itens = new[] { new { numeroItem = 1, produtoId = tenantId, quantidadeRecebida = 1.5m } }, concluir = false };
     Check((await client.PutAsJsonAsync($"/api/estoque/entradas/{3 - tenantId}/conferencia", conferencia)).StatusCode == HttpStatusCode.NotFound,
         "Conferencia alterou nota de outra empresa.");
@@ -140,6 +155,11 @@ for (var tenantId = 1; tenantId <= 2; tenantId++)
     try { await db.SaveChangesAsync(); throw new Exception("Update por Attach burlou o isolamento."); }
     catch (TenantAccessException) { checks++; }
 }
+client.DefaultRequestHeaders.Remove("Test-Company");
+client.DefaultRequestHeaders.Add("Test-Company", "1");
+var persistedTax = await client.GetFromJsonAsync<JsonElement>("/api/fiscal/tributacao");
+Check(persistedTax.GetProperty("pisRate").GetDecimal() == 1.1234m,
+    "Salvar tributacao da empresa B sobrescreveu a empresa A.");
 await using (var anonymous = new AppDbContext(options))
 {
     Check(await anonymous.CadastroItens.CountAsync() == 0, "Contexto sem empresa leu dados.");

@@ -24,15 +24,6 @@ export interface FiscalTaxSettings {
 export class FiscalCertificateService {
   private readonly session = inject(SessionService);
   private get key(): string { return this.session.storageKey('certificado'); }
-  private get taxKey(): string { return this.session.storageKey('tributacao'); }
-
-  loadTax(): FiscalTaxSettings | null {
-    const raw = localStorage.getItem(this.taxKey);
-    return raw ? JSON.parse(raw) as FiscalTaxSettings : null;
-  }
-
-  saveTax(value: FiscalTaxSettings): void { localStorage.setItem(this.taxKey, JSON.stringify(value)); }
-
   load(): FiscalCertificate | null {
     const raw = localStorage.getItem(this.key);
     if (!raw) return null;

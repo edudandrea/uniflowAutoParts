@@ -28,6 +28,7 @@
   <section class="card tax-card" [hidden]="activeTab() === 'certificate'" aria-labelledby="tax-title">
     <header class="card-heading"><span class="section-icon"><app-icon name="boxes" [size]="25" /></span><div><h2 id="tax-title">Tributação da empresa</h2><p>Defina os códigos e alíquotas padrão usados na emissão das notas fiscais.</p></div></header>
     <form (ngSubmit)="saveTax()">
+      <fieldset [disabled]="taxBusy() || !taxLoaded()" style="border: 0; padding: 0; margin: 0; min-width: 0;">
       <div class="tax-intro"><label>Regime tributário <span class="required">*</span><select name="regime" [(ngModel)]="tax.regime" (ngModelChange)="tax.icmsCode = ''"><option value="">Selecione o regime tributário</option><option value="1">Simples Nacional</option><option value="2">Simples Nacional — excesso de sublimite</option><option value="3">Regime normal</option><option value="4">Simples Nacional — MEI</option></select></label><aside class="tax-notice"><app-icon name="info" [size]="18" /><div><strong>Importante</strong><p>As regras podem variar conforme o produto, o destinatário e a operação. Consulte sempre o seu contador.</p></div></aside></div>
       <div class="tax-grid">
         <label>{{ tax.regime === '1' || tax.regime === '4' ? 'CSOSN do ICMS' : 'CST do ICMS' }} <span class="required">*</span><input name="icmsCode" [(ngModel)]="tax.icmsCode" inputmode="numeric" [maxLength]="tax.regime === '1' || tax.regime === '4' ? 3 : 2" placeholder="Informe o código" /></label>
@@ -37,8 +38,9 @@
         <label>Alíquota do PIS (%)<span class="percentage-input"><input type="number" name="pisRate" [(ngModel)]="tax.pisRate" min="0" max="100" step="0.0001" placeholder="0,00" /><span>%</span></span></label>
         <label>Alíquota da COFINS (%)<span class="percentage-input"><input type="number" name="cofinsRate" [(ngModel)]="tax.cofinsRate" min="0" max="100" step="0.0001" placeholder="0,00" /><span>%</span></span></label>
       </div>
-      <p class="tax-help">Os parâmetros são salvos neste navegador. A geração e transmissão da NF-e ainda não estão disponíveis.</p>
-      <footer class="tax-actions"><button class="primary" type="submit"><app-icon name="save" [size]="16" />Salvar tributação</button><button type="button" (click)="restoreTax()"><app-icon name="arrow-left" [size]="15" />Restaurar configuração salva</button></footer>
+      </fieldset>
+      <p class="tax-help">Os parâmetros são salvos no banco de dados da empresa logada e ficam disponíveis em outros dispositivos.</p>
+      <footer class="tax-actions"><button class="primary" type="submit" [disabled]="taxBusy() || !taxLoaded()"><app-icon name="save" [size]="16" />{{ taxBusy() ? 'Aguarde...' : 'Salvar tributação' }}</button><button type="button" [disabled]="taxBusy()" (click)="restoreTax()"><app-icon name="arrow-left" [size]="15" />Restaurar configuração salva</button></footer>
     </form>
     @if (taxMessage()) { <p class="feedback" role="status"><app-icon name="info" [size]="17" />{{ taxMessage() }}</p> }
   </section>

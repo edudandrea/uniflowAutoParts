@@ -31,10 +31,26 @@ namespace back.Data
         public DbSet<Users> Users => Set<Users>();
         public DbSet<NotaFiscal> NotasFiscais => Set<NotaFiscal>();
         public DbSet<NotaFiscalEvento> NotaFiscalEventos => Set<NotaFiscalEvento>();
+        public DbSet<ConfiguracaoTributaria> ConfiguracoesTributarias => Set<ConfiguracaoTributaria>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<ConfiguracaoTributaria>(entity =>
+            {
+                entity.HasKey(e => e.EmpresaId);
+                entity.Property(e => e.EmpresaId).ValueGeneratedNever();
+                entity.HasQueryFilter(e => e.EmpresaId == CurrentEmpresaId);
+                entity.Property(e => e.Regime).HasMaxLength(1);
+                entity.Property(e => e.IcmsCode).HasMaxLength(3);
+                entity.Property(e => e.PisCode).HasMaxLength(2);
+                entity.Property(e => e.CofinsCode).HasMaxLength(2);
+                entity.Property(e => e.IcmsRate).HasPrecision(7, 4);
+                entity.Property(e => e.PisRate).HasPrecision(7, 4);
+                entity.Property(e => e.CofinsRate).HasPrecision(7, 4);
+                entity.HasOne<Empresas>().WithMany().HasForeignKey(e => e.EmpresaId).OnDelete(DeleteBehavior.Restrict);
+            });
 
             modelBuilder.Entity<Empresas>().HasQueryFilter(e => e.Id == CurrentEmpresaId);
             modelBuilder.Entity<Users>().HasQueryFilter(e => e.EmpresaId == CurrentEmpresaId);

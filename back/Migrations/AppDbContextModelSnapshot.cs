@@ -481,6 +481,48 @@ namespace UniflowAutoParts.Api.Migrations
                     b.ToTable("ClienteVeiculos");
                 });
 
+            modelBuilder.Entity("back.Models.ConfiguracaoTributaria", b =>
+                {
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CofinsCode")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)");
+
+                    b.Property<decimal?>("CofinsRate")
+                        .HasPrecision(7, 4)
+                        .HasColumnType("numeric(7,4)");
+
+                    b.Property<string>("IcmsCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<decimal?>("IcmsRate")
+                        .HasPrecision(7, 4)
+                        .HasColumnType("numeric(7,4)");
+
+                    b.Property<string>("PisCode")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)");
+
+                    b.Property<decimal?>("PisRate")
+                        .HasPrecision(7, 4)
+                        .HasColumnType("numeric(7,4)");
+
+                    b.Property<string>("Regime")
+                        .IsRequired()
+                        .HasMaxLength(1)
+                        .HasColumnType("character varying(1)");
+
+                    b.HasKey("EmpresaId");
+
+                    b.ToTable("ConfiguracoesTributarias");
+                });
+
             modelBuilder.Entity("back.Models.Empresas", b =>
                 {
                     b.Property<int>("Id")
@@ -1241,6 +1283,15 @@ namespace UniflowAutoParts.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Cliente");
+                });
+
+            modelBuilder.Entity("back.Models.ConfiguracaoTributaria", b =>
+                {
+                    b.HasOne("back.Models.Empresas", null)
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("back.Models.Endereco", b =>

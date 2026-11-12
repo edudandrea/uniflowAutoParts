@@ -24,6 +24,8 @@ export class FiscalSettingsComponent {
   protected fileInput: HTMLInputElement | null = null;
   protected tax: FiscalTaxSettings = { regime: '', icmsCode: '', pisCode: '', cofinsCode: '', icmsRate: null, pisRate: null, cofinsRate: null };
   protected readonly taxMessage = signal('');
+  protected readonly taxBusy = signal(false);
+  protected readonly taxLoaded = signal(false);
 
   constructor() {
     try {
@@ -33,15 +35,29 @@ export class FiscalSettingsComponent {
       this.showUpload.set(!certificate);
     }
     catch { this.message.set('Não foi possível ler o certificado salvo. Cadastre novamente.'); }
-    try { this.tax = this.store.loadTax() ?? this.tax; }
-    catch { this.taxMessage.set('Não foi possível ler a configuração tributária. Cadastre novamente.'); }
+    this.loadTax(false);
   }
 
   protected restoreTax(): void {
-    try {
-      this.tax = this.store.loadTax() ?? { regime: '', icmsCode: '', pisCode: '', cofinsCode: '', icmsRate: null, pisRate: null, cofinsRate: null };
-      this.taxMessage.set('Última configuração salva restaurada.');
-    } catch { this.taxMessage.set('Não foi possível restaurar a configuração salva.'); }
+    this.loadTax(true);
+  }
+
+  private loadTax(restoring: boolean): void {
+    if (this.taxBusy()) return;
+    this.taxBusy.set(true);
+    this.taxMessage.set('');
+    this.api.carregarTributacao().subscribe({
+      next: settings => {
+        this.tax = settings ?? { regime: '', icmsCode: '', pisCode: '', cofinsCode: '', icmsRate: null, pisRate: null, cofinsRate: null };
+        this.taxLoaded.set(true);
+        this.taxBusy.set(false);
+        if (restoring) this.taxMessage.set('Última configuração salva da empresa restaurada.');
+      },
+      error: () => {
+        this.taxBusy.set(false);
+        this.taxMessage.set('Não foi possível carregar a configuração da empresa. Clique em Restaurar configuração salva para tentar novamente.');
+      },
+    });
   }
 
   protected certificateStatus(): string {
@@ -55,6 +71,7 @@ export class FiscalSettingsComponent {
   }
 
   protected saveTax(): void {
+    if (this.taxBusy() || !this.taxLoaded()) return;
     const simple = this.tax.regime === '1' || this.tax.regime === '4';
     const codes = simple ? ['101', '102', '103', '201', '202', '203', '300', '400', '500', '900'] : ['00', '02', '10', '15', '20', '30', '40', '41', '50', '51', '53', '60', '61', '70', '90'];
     if (!['1', '2', '3', '4'].includes(this.tax.regime) || !codes.includes(this.tax.icmsCode) || !/^(0[1-9]|49|5[0-6]|6[0-7]|7[0-5]|98|99)$/.test(this.tax.pisCode) || !/^(0[1-9]|49|5[0-6]|6[0-7]|7[0-5]|98|99)$/.test(this.tax.cofinsCode)) {
@@ -63,8 +80,19 @@ export class FiscalSettingsComponent {
     if ([this.tax.icmsRate, this.tax.pisRate, this.tax.cofinsRate].some(rate => rate !== null && (!Number.isFinite(rate) || rate < 0 || rate > 100))) {
       this.taxMessage.set('As alíquotas devem estar entre 0 e 100%.'); return;
     }
-    try { this.store.saveTax(this.tax); this.taxMessage.set('Configuração tributária salva neste navegador. A tributação deve ser revisada por produto e operação antes da emissão.'); }
-    catch { this.taxMessage.set('Não foi possível salvar a configuração tributária.'); }
+    this.taxBusy.set(true);
+    this.taxMessage.set('');
+    this.api.salvarTributacao({ ...this.tax }).subscribe({
+      next: settings => {
+        this.tax = settings;
+        this.taxBusy.set(false);
+        this.taxMessage.set('Configuração tributária salva no banco de dados da empresa.');
+      },
+      error: () => {
+        this.taxBusy.set(false);
+        this.taxMessage.set('Não foi possível salvar a configuração tributária. Tente novamente.');
+      },
+    });
   }
 
   protected selectFile(event: Event): void {
