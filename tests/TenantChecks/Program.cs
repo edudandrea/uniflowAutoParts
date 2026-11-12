@@ -56,6 +56,7 @@ roundingProduct.AtualizarPrecoPelaMargem();
 Check(roundingProduct.Preco == 20.84 && roundingProduct.MargemPreco == 4.2m,
     "Atualizacao de custo perdeu a margem definida no produto.");
 await HubRedirectChecks.RunAsync();
+await HubCompanyProfileChecks.RunAsync();
 await StockPostgresChecks.RunAsync();
 await NfeImportChecks.RunAsync();
 await NfeProductChecks.RunAsync();

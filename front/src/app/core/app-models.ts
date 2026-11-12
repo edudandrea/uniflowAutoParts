@@ -366,6 +366,7 @@ export interface EntradaCompraResumo {
 }
 
 export interface EmitenteFiscalData {
+  cnpj?: string;
   razaoSocial: string; inscricaoEstadual: string; logradouro: string; numero: string; complemento: string | null;
   bairro: string; municipio: string; codigoMunicipio: string; uf: string; cep: string; serie: number; proximoNumero: number;
 }

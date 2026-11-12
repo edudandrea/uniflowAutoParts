@@ -2,7 +2,7 @@
 
 ## Configuração da empresa
 
-Em **Configurações > Certificado e Tributações**, selecione o ambiente, salve os dados fiscais do emitente e configure a tributação. Endereço, inscrição estadual e código IBGE são necessários para emitir. O CNPJ vem do cadastro da empresa autenticada.
+Em **Configurações > Certificado e Tributações**, selecione o ambiente, salve os dados fiscais do emitente e configure a tributação. Endereço, inscrição estadual e código IBGE são necessários para emitir. Nome, CNPJ, inscrição estadual e endereço disponíveis no cadastro do HUB são sincronizados no login. Publique os dois backends e entre novamente para atualizar o perfil. Campos ausentes no HUB podem ser completados no formulário, incluindo o CNPJ, e são salvos na empresa logada. O código IBGE e a numeração devem ser configurados no AutoParts.
 
 A série e o próximo número são mantidos no banco por empresa e ambiente. Antes da primeira emissão, confira a numeração já utilizada em outros emissores. O sistema impede retroceder a sequência conhecida localmente; ele não conhece automaticamente os números emitidos em outros sistemas. A migração é aplicada pelo backend ao iniciar.
 

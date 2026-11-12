@@ -73,14 +73,13 @@ export class FiscalSettingsComponent {
     return environment === 'producao' ? 'Produção' : environment === 'homologacao' ? 'Homologação · sem valor fiscal' : 'Ambiente não carregado';
   }
   protected issuer: EmitenteFiscalData = { razaoSocial: '', inscricaoEstadual: '', logradouro: '', numero: '', complemento: '', bairro: '', municipio: '', codigoMunicipio: '', uf: 'RS', cep: '', serie: 1, proximoNumero: 1 };
-  protected readonly issuerCnpj = signal('');
   protected readonly issuerBusy = signal(false);
   protected readonly issuerLoaded = signal(false);
   protected readonly issuerMessage = signal('');
   protected loadIssuer(): void {
     this.issuerBusy.set(true); this.issuerMessage.set('');
     this.api.carregarEmitenteFiscal().subscribe({
-      next: result => { this.issuer = result.dados; this.issuerCnpj.set(result.cnpj); this.issuerLoaded.set(true); this.issuerBusy.set(false); },
+      next: result => { this.issuer = { ...result.dados, cnpj: result.cnpj }; this.issuerLoaded.set(true); this.issuerBusy.set(false); },
       error: () => { this.issuerLoaded.set(false); this.issuerBusy.set(false); this.issuerMessage.set('Não foi possível carregar os dados do emitente.'); },
     });
   }
@@ -88,7 +87,7 @@ export class FiscalSettingsComponent {
     if (this.issuerBusy() || !this.issuerLoaded()) return;
     this.issuerBusy.set(true); this.issuerMessage.set('');
     this.api.salvarEmitenteFiscal({ ...this.issuer }).subscribe({
-      next: result => { this.issuer = result.dados; this.issuerCnpj.set(result.cnpj); this.issuerBusy.set(false); this.issuerMessage.set('Emitente e numeração fiscal salvos para este ambiente e série.'); },
+      next: result => { this.issuer = { ...result.dados, cnpj: result.cnpj }; this.issuerBusy.set(false); this.issuerMessage.set('Emitente e numeração fiscal salvos para este ambiente e série.'); },
       error: error => { this.issuerBusy.set(false); this.issuerMessage.set(typeof error.error === 'string' ? error.error : error.error?.detail ?? 'Não foi possível salvar o emitente.'); },
     });
   }

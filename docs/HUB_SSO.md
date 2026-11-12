@@ -68,8 +68,11 @@ sessao e nao liberam a empresa 1 como alternativa.
 | `project_id` | Sim | Deve coincidir com o projeto configurado neste backend |
 | `name`, `email` | Perfil | Nome e email exibidos do usuario autenticado |
 | `role` | Perfil | Perfil concedido pelo HUB para este projeto |
-| `tenant_name` | Opcional | Nome da empresa, se o HUB disponibilizar esse claim |
-| `tenant_cnpj` | Opcional | CNPJ da empresa, se o HUB disponibilizar esse claim |
+| `tenant_name`, `tenant_nome_fantasia`, `tenant_razao_social` | Perfil | Nome de exibição, nome fantasia e razão social do cliente autorizado |
+| `tenant_cnpj` | Perfil | CNPJ do cliente autorizado |
+| `tenant_inscricao_estadual` | Perfil | Inscrição estadual, quando cadastrada |
+| `tenant_logradouro`, `tenant_numero`, `tenant_complemento`, `tenant_bairro` | Perfil | Endereço da empresa, quando cadastrado |
+| `tenant_municipio`, `tenant_uf`, `tenant_cep` | Perfil | Município, UF e CEP, quando cadastrados |
 
 Assinatura, emissor, destinatario, validade, state, nonce e PKCE sao validados
 pelo middleware OIDC nativo. Um token de outro projeto nao concede acesso.
@@ -78,10 +81,21 @@ O cookie local tem duracao maxima de 20 minutos sem renovacao deslizante.
 Um novo login pode aproveitar a sessao existente do HUB. A cada requisicao, o
 AutoParts tambem verifica se empresa e usuario continuam ativos localmente.
 
-O HUB atual envia os claims basicos acima, mas nao envia nome e CNPJ do cliente
-no token. **Sem esses dados, o AutoParts nao inventa um nome nem um CNPJ**: cria
-o vinculo isolado e informa que os dados cadastrais estao pendentes. Para exibir
-esses dados sem alterar o HUB, configure o perfil no proprio AutoParts:
+O HUB envia o perfil cadastral da empresa autorizada no ID token assinado,
+quando solicitado o escopo `profile`. O AutoParts sincroniza os campos preenchidos
+a cada login, sem apagar complementos locais quando um campo estiver ausente no HUB.
+Clientes `people-*` fornecem os campos disponíveis do cadastro de empresas;
+clientes `central-*` fornecem nome e CNPJ do cadastro de clientes da central,
+que atualmente não possui endereço ou inscrição estadual.
+
+Publique as alterações do HUB (`UniflowPeople`) e do AutoParts e efetue um novo
+login para receber o perfil atualizado. Uma sessão já aberta conserva o perfil
+recebido no login anterior. Não se recebem dados fiscais por URL ou cabeçalhos.
+O código IBGE, a série e a numeração não existem nesse perfil: complete-os no
+AutoParts. O campo CNPJ do emitente também permite completar um cadastro pendente.
+
+Em instalações com uma versão anterior do HUB, o perfil de nome e CNPJ ainda
+pode ser configurado no próprio AutoParts:
 
 ```text
 HubAuth__Companies__0__TenantId=CHAVE_REAL_DO_CLIENTE

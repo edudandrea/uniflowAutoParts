@@ -93,6 +93,9 @@ describe('Fiscal settings database persistence', () => {
   });
   it('saves issuer identity, address and the next invoice number', async () => {
     http.expectOne(url).flush(settings); fixture.detectChanges(); await fixture.whenStable();
+    const cnpj = element.querySelector<HTMLInputElement>('[name="issuerCnpj"]')!;
+    expect(cnpj.value).toBe(issuer.cnpj);
+    cnpj.value = '12.345.678/0001-95'; cnpj.dispatchEvent(new Event('input')); fixture.detectChanges();
     const series = element.querySelector<HTMLInputElement>('[name="issuerSeries"]')!;
     series.value = '2'; series.dispatchEvent(new Event('input')); fixture.detectChanges();
     const next = element.querySelector<HTMLInputElement>('[name="issuerNext"]')!;
@@ -101,6 +104,7 @@ describe('Fiscal settings database persistence', () => {
     form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     const save = http.expectOne(req => req.url === `${environment.apiUrl}/fiscal/emitente` && req.method === 'PUT');
     expect(save.request.body.serie).toBe(2); expect(save.request.body.proximoNumero).toBe(50);
+    expect(save.request.body.cnpj).toBe('12.345.678/0001-95');
     save.flush({ ...issuer, dados: { ...issuer.dados, serie: 2, proximoNumero: 50 } }); fixture.detectChanges();
     expect(element.textContent).toContain('Emitente e numeração fiscal salvos');
   });

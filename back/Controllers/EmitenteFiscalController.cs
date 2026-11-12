@@ -54,6 +54,12 @@ public sealed class EmitenteFiscalController(AppDbContext db, TenantContext tena
         var numeracao = await db.NumeracoesNfe.SingleOrDefaultAsync(n => n.EmpresaId == tenant.EmpresaId && n.Ambiente == config.Ambiente && n.Serie == request.Serie, token);
         var minimo = Math.Max(numeracao?.ProximoNumero ?? 1, await ProximoLivre(db, tenant.EmpresaId, config.Ambiente, request.Serie, token));
         if (request.ProximoNumero < minimo) return BadRequest($"A numeracao nao pode retroceder. O proximo numero disponivel e {minimo}.");
+        if (request.Cnpj is not null)
+        {
+            var cnpj = NfeGerador.Digitos(request.Cnpj);
+            if (cnpj.Length != 14) return BadRequest("Informe o CNPJ do emitente com 14 digitos.");
+            empresa.Cnpj = cnpj;
+        }
         empresa.RazaoSocial = request.RazaoSocial?.Trim() ?? ""; empresa.InscricaoEstadual = NfeGerador.Digitos(request.InscricaoEstadual);
         empresa.Endereco = request.Logradouro?.Trim(); empresa.Numero = request.Numero?.Trim(); empresa.Complemento = request.Complemento?.Trim();
         empresa.Bairro = request.Bairro?.Trim(); empresa.Cidade = request.Municipio?.Trim(); empresa.Estado = request.Uf?.Trim().ToUpperInvariant(); empresa.Cep = NfeGerador.Digitos(request.Cep);

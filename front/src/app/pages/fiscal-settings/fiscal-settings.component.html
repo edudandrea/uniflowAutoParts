@@ -34,8 +34,9 @@
   <section class="card" aria-labelledby="issuer-title">
     <header class="card-heading"><span class="section-icon"><app-icon name="building-2" [size]="25" /></span><div><h2 id="issuer-title">Emitente e numeração da NF-e</h2><p>Complete os dados da empresa e informe o próximo número disponível no ambiente e série selecionados.</p></div></header>
     <form (ngSubmit)="saveIssuer()">
-      <p>CNPJ do emitente: <strong>{{ issuerCnpj() || 'Não cadastrado na empresa' }}</strong></p>
+      <p>Os dados disponíveis no cadastro do HUB são importados ao entrar no sistema. Complete abaixo as informações fiscais que faltarem.</p>
       <fieldset class="issuer-fields" [disabled]="issuerBusy() || !issuerLoaded()">
+        <label>CNPJ do emitente<input name="issuerCnpj" [(ngModel)]="issuer.cnpj" maxlength="18" inputmode="numeric" autocomplete="off" required /></label>
         <label>Razão social<input name="issuerName" [(ngModel)]="issuer.razaoSocial" maxlength="60" required /></label>
         <label>Inscrição estadual<input name="issuerIe" [(ngModel)]="issuer.inscricaoEstadual" maxlength="14" required /></label>
         <label>Logradouro<input name="issuerStreet" [(ngModel)]="issuer.logradouro" maxlength="60" required /></label>

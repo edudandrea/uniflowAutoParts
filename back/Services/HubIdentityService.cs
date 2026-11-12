@@ -42,6 +42,7 @@ public sealed class HubIdentityService(HubDirectoryDbContext db, IConfiguration 
             if (cnpj.Length != 14) throw new InvalidOperationException("CNPJ recebido do HUB invalido.");
             empresa.Cnpj = cnpj;
         }
+        HubCompanyProfile.Aplicar(empresa, principal);
         await db.SaveChangesAsync(token);
         // A identidade do HUB, e nao o email, define o vinculo. Senhas nao sao copiadas.
         var user = await db.Users.FirstOrDefaultAsync(u => u.EmpresaId == empresa.Id && u.HubSubject == subject, token);

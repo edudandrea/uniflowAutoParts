@@ -10,7 +10,7 @@ public sealed record EmissaoNfeResponse(long Id, string Numero, string Serie, st
     string Situacao, string Codigo, string Motivo, string Protocolo, bool PodeReenviar);
 public sealed record EmitenteFiscalRequest(string RazaoSocial, string InscricaoEstadual, string Logradouro,
     string Numero, string? Complemento, string Bairro, string Municipio, string CodigoMunicipio, string Uf,
-    string Cep, int Serie, int ProximoNumero);
+    string Cep, int Serie, int ProximoNumero, string? Cnpj = null);
 public sealed record EmitenteFiscalResponse(string Cnpj, EmitenteFiscalRequest Dados);
 public sealed record DestinatarioFiscalRequest(string InscricaoEstadual, int IndicadorIe, bool ConsumidorFinal,
     string Logradouro, string Numero, string? Complemento, string Bairro, string Municipio, string CodigoMunicipio, string Uf, string Cep);
