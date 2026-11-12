@@ -20,6 +20,12 @@ namespace back.Models
         public int FabricanteId { get; set; }
         public double Custo { get; set; }
         public double Preco { get; set; }
+        public decimal? MargemPreco { get; set; }
+        public void AtualizarPrecoPelaMargem()
+        {
+            if (MargemPreco is decimal margem)
+                Preco = (double)decimal.Round((decimal)Custo * (1 + margem / 100), 2, MidpointRounding.AwayFromZero);
+        }
         public int EstoqueMinimo { get; set; }
         public int EstoqueMaximo { get; set; }
         public int NCM { get; set; }

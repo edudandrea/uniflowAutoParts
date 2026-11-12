@@ -76,6 +76,42 @@ export class InventoryComponent implements OnInit {
   });
 
   protected readonly products = signal<InventoryProduct[]>([]);
+  protected readonly marginEdits = signal<Record<number, number | null>>({});
+  protected readonly savingMargins = signal<ReadonlySet<number>>(new Set());
+  protected readonly marginMessage = signal('');
+
+  protected margemDoProduto(product: InventoryProduct): number | null {
+    return Object.hasOwn(this.marginEdits(), product.id) ? this.marginEdits()[product.id] : product.margemPreco;
+  }
+
+  protected editarMargem(product: InventoryProduct, value: number | null): void {
+    this.marginEdits.update(edits => ({ ...edits, [product.id]: value }));
+    this.marginMessage.set('');
+  }
+
+  protected salvarMargem(product: InventoryProduct): void {
+    if (this.savingMargins().has(product.id)) return;
+    const margem = this.margemDoProduto(product);
+    if (margem == null || !Number.isFinite(margem) || margem < 0 || margem > 99999.9999 ||
+      Math.abs(margem * 10000 - Math.round(margem * 10000)) > 0.00001) {
+      this.marginMessage.set('Informe uma margem de zero a 99.999,9999%, com até quatro casas decimais.');
+      return;
+    }
+    this.savingMargins.update(ids => new Set([...ids, product.id]));
+    this.api.salvarMargemPreco(this.tenantId, product.id, margem).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: saved => {
+        this.products.update(products => products.map(p => p.id === saved.id
+          ? { ...p, custo: saved.custo, margemPreco: saved.margemPreco, valor: saved.precoVenda } : p));
+        this.marginEdits.update(edits => { const next = { ...edits }; delete next[product.id]; return next; });
+        this.savingMargins.update(ids => new Set([...ids].filter(id => id !== product.id)));
+        this.marginMessage.set('Margem e preço de venda salvos no cadastro do produto.');
+      },
+      error: () => {
+        this.savingMargins.update(ids => new Set([...ids].filter(id => id !== product.id)));
+        this.marginMessage.set('Não foi possível salvar a margem. Tente novamente.');
+      },
+    });
+  }
 
   protected readonly selectedProduct = computed(() => {
     return this.products().find((product) => product.codigo === this.selectedProductCode()) ?? this.products()[0] ?? null;
@@ -110,7 +146,7 @@ export class InventoryComponent implements OnInit {
   protected readonly metrics = computed<InventoryMetric[]>(() => {
     const products = this.products();
     const totalItems = products.reduce((total, product) => total + product.estoque, 0);
-    const stockValue = products.reduce((total, product) => total + product.estoque * product.valor, 0);
+    const stockValue = products.reduce((total, product) => total + product.estoque * product.custo, 0);
     const lowStock = products.filter((product) => product.estoque > 0 && product.estoque <= product.minimo).length;
     const noStock = products.filter((product) => product.estoque <= 0).length;
 

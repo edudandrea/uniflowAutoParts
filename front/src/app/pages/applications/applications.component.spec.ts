@@ -15,7 +15,7 @@ describe('ApplicationsComponent API integration', () => {
   let element: HTMLElement;
   const product: EstoqueProduto = {
     id: 17, codigo: '1700', descricao: 'Peca cadastrada no banco', marca: 'Marca cadastrada',
-    categoria: 'Categoria cadastrada', estoque: 3, minimo: 5, valor: 20, fabricante: '901', ncm: '8708',
+    categoria: 'Categoria cadastrada', estoque: 3, minimo: 5, valor: 20, custo: 10, margemPreco: 100, fabricante: '901', ncm: '8708',
   };
 
   beforeEach(async () => {

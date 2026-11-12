@@ -50,7 +50,7 @@ internal static class StockPostgresChecks
             };
             if (projection.Contains("e0.\"ItemId\"")) columns.Add((typeof(int), DBNull.Value));
             columns.Add((typeof(decimal), projection.Contains("COALESCE(e0.\"Quantidade\", 0") ? 0m : DBNull.Value));
-            columns.AddRange([(typeof(int), 0), (typeof(double), 0d), (typeof(string), ""), (typeof(string), "")]);
+            columns.AddRange([(typeof(int), 0), (typeof(double), 0d), (typeof(string), ""), (typeof(string), ""), (typeof(double), 0d), (typeof(decimal), DBNull.Value)]);
             var table = new DataTable();
             foreach (var column in columns) table.Columns.Add("col" + table.Columns.Count, column.Type);
             table.Rows.Add(columns.Select(c => c.Value).ToArray());

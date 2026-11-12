@@ -47,12 +47,31 @@ public class EstoqueController(AppDbContext db) : ControllerBase
                 // O LEFT JOIN retorna NULL para produtos sem movimentos; tratar no SQL.
                 (decimal?)saldo.Quantidade ?? 0,
                 produto.EstoqueMinimo,
-                // Produtos importados da NF-e possuem custo antes de definir o preco de venda.
-                produto.Preco == 0 ? produto.Custo : produto.Preco,
+                produto.Preco,
                 produto.Codfabricante == 0 ? "" : produto.Codfabricante.ToString(),
-                produto.NCM == 0 ? "" : produto.NCM.ToString()))
+                produto.NCM == 0 ? "" : produto.NCM.ToString(),
+                produto.Custo,
+                produto.MargemPreco))
             .ToListAsync(cancellationToken);
 
         return Ok(produtos);
+    }
+
+    [HttpPut("{id:int}/margem")]
+    public async Task<IActionResult> AtualizarMargem(int id, AtualizarMargemPrecoRequest request,
+        [FromQuery] int empresaId, CancellationToken cancellationToken)
+    {
+        if (empresaId <= 0) return BadRequest("EmpresaId e obrigatorio.");
+        if (request.MargemPreco is not decimal margem || margem < 0 || margem > 99999.9999m ||
+            decimal.Round(margem, 4) != margem)
+            return BadRequest("Informe uma margem positiva ou zero, com ate quatro casas decimais.");
+        var produto = await db.CadastroItens.SingleOrDefaultAsync(p => p.Id == id && p.EmpresaId == empresaId, cancellationToken);
+        if (produto is null) return NotFound();
+        if (!double.IsFinite(produto.Custo) || produto.Custo < 0)
+            return BadRequest("O custo do produto deve ser valido para calcular o preco de venda.");
+        produto.MargemPreco = margem;
+        produto.AtualizarPrecoPelaMargem();
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { produto.Id, Custo = produto.Custo, MargemPreco = produto.MargemPreco, PrecoVenda = produto.Preco });
     }
 }

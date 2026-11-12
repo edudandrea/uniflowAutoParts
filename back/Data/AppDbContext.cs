@@ -195,6 +195,7 @@ namespace back.Data
                 entity.HasIndex(e => e.CategoriaId);
                 entity.HasIndex(e => e.MarcaId);
                 entity.Property(e => e.AliquotaIpi).HasPrecision(9, 4);
+                entity.Property(e => e.MargemPreco).HasPrecision(9, 4);
                 entity.Property(e => e.AliquotaIcms).HasPrecision(9, 4);
                 entity.Property(e => e.AliquotaMva).HasPrecision(9, 4);
                 entity.Property(e => e.ImpostosFabricante).HasMaxLength(80);

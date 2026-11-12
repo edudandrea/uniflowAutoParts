@@ -3,12 +3,6 @@
   color: var(--ink);
 }
 
-.material-symbol {
-  font-family: "Material Symbols Rounded";
-  font-weight: 400;
-  line-height: 1;
-}
-
 .inventory-hero {
   position: relative;
   min-height: 88px;
@@ -281,15 +275,6 @@ p {
   background: linear-gradient(145deg, rgba(19, 168, 106, 0.12), rgba(255, 255, 255, 0.94));
 }
 
-.category-card .material-symbol {
-  color: #102842;
-  font-size: 1.8rem;
-}
-
-.category-card.active .material-symbol {
-  color: var(--brand-green-dark);
-}
-
 .category-card strong {
   font-size: 0.9rem;
 }
@@ -461,6 +446,7 @@ td {
 }
 
 th {
+  white-space: nowrap;
   color: #365267;
   background: #eef4f6;
   font-weight: 600;
@@ -667,11 +653,6 @@ tbody tr.selected {
   grid-column: 2;
 }
 
-.detail-cards .material-symbol {
-  color: var(--brand-green-dark);
-  font-size: 1.7rem;
-}
-
 .detail-cards app-icon {
   color: var(--brand-green-dark);
 }
@@ -803,8 +784,6 @@ tbody tr.selected {
   background: rgba(6, 24, 38, 0.46);
   backdrop-filter: blur(8px);
 }
-
-.product-modal,
 .import-modal {
   width: min(100%, 820px);
   max-height: calc(100dvh - 40px);
@@ -843,16 +822,12 @@ tbody tr.selected {
   scrollbar-gutter: stable;
   padding-right: 6px;
 }
-
-.product-modal header,
 .import-modal header {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 18px;
 }
-
-.product-modal header p,
 .import-modal header p {
   color: var(--brand-green-dark);
   font-size: 0.78rem;
@@ -860,8 +835,6 @@ tbody tr.selected {
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
-
-.product-modal header h2,
 .import-modal header h2 {
   margin-top: 5px;
   color: #07192a;
@@ -873,30 +846,6 @@ tbody tr.selected {
   padding: 0;
   color: #31495a;
   background: #eef4f6;
-}
-
-.product-form {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.product-form .wide,
-.product-form footer {
-  grid-column: span 2;
-}
-
-.product-form footer {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  padding-top: 8px;
-}
-
-.product-form input,
-.product-form select {
-  min-height: 44px;
 }
 
 .xml-upload-box {
@@ -1292,7 +1241,6 @@ tbody tr.selected {
   .turnover-card,
   .stock-panel,
   .detail-panel,
-  .product-modal,
   .import-modal {
     padding: 14px;
   }
@@ -1314,8 +1262,6 @@ tbody tr.selected {
   .detail-tabs {
     overflow-x: auto;
   }
-
-  .product-modal,
   .import-modal {
     max-height: calc(100svh - 20px);
   }
@@ -1346,3 +1292,6 @@ tbody tr.selected {
     grid-template-columns: 1fr;
   }
 }
+
+.margin-editor { display: flex; align-items: center; gap: 6px; min-width: 165px; input { width: 95px; min-height: 38px; padding: 0 8px; font-size: 14px; } button { display: inline-grid; place-items: center; padding: 0; min-height: 36px; width: 36px; border: 1px solid #cbe7dc; border-radius: 6px; background: #edf9f3; color: #07875b; } }
+.price-cell { white-space: nowrap; font-variant-numeric: tabular-nums; }.sale-price { color: #07875b; font-weight: 700; }.pricing-help, .pricing-feedback { margin: 12px 18px; color: #47677b; font-size: 13px; }.pricing-feedback { padding: 10px 12px; border-radius: 6px; background: #edf8f2; }

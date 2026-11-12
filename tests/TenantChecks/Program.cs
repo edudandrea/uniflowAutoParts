@@ -46,6 +46,13 @@ await app.StartAsync();
 using var client = app.GetTestClient();
 var checks = 0;
 void Check(bool condition, string label) { if (!condition) throw new Exception(label); checks++; }
+var roundingProduct = new CadastroItens { Custo = 12.5, MargemPreco = 4.2m };
+roundingProduct.AtualizarPrecoPelaMargem();
+Check(roundingProduct.Preco == 13.03, "Arredondamento de meio centavo nao respeitou o preco de venda.");
+roundingProduct.Custo = 20;
+roundingProduct.AtualizarPrecoPelaMargem();
+Check(roundingProduct.Preco == 20.84 && roundingProduct.MargemPreco == 4.2m,
+    "Atualizacao de custo perdeu a margem definida no produto.");
 await HubRedirectChecks.RunAsync();
 await StockPostgresChecks.RunAsync();
 await NfeImportChecks.RunAsync();
@@ -66,7 +73,7 @@ for (var tenantId = 1; tenantId <= 2; tenantId++)
     await using var db = new AppDbContext(options, Tenant(tenantId));
     db.Categorias.Add(new Categoria { Id = tenantId, TenantId = tenantId, Nome = $"Categoria {tenantId}" });
     db.Marcas.Add(new Marca { Id = tenantId, TenantId = tenantId, Nome = $"Marca {tenantId}" });
-    db.CadastroItens.Add(new CadastroItens { Id = tenantId, EmpresaId = tenantId, SKU = tenantId, Descricao = $"Produto {tenantId}", MarcaId = tenantId, CategoriaId = tenantId, Ativo = true });
+    db.CadastroItens.Add(new CadastroItens { Id = tenantId, EmpresaId = tenantId, SKU = tenantId, Descricao = $"Produto {tenantId}", Custo = 100, MarcaId = tenantId, CategoriaId = tenantId, Ativo = true });
     db.Clientes.Add(new Cliente { Id = tenantId, TenantId = tenantId, NomeRazaoSocial = $"Cliente {tenantId}", CpfCnpj = $"0000000000{tenantId}" });
     db.ClienteContatos.Add(new ClienteContato { Id = tenantId, ClienteId = tenantId, Nome = $"Contato {tenantId}" });
     db.Estoques.Add(new Estoque { Id = tenantId, EmpresaId = tenantId, ItemId = tenantId, UsuarioId = tenantId, Quantidade = tenantId * 5, Tipo = "Entrada" });
@@ -130,6 +137,29 @@ for (var tenantId = 1; tenantId <= 2; tenantId++)
         "Tributacao aceitou codigo incompativel com o regime.");
     Check((await client.PutAsJsonAsync("/api/fiscal/tributacao", new { regime = "1", icmsCode = "101", pisCode = "49", cofinsCode = "49", pisRate = 101 })).StatusCode == HttpStatusCode.BadRequest,
         "Tributacao aceitou aliquota invalida.");
+    var marginSave = await client.PutAsJsonAsync($"/api/estoque/{tenantId}/margem", new { margemPreco = 30m });
+    Check(marginSave.StatusCode == HttpStatusCode.OK,
+        "Nao salvou a margem no produto da empresa autenticada: " + await marginSave.Content.ReadAsStringAsync());
+    var pricedStock = await client.GetFromJsonAsync<JsonElement>("/api/estoque");
+    Check(pricedStock[0].GetProperty("custo").GetDouble() == 100 && pricedStock[0].GetProperty("valor").GetDouble() == 130 &&
+        pricedStock[0].GetProperty("margemPreco").GetDecimal() == 30,
+        "Margem de 30% sobre custo de 100 nao resultou em preco de venda 130 persistido.");
+    var saleCatalog = await client.GetFromJsonAsync<JsonElement>("/api/produtos");
+    Check(saleCatalog.GetProperty("produtos")[0].GetProperty("preco").GetDouble() == 130,
+        "O catalogo de vendas nao recebeu o preco calculado pela margem.");
+    Check((await client.PutAsJsonAsync($"/api/estoque/{3 - tenantId}/margem", new { margemPreco = 50m })).StatusCode == HttpStatusCode.NotFound,
+        "Margem alterou produto de outra empresa.");
+    Check((await client.PutAsJsonAsync($"/api/estoque/{tenantId}/margem?empresaId={3 - tenantId}", new { margemPreco = 50m })).StatusCode == HttpStatusCode.Forbidden,
+        "Margem aceitou empresa adulterada na URL.");
+    foreach (var invalidMargin in new decimal?[] { -1m, null, 100000m, 1.12345m })
+        Check((await client.PutAsJsonAsync($"/api/estoque/{tenantId}/margem", new { margemPreco = invalidMargin })).StatusCode == HttpStatusCode.BadRequest,
+            "Margem invalida foi aceita.");
+    Check((await client.PutAsJsonAsync($"/api/estoque/{tenantId}/margem", new { margemPreco = 33.3333m })).StatusCode == HttpStatusCode.OK,
+        "Margem fracionaria nao foi aceita.");
+    var roundedStock = await client.GetFromJsonAsync<JsonElement>("/api/estoque");
+    Check(roundedStock[0].GetProperty("valor").GetDouble() == 133.33, "Preco de venda nao foi arredondado para centavos.");
+    Check((await client.PutAsJsonAsync($"/api/estoque/{tenantId}/margem", new { margemPreco = 0m })).StatusCode == HttpStatusCode.OK,
+        "Margem de zero explicitamente definida nao foi aceita.");
     var conferencia = new { itens = new[] { new { numeroItem = 1, produtoId = tenantId, quantidadeRecebida = 1.5m } }, concluir = false };
     Check((await client.PutAsJsonAsync($"/api/estoque/entradas/{3 - tenantId}/conferencia", conferencia)).StatusCode == HttpStatusCode.NotFound,
         "Conferencia alterou nota de outra empresa.");

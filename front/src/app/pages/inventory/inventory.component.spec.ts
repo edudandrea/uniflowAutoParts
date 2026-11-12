@@ -17,7 +17,7 @@ describe('InventoryComponent API integration', () => {
 
   const product: EstoqueProduto = {
     id: 17, codigo: '1700', descricao: 'Peca cadastrada no banco', marca: 'Marca cadastrada',
-    categoria: 'Categoria cadastrada', estoque: 3, minimo: 5, valor: 20, fabricante: '901', ncm: '8708',
+    categoria: 'Categoria cadastrada', estoque: 3, minimo: 5, valor: 20, custo: 10, margemPreco: 100, fabricante: '901', ncm: '8708',
   };
 
   beforeEach(async () => {
@@ -63,6 +63,40 @@ describe('InventoryComponent API integration', () => {
   const entriesUrl = `${environment.apiUrl}/estoque/entradas`;
   const resumo = { ...nota, importadoEm: '2026-11-10T12:00:00Z' };
 
+  it('saves the price margin and displays the cost and the computed sale price separately', async () => {
+    request().flush([{ ...product, custo: 100, valor: 0, margemPreco: null }]);
+    fixture.detectChanges(); await fixture.whenStable();
+    expect(element.textContent).toContain('Preço de custo (R$)');
+    expect(element.textContent).toContain('Preço de venda (R$)');
+    const margin = element.querySelector<HTMLInputElement>('.margin-editor input')!;
+    margin.value = '30'; margin.dispatchEvent(new Event('input')); fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('.margin-editor button')!.click();
+    const save = http.expectOne(req => req.url === `${environment.apiUrl}/estoque/17/margem`);
+    expect(save.request.method).toBe('PUT');
+    expect(save.request.params.get('empresaId')).toBe('1');
+    expect(save.request.body).toEqual({ margemPreco: 30 });
+    save.flush({ id: 17, custo: 100, margemPreco: 30, precoVenda: 130 });
+    fixture.detectChanges();
+    expect(element.querySelector('.price-cell')!.textContent).toContain('100,00');
+    expect(element.querySelector('.sale-price')!.textContent).toContain('130,00');
+    fixture.destroy();
+    fixture = TestBed.createComponent(InventoryComponent); element = fixture.nativeElement; fixture.detectChanges();
+    request().flush([{ ...product, custo: 100, valor: 130, margemPreco: 30 }]);
+    fixture.detectChanges(); await fixture.whenStable();
+    expect(element.querySelector<HTMLInputElement>('.margin-editor input')!.value).toBe('30');
+  });
+
+  it('keeps the saved sale price and margin input when saving the margin fails', async () => {
+    request().flush([product]); fixture.detectChanges(); await fixture.whenStable();
+    const margin = element.querySelector<HTMLInputElement>('.margin-editor input')!;
+    margin.value = '40'; margin.dispatchEvent(new Event('input')); fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('.margin-editor button')!.click();
+    http.expectOne(req => req.url.endsWith('/17/margem')).flush({}, { status: 500, statusText: 'Error' });
+    fixture.detectChanges();
+    expect(element.querySelector('.sale-price')!.textContent).toContain('20,00');
+    expect(margin.value).toBe('40');
+    expect(element.querySelector('.pricing-feedback')!.textContent).toContain('Não foi possível salvar');
+  });
   it('reopens an imported invoice, saves received quantities and resumes after closing', async () => {
     request().flush([product]); fixture.detectChanges();
     clickButton('Conferir NF-e');
@@ -215,7 +249,7 @@ describe('InventoryComponent API integration', () => {
     expect(element.querySelector('tbody')?.textContent).toContain('Estoque baixo');
     const metrics = [...element.querySelectorAll('.metric-card strong')].map((node) => node.textContent?.trim());
     expect(metrics[0]).toBe('3');
-    expect(metrics[1]).toContain('60,00');
+    expect(metrics[1]).toContain('30,00');
     expect(metrics.slice(2)).toEqual(['1', '0']);
   });
 

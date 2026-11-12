@@ -86,6 +86,12 @@ export class ApiService {
     return this.http.get<EstoqueProduto[]>(`${this.apiUrl}/estoque`, { params: { empresaId } });
   }
 
+  salvarMargemPreco(empresaId: number, id: number, margemPreco: number) {
+    return this.http.put<{ id: number; custo: number; margemPreco: number; precoVenda: number }>(
+      `${this.apiUrl}/estoque/${id}/margem`, { margemPreco }, { params: { empresaId } },
+    );
+  }
+
   criarCliente(payload: CriarClientePayload) {
     return this.http.post<ClienteResumoResponse>(`${this.apiUrl}/clientes`, payload);
   }

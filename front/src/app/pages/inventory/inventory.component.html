@@ -76,7 +76,9 @@
       @if (loadingEntradas()) { <p role="status">Carregando notas importadas...</p> }
       @if (entradasError()) { <p role="alert">{{ entradasError() }}</p> }
       @if (!loadingEntradas() && !entradasError()) {
-        <div class="table-wrap"><table>
+        <p class="pricing-help">Preço de venda = preço de custo + margem de preço (%). Após alterar a margem, clique no ícone de salvar.</p>
+      @if (marginMessage()) { <p class="pricing-feedback" role="status">{{ marginMessage() }}</p> }
+      <div class="table-wrap"><table>
           <thead><tr><th>NF-e / Série</th><th>Fornecedor</th><th>Importação</th><th>Total</th><th>Situação</th><th>Ações</th></tr></thead>
           <tbody>
             @for (entrada of entradasCompra(); track entrada.entradaCompraId) {
@@ -137,6 +139,8 @@
         </button>
       </div>
 
+      <p class="pricing-help">Preço de venda = preço de custo + margem de preço (%). Após alterar a margem, clique no ícone de salvar.</p>
+      @if (marginMessage()) { <p class="pricing-feedback" role="status">{{ marginMessage() }}</p> }
       <div class="table-wrap">
         <table>
           <thead>
@@ -157,7 +161,7 @@
               <th>Localizacao</th>
               <th>Estoque</th>
               <th>Est. min.</th>
-              <th>Valor (R$)</th>
+              <th>Preço de custo (R$)</th><th>Margem de preço (%)</th><th>Preço de venda (R$)</th>
               <th>Status</th>
               <th>Acoes</th>
             </tr>
@@ -188,13 +192,15 @@
                 <td>{{ product.localizacao || 'Nao informada' }}</td>
                 <td [class.zero-stock]="product.estoque === 0">{{ product.estoque }}</td>
                 <td>{{ product.minimo }}</td>
-                <td>{{ product.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) }}</td>
+                <td class="price-cell">{{ formatCurrency(product.custo) }}</td>
+                <td (click)="$event.stopPropagation()"><div class="margin-editor"><input type="number" min="0" max="99999.9999" step="0.0001" placeholder="Definir" [attr.aria-label]="'Margem de preço de ' + product.descricao" [ngModel]="margemDoProduto(product)" (ngModelChange)="editarMargem(product, $event)" [disabled]="savingMargins().has(product.id)" /><span>%</span><button type="button" [attr.aria-label]="'Salvar margem de ' + product.descricao" [disabled]="savingMargins().has(product.id)" (click)="salvarMargem(product)"><app-icon name="save" [size]="16" /></button></div></td>
+                <td class="price-cell sale-price">{{ formatCurrency(product.valor) }}</td>
                 <td><span class="status-pill" [class]="statusClass(product)">{{ statusFor(product) }}</span></td>
                 <td><button class="row-action" type="button" aria-label="Acoes">...</button></td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="12">
+                <td colspan="14">
                   <div class="empty-list">
                     <app-icon name="boxes" />
                     <strong>{{ loading() ? 'Carregando estoque...' : loadError() ? 'Estoque indisponivel' : 'Nenhum item encontrado' }}</strong>
@@ -291,9 +297,9 @@
             </article>
             <article>
               <app-icon name="circle-dollar-sign" />
-              <p>Valor unitário</p>
+              <p>Preço de venda</p>
               <strong>{{ formatCurrency(product.valor) }}</strong>
-              <small>Valor total: {{ formatCurrency(product.valor * product.estoque) }}</small>
+              <small>Custo: {{ formatCurrency(product.custo) }} · Margem: {{ product.margemPreco === null ? 'Não definida' : product.margemPreco + '%' }}</small>
             </article>
             <article>
               <app-icon name="map-pin" />

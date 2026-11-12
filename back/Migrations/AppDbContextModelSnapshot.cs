@@ -162,6 +162,10 @@ namespace UniflowAutoParts.Api.Migrations
                     b.Property<long>("MarcaId")
                         .HasColumnType("bigint");
 
+                    b.Property<decimal?>("MargemPreco")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)");
+
                     b.Property<int>("NCM")
                         .HasColumnType("integer");
 

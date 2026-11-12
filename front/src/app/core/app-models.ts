@@ -228,6 +228,8 @@ export interface EstoqueProduto {
   estoque: number;
   minimo: number;
   valor: number;
+  custo: number;
+  margemPreco: number | null;
   fabricante: string;
   ncm: string;
 }

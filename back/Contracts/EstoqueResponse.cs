@@ -10,4 +10,6 @@ public record EstoqueResponse(
     int Minimo,
     double Valor,
     string Fabricante,
-    string Ncm);
+    string Ncm,
+    double Custo,
+    decimal? MargemPreco);

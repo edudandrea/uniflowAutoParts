@@ -8,7 +8,7 @@ import { ClienteResumoResponse, Produto } from '../../core/app-models';
 import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 import { FiscalCertificateService } from '../../core/fiscal-certificate.service';
 
-interface SaleItem { produto: Produto; quantidade: number; preco: number; desconto: number }
+interface SaleItem { produto: Produto; quantidade: number; preco: number; desconto: number; precoEditado?: boolean }
 interface Payment { id: number; forma: string; valor: number }
 interface SaleDraft {
   cliente: ClienteResumoResponse | null; itens: SaleItem[]; pagamentos: Payment[];
@@ -93,10 +93,11 @@ export class SalesComponent {
       next: ({ clientes, produtos }) => {
         this.clientes.set(clientes.filter(c => c.ativo && c.relacionamento !== 2));
         this.produtos.set(produtos.produtos.filter(p => p.ativo));
+        this.recoverDraftPrices();
         // Load the remaining catalog pages so product search is not limited to the first page.
         const pages = Math.ceil(produtos.total / 100);
         if (pages > 1) forkJoin(Array.from({ length: pages - 1 }, (_, i) => this.api.listarProdutos(this.session.empresaId, i + 2, 100))).subscribe({
-          next: results => { this.produtos.update(p => [...p, ...results.flatMap(r => r.produtos.filter(x => x.ativo))]); this.loading.set(false); },
+          next: results => { this.produtos.update(p => [...p, ...results.flatMap(r => r.produtos.filter(x => x.ativo))]); this.recoverDraftPrices(); this.loading.set(false); },
           error: () => { this.loading.set(false); this.loadError.set('Não foi possível carregar todo o catálogo. Tente novamente.'); },
         });
         else this.loading.set(false);
@@ -124,13 +125,28 @@ export class SalesComponent {
   protected addProduct(produto: Produto): void {
     this.itens.update(items => {
       const existing = items.find(i => i.produto.id === produto.id);
-      return existing ? items.map(i => i === existing ? { ...i, quantidade: i.quantidade + 1 } : i) : [...items, { produto, quantidade: 1, preco: produto.preco, desconto: 0 }];
+      return existing ? items.map(i => i === existing ? { ...i, quantidade: i.quantidade + 1 } : i) : [...items, { produto, quantidade: 1, preco: this.productPrice(produto), desconto: 0 }];
     });
     this.productSearch.set(''); this.message.set('');
   }
+  protected productPrice(produto: Produto): number {
+    return Number.isFinite(produto.preco) && produto.preco > 0 ? produto.preco : 0;
+  }
+
+  private recoverDraftPrices(): void {
+    const catalog = new Map(this.produtos().map(produto => [produto.id, produto]));
+    this.itens.update(items => items.map(item => {
+      const produto = catalog.get(item.produto.id);
+      // Recupera o zero causado pela importacao sem sobrescrever precos editados.
+      const precoDeCustoAntigo = item.produto.preco === 0 && item.preco === item.produto.custo;
+      return (item.preco === 0 || precoDeCustoAntigo) && !item.precoEditado && produto
+        ? { ...item, produto, preco: this.productPrice(produto) } : item;
+    }));
+  }
+
   protected updateItem(id: number, field: 'quantidade' | 'preco' | 'desconto', value: number | null): void {
     const number = Number.isFinite(value) ? Number(value) : 0;
-    this.itens.update(items => items.map(i => i.produto.id === id ? { ...i, [field]: Math.max(field === 'quantidade' ? 0.01 : 0, field === 'desconto' ? Math.min(100, number) : number) } : i));
+    this.itens.update(items => items.map(i => i.produto.id === id ? { ...i, [field]: Math.max(field === 'quantidade' ? 0.01 : 0, field === 'desconto' ? Math.min(100, number) : number), precoEditado: field === 'preco' || i.precoEditado } : i));
   }
   protected removeItem(id: number): void { this.itens.update(items => items.filter(i => i.produto.id !== id)); }
   protected itemTotal(i: SaleItem): number { return this.round(i.quantidade * i.preco * (1 - i.desconto / 100)); }

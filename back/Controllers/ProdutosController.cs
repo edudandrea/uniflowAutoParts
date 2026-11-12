@@ -283,6 +283,7 @@ public class ProdutosController(AppDbContext db) : ControllerBase
                 {
                     produto.Custo = item.Preco;
                     produto.Preco = item.Preco;
+                    produto.AtualizarPrecoPelaMargem();
                 }
 
                 atualizados++;
