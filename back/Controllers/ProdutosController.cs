@@ -70,7 +70,7 @@ public class ProdutosController(AppDbContext db) : ControllerBase
                 produto.AliquotaIcms,
                 produto.AliquotaMva,
                 produto.ImpostosFabricante,
-                produto.Ativo))
+                produto.Ativo, produto.UnidadeComercial))
             .ToListAsync();
 
         return Ok(new ProdutoListaResponse(
@@ -146,6 +146,7 @@ public class ProdutosController(AppDbContext db) : ControllerBase
             AliquotaIcms = request.AliquotaIcms,
             AliquotaMva = request.AliquotaMva,
             ImpostosFabricante = TextoOuNull(request.ImpostosFabricante) ?? string.Empty,
+            UnidadeComercial = request.UnidadeComercial,
             Ativo = request.Ativo
         };
 
@@ -420,7 +421,7 @@ public class ProdutosController(AppDbContext db) : ControllerBase
             produto.AliquotaIcms,
             produto.AliquotaMva,
             produto.ImpostosFabricante,
-            produto.Ativo);
+            produto.Ativo, produto.UnidadeComercial);
     }
 
     private static string? TextoOuNull(string? value)

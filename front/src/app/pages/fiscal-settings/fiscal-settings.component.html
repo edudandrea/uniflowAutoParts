@@ -1,4 +1,4 @@
-﻿<section class="fiscal-page">
+<section class="fiscal-page">
   <nav class="breadcrumb" aria-label="Localização"><app-icon name="settings" [size]="13" /><span>Configurações</span><app-icon name="chevron-right" [size]="13" /><strong>Tributação e Certificado Digital</strong></nav>
   <header class="page-heading">
     <div class="heading-copy"><span class="heading-icon"><app-icon name="settings" [size]="29" /></span><div><h1>Tributação e Certificado Digital</h1><p>Configure o certificado A1 e os parâmetros fiscais para emissão de NF-e e NFC-e.</p></div></div>
@@ -14,9 +14,15 @@
     <header class="card-heading"><span class="section-icon"><app-icon name="badge-check" [size]="25" /></span><div><h2 id="certificate-title">Certificado Digital (A1)</h2><p>Utilizado para autenticação e assinatura das notas fiscais (NF-e/NFC-e).</p></div><span class="status-pill" [class.configured]="savedName() && certificateStatus() !== 'Certificado vencido'"><span class="status-dot"></span>{{ certificateStatus() }}</span></header>
     <div class="certificate-overview">
       <div class="certificate-visual" [class.installed]="savedName()"><app-icon name="file-text" [size]="44" /><strong>{{ savedName() ? 'Certificado A1 cadastrado' : 'Cadastre seu certificado A1' }}</strong><span>{{ savedName() ? 'Pronto para consultar os serviços fiscais' : 'Importe o arquivo para começar' }}</span></div>
-      <dl class="certificate-details"><div><dt><app-icon name="file-text" [size]="16" />Arquivo</dt><dd>{{ savedName() || 'Nenhum certificado cadastrado' }}</dd></div><div><dt><app-icon name="map-pin" [size]="16" />UF do emitente</dt><dd>Rio Grande do Sul (RS)</dd></div><div><dt><app-icon name="lock" [size]="16" />Ambiente</dt><dd>Homologação · sem valor fiscal</dd></div><div><dt><app-icon name="calendar" [size]="16" />Validade</dt><dd>{{ savedName() ? certificateExpiry() : 'Disponível após a validação' }}</dd></div></dl>
+      <dl class="certificate-details"><div><dt><app-icon name="file-text" [size]="16" />Arquivo</dt><dd>{{ savedName() || 'Nenhum certificado cadastrado' }}</dd></div><div><dt><app-icon name="map-pin" [size]="16" />UF do emitente</dt><dd>Rio Grande do Sul (RS)</dd></div><div><dt><app-icon name="lock" [size]="16" />Ambiente</dt><dd>{{ environmentLabel(savedEnvironment()) }}</dd></div><div><dt><app-icon name="calendar" [size]="16" />Validade</dt><dd>{{ savedName() ? certificateExpiry() : 'Disponível após a validação' }}</dd></div></dl>
     </div>
-    <div class="certificate-actions"><button type="button" [disabled]="busy()" (click)="showUpload.set(!showUpload())" [attr.aria-expanded]="showUpload()"><app-icon name="upload" [size]="16" />{{ savedName() ? 'Substituir certificado' : 'Cadastrar certificado' }}</button><button type="button" [disabled]="busy() || !savedName()" (click)="testConnection()"><app-icon name="link" [size]="16" />{{ busy() ? 'Aguarde...' : 'Testar conexão SEFAZ/RS' }}</button><button class="danger" type="button" [disabled]="busy() || !savedName()" (click)="remove()"><app-icon name="trash-2" [size]="16" />Remover certificado</button></div>
+    <section class="environment-editor" aria-labelledby="environment-title">
+      <div><h3 id="environment-title">Ambiente fiscal</h3><p>Escolha o ambiente usado nas consultas à SEFAZ. A configuração fica salva para a empresa logada.</p></div>
+      <div class="environment-controls"><label>Ambiente<select name="fiscalEnvironment" aria-label="Ambiente fiscal" [ngModel]="environmentChoice()" (ngModelChange)="environmentChoice.set($event)" [disabled]="environmentBusy() || !savedEnvironment()"><option value="homologacao">Homologação — testes, sem valor fiscal</option><option value="producao">Produção — ambiente fiscal real</option></select></label><button type="button" class="primary" [disabled]="environmentBusy() || !savedEnvironment() || environmentChoice() === savedEnvironment()" (click)="saveEnvironment()"><app-icon name="save" [size]="16" />{{ environmentBusy() ? 'Aguarde...' : 'Salvar ambiente' }}</button>@if (!savedEnvironment() && !environmentBusy()) { <button type="button" (click)="loadEnvironment()">Tentar novamente</button> }</div>
+      <p class="environment-availability">Emissão disponível para NF-e modelo 55 de vendas internas no RS, Simples Nacional/MEI, com tributação suportada. A transmissão ocorre somente ao confirmar a emissão na venda.</p>
+      @if (environmentMessage()) { <p class="feedback" role="status">{{ environmentMessage() }}</p> }
+    </section>
+    <div class="certificate-actions"><button type="button" [disabled]="busy()" (click)="showUpload.set(!showUpload())" [attr.aria-expanded]="showUpload()"><app-icon name="upload" [size]="16" />{{ savedName() ? 'Substituir certificado' : 'Cadastrar certificado' }}</button><button type="button" [disabled]="busy() || !savedName() || environmentBusy() || !savedEnvironment() || environmentChoice() !== savedEnvironment()" (click)="testConnection()"><app-icon name="link" [size]="16" />{{ busy() ? 'Aguarde...' : 'Testar conexão SEFAZ/RS' }}</button><button class="danger" type="button" [disabled]="busy() || !savedName()" (click)="remove()"><app-icon name="trash-2" [size]="16" />Remover certificado</button></div>
     <form class="upload-form" [hidden]="!showUpload()" (ngSubmit)="save()">
       <div class="upload-fields"><label>Certificado digital A1 <span class="required">*</span><input type="file" accept=".pfx,.p12" [disabled]="busy()" (change)="selectFile($event)" /><small>Arquivo .pfx ou .p12 de até 1 MB.</small></label><label>Senha do certificado <span class="required">*</span><input type="password" name="certificatePassword" [(ngModel)]="password" autocomplete="off" [disabled]="busy()" placeholder="Informe a senha do certificado" /></label></div>
       <p class="storage-note"><app-icon name="lock" [size]="16" />O certificado e a senha ficam salvos neste navegador e são enviados ao backend para validação. Utilize um dispositivo de confiança: scripts da aplicação podem acessar esses dados.</p>
@@ -25,6 +31,29 @@
     @if (message()) { <p class="feedback" role="status"><app-icon name="info" [size]="17" />{{ message() }}</p> }
   </section>
 
+  <section class="card" aria-labelledby="issuer-title">
+    <header class="card-heading"><span class="section-icon"><app-icon name="building-2" [size]="25" /></span><div><h2 id="issuer-title">Emitente e numeração da NF-e</h2><p>Complete os dados da empresa e informe o próximo número disponível no ambiente e série selecionados.</p></div></header>
+    <form (ngSubmit)="saveIssuer()">
+      <p>CNPJ do emitente: <strong>{{ issuerCnpj() || 'Não cadastrado na empresa' }}</strong></p>
+      <fieldset class="issuer-fields" [disabled]="issuerBusy() || !issuerLoaded()">
+        <label>Razão social<input name="issuerName" [(ngModel)]="issuer.razaoSocial" maxlength="60" required /></label>
+        <label>Inscrição estadual<input name="issuerIe" [(ngModel)]="issuer.inscricaoEstadual" maxlength="14" required /></label>
+        <label>Logradouro<input name="issuerStreet" [(ngModel)]="issuer.logradouro" maxlength="60" required /></label>
+        <label>Número<input name="issuerNumber" [(ngModel)]="issuer.numero" maxlength="60" required /></label>
+        <label>Complemento<input name="issuerExtra" [(ngModel)]="issuer.complemento" maxlength="60" /></label>
+        <label>Bairro<input name="issuerDistrict" [(ngModel)]="issuer.bairro" maxlength="60" required /></label>
+        <label>Município<input name="issuerCity" [(ngModel)]="issuer.municipio" maxlength="60" required /></label>
+        <label>Código IBGE do município<input name="issuerIbge" [(ngModel)]="issuer.codigoMunicipio" maxlength="7" pattern="43[0-9]{5}" required /></label>
+        <label>UF<select name="issuerUf" [(ngModel)]="issuer.uf"><option value="RS">RS</option></select></label>
+        <label>CEP<input name="issuerZip" [(ngModel)]="issuer.cep" maxlength="9" required /></label>
+        <label>Série da NF-e<input type="number" name="issuerSeries" [(ngModel)]="issuer.serie" min="0" max="889" required /></label>
+        <label>Próximo número da NF-e<input type="number" name="issuerNext" [(ngModel)]="issuer.proximoNumero" min="1" max="999999999" required /></label>
+      </fieldset>
+      <p class="tax-help">Confira a numeração já utilizada antes da primeira emissão. O sistema reserva cada número antes de transmitir e não permite retroceder a sequência cadastrada.</p>
+      <div class="tax-actions"><button class="primary" type="submit" [disabled]="issuerBusy() || !issuerLoaded()"><app-icon name="save" [size]="16" />{{ issuerBusy() ? 'Aguarde...' : 'Salvar emitente e numeração' }}</button><button type="button" [disabled]="issuerBusy()" (click)="loadIssuer()">Recarregar dados</button></div>
+    </form>
+    @if (issuerMessage()) { <p class="feedback" role="status">{{ issuerMessage() }}</p> }
+  </section>
   <section class="card tax-card" [hidden]="activeTab() === 'certificate'" aria-labelledby="tax-title">
     <header class="card-heading"><span class="section-icon"><app-icon name="boxes" [size]="25" /></span><div><h2 id="tax-title">Tributação da empresa</h2><p>Defina os códigos e alíquotas padrão usados na emissão das notas fiscais.</p></div></header>
     <form (ngSubmit)="saveTax()">
@@ -34,7 +63,7 @@
         <label>{{ tax.regime === '1' || tax.regime === '4' ? 'CSOSN do ICMS' : 'CST do ICMS' }} <span class="required">*</span><input name="icmsCode" [(ngModel)]="tax.icmsCode" inputmode="numeric" [maxLength]="tax.regime === '1' || tax.regime === '4' ? 3 : 2" placeholder="Informe o código" /></label>
         <label>CST do PIS <span class="required">*</span><input name="pisCode" [(ngModel)]="tax.pisCode" inputmode="numeric" maxlength="2" placeholder="Informe o código" /></label>
         <label>CST da COFINS <span class="required">*</span><input name="cofinsCode" [(ngModel)]="tax.cofinsCode" inputmode="numeric" maxlength="2" placeholder="Informe o código" /></label>
-        <label>Alíquota do ICMS (%)<span class="percentage-input"><input type="number" name="icmsRate" [(ngModel)]="tax.icmsRate" min="0" max="100" step="0.0001" placeholder="0,00" /><span>%</span></span></label>
+        <label>{{ tax.regime === '1' || tax.regime === '4' ? 'Crédito ICMS do Simples (%)' : 'Alíquota do ICMS (%)' }}<span class="percentage-input"><input type="number" name="icmsRate" [(ngModel)]="tax.icmsRate" min="0" max="100" step="0.0001" placeholder="0,00" /><span>%</span></span></label>
         <label>Alíquota do PIS (%)<span class="percentage-input"><input type="number" name="pisRate" [(ngModel)]="tax.pisRate" min="0" max="100" step="0.0001" placeholder="0,00" /><span>%</span></span></label>
         <label>Alíquota da COFINS (%)<span class="percentage-input"><input type="number" name="cofinsRate" [(ngModel)]="tax.cofinsRate" min="0" max="100" step="0.0001" placeholder="0,00" /><span>%</span></span></label>
       </div>

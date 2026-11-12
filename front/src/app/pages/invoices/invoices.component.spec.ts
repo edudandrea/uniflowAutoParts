@@ -99,17 +99,28 @@ describe('InvoicesComponent', () => {
     expect(element.querySelector('.invoice-number')?.textContent).toContain('1700');
   });
 
+  it('loads confirmed event history and exposes its protocol without fabricating confirmation', async () => {
+    listRequest().flush(response([{ ...nota, ambiente: 1 }])); fixture.detectChanges();
+    action('Eventos').click();
+    http.expectOne(req => req.url === `${api}/7/eventos`).flush([{ id: 12, tipo: '110110', sequencia: 1, situacao: 'Confirmado', codigo: '135', motivo: 'Evento registrado', protocolo: '143260000000002', texto: 'Corrigir observacao de entrega', criadoEm: '2026-11-12T12:00:00Z' }]);
+    fixture.detectChanges();
+    expect(element.querySelector('#history-title')!.textContent).toContain('1700');
+    expect(element.querySelector('.event-history-item')!.textContent).toContain('143260000000002');
+    expect(element.querySelector<HTMLButtonElement>('.event-history-item button')!.disabled).toBe(false);
+  });
   it('requires confirmation and only updates cancellation after the API returns a protocol', async () => {
     listRequest().flush(response()); fixture.detectChanges(); action('Cancelar').click(); fixture.detectChanges(); await fixture.whenStable();
     expect(element.querySelector('dialog[open]')).not.toBeNull();
     http.expectNone(req => req.url.endsWith('/cancelar'));
+    const noCirculation = element.querySelector<HTMLInputElement>('input[name="noCirculation"]');
+    if (noCirculation) { noCirculation.checked = true; noCirculation.dispatchEvent(new Event('change')); fixture.detectChanges(); }
     const textarea = element.querySelector('textarea') as HTMLTextAreaElement;
     textarea.value = 'Cancelamento solicitado pelo cliente'; textarea.dispatchEvent(new Event('input'));
     fixture.detectChanges();
     element.querySelector('dialog[open] form')!.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
     const req = http.expectOne(`${api}/7/cancelar?empresaId=1`);
     expect(req.request.method).toBe('POST'); expect(req.request.body.texto).toBe(textarea.value);
-    expect(req.request.body.base64).toBe(certificate.base64);
+    expect(req.request.body.base64).toBe(certificate.base64); expect(req.request.body.confirmarNaoCirculacao).toBe(true);
     expect(element.querySelector('tbody')?.textContent).not.toContain('Cancelada');
     req.flush({ codigo: '135', motivo: 'Evento registrado', protocolo: '143260000000002', sequencia: 1 });
     listRequest().flush(response([{ ...nota, situacao: 'Cancelada', podeCancelar: false, podeCorrigir: false }])); fixture.detectChanges();
@@ -120,6 +131,8 @@ describe('InvoicesComponent', () => {
 
   it('keeps a rejected correction visible and does not fabricate an approved event', async () => {
     listRequest().flush(response()); fixture.detectChanges(); action('Carta de correção').click(); fixture.detectChanges(); await fixture.whenStable();
+    const noCirculation = element.querySelector<HTMLInputElement>('input[name="noCirculation"]');
+    if (noCirculation) { noCirculation.checked = true; noCirculation.dispatchEvent(new Event('change')); fixture.detectChanges(); }
     const textarea = element.querySelector('textarea') as HTMLTextAreaElement;
     textarea.value = 'Corrigir observacao da nota fiscal'; textarea.dispatchEvent(new Event('input')); fixture.detectChanges();
     element.querySelector('dialog[open] form')!.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));

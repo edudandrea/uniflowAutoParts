@@ -7,7 +7,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Subject, catchError, of, switchMap, tap } from 'rxjs';
 
 import { ApiService } from '../../core/api.service';
-import { NotaFiscal, NotaFiscalFiltros, NotaFiscalListaResponse } from '../../core/app-models';
+import { NotaFiscal, NotaFiscalEventoHistorico, NotaFiscalFiltros, NotaFiscalListaResponse } from '../../core/app-models';
 import { FiscalCertificateService } from '../../core/fiscal-certificate.service';
 import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
@@ -35,6 +35,12 @@ export class InvoicesComponent implements OnInit {
 
   protected filters = emptyFilters();
   protected eventText = '';
+  protected noCirculation = false;
+  protected readonly history = signal<NotaFiscalEventoHistorico[]>([]);
+  protected readonly historyNote = signal<NotaFiscal | null>(null);
+  protected readonly historyBusy = signal(false);
+  protected readonly historyError = signal('');
+  private readonly historyDialog = viewChild<ElementRef<HTMLDialogElement>>('historyDialog');
   protected readonly data = signal<NotaFiscalListaResponse | null>(null);
   protected readonly loading = signal(false);
   protected readonly loadError = signal('');
@@ -99,7 +105,7 @@ export class InvoicesComponent implements OnInit {
     if (acao === 'cancelar' ? !nota.podeCancelar : !nota.podeCorrigir) return;
     this.returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     this.event.set({ nota, acao });
-    this.eventText = '';
+    this.eventText = ''; this.noCirculation = false;
     this.eventError.set('');
     this.dialog()?.nativeElement.showModal();
   }
@@ -114,6 +120,7 @@ export class InvoicesComponent implements OnInit {
   protected submitEvent(): void {
     const event = this.event();
     if (!event || this.busy()) return;
+    if (event.acao === 'cancelar' && !this.noCirculation) { this.eventError.set('Confirme que a mercadoria não circulou e a operação não foi realizada.'); return; }
     const texto = this.eventText.trim();
     const max = event.acao === 'cancelar' ? 255 : 1000;
     if (texto.length < 15 || texto.length > max) {
@@ -128,7 +135,7 @@ export class InvoicesComponent implements OnInit {
       }
       this.busy.set(true);
       this.eventError.set('');
-      this.api.registrarEventoFiscal(this.tenantId, event.nota.id, event.acao, texto, certificate)
+      this.api.registrarEventoFiscal(this.tenantId, event.nota.id, event.acao, texto, certificate, this.noCirculation)
         .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
           next: (result) => {
             this.busy.set(false);
@@ -147,6 +154,17 @@ export class InvoicesComponent implements OnInit {
     }
   }
 
+  protected showHistory(nota: NotaFiscal): void {
+    this.historyNote.set(nota); this.history.set([]); this.historyError.set(''); this.historyBusy.set(true); this.historyDialog()?.nativeElement.showModal();
+    this.api.listarEventosFiscais(this.tenantId, nota.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ next: events => { this.history.set(events); this.historyBusy.set(false); }, error: () => { this.historyBusy.set(false); this.historyError.set('Não foi possível carregar os eventos fiscais.'); } });
+  }
+  protected closeHistory(): void { this.historyDialog()?.nativeElement.close(); }
+  protected downloadEvent(evento: NotaFiscalEventoHistorico): void {
+    const nota = this.historyNote(); if (!nota || evento.situacao !== 'Confirmado') return;
+    this.api.baixarEventoFiscal(this.tenantId, nota.id, evento.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ next: blob => {
+      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `evento-${nota.numero}-${evento.tipo}-${evento.sequencia}.xml`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, error: () => this.historyError.set('Não foi possível baixar o XML do evento.') });
+  }
   protected download(nota: NotaFiscal, formato: 'pdf' | 'xml'): void {
     if (this.downloading()) return;
     this.downloading.set(`${nota.id}-${formato}`);

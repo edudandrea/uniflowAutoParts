@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { FiscalCertificateService } from '../../core/fiscal-certificate.service';
 import { SessionService } from '../../core/session.service';
 import { sessionStub } from '../../../testing/session.fixture';
 import { environment } from '../../../environments/environment';
@@ -12,11 +13,12 @@ import { SalesComponent } from './sales.component';
   let fixture: ComponentFixture<SalesComponent>;
   let http: HttpTestingController;
   let element: HTMLElement;
-  const product = { id: 17, sku: 610, descricao: 'Filtro de óleo', marca: 'Marca cadastrada', preco: 42.9, custo: 12.5, ativo: true };
+  const product = { id: 17, sku: 610, descricao: 'Filtro de óleo', marca: 'Marca cadastrada', preco: 42.9, custo: 12.5, ativo: true, ncm: 84212300, origemMercadoria: '0', unidadeComercial: 'UN' };
   const customer = { id: 7, nomeRazaoSocial: 'Cliente cadastrado', cpfCnpj: '11111111000111', ativo: true, relacionamento: 1 };
   const draftKey = sessionStub().storageKey('venda:rascunho');
 
-  function catalog(products = [product]) {
+  function catalog(products = [product], fiscalEnvironment: 'homologacao' | 'producao' = 'homologacao') {
+    http.expectOne(`${environment.apiUrl}/fiscal/ambiente`).flush({ environment: fiscalEnvironment, emissaoDisponivel: true });
     http.expectOne(req => req.url === `${environment.apiUrl}/clientes`).flush([customer]);
     http.expectOne(req => req.url === `${environment.apiUrl}/produtos`).flush({ produtos: products, total: products.length });
     fixture.detectChanges();
@@ -55,6 +57,67 @@ import { SalesComponent } from './sales.component';
     await fixture.whenStable();
   }
 
+  const destination = { inscricaoEstadual: '2243658790', indicadorIe: 1, consumidorFinal: false, logradouro: 'Rua de teste', numero: '10', complemento: '', bairro: 'Centro', municipio: 'Porto Alegre', codigoMunicipio: '4314902', uf: 'RS', cep: '90000000' };
+  const authorized = { id: 37, numero: '2', serie: '1', chaveAcesso: '43' + '1'.repeat(42), ambiente: 1, situacao: 'Autorizada', codigo: '100', motivo: 'Autorizado o uso da NF-e', protocolo: '143260000000001', podeReenviar: false };
+  async function prepareEmission() {
+    fixture.destroy(); fixture = TestBed.createComponent(SalesComponent); element = fixture.nativeElement; fixture.detectChanges(); catalog([product], 'producao');
+    TestBed.inject(FiscalCertificateService).save({ fileName: 'fixture.pfx', base64: 'fixture-only', password: 'fixture-only', uf: 'RS', environment: 'producao' });
+    await input('[aria-label="Buscar cliente"]', 'Cliente');
+    element.querySelector<HTMLButtonElement>('.customer-panel .search-results button')!.click(); fixture.detectChanges();
+    await addProduct(); element.querySelector<HTMLButtonElement>('.full-payment')!.click(); fixture.detectChanges();
+    Object.defineProperty(element.querySelector('dialog')!, 'showModal', { value: vi.fn() });
+    element.querySelector<HTMLButtonElement>('.finish-button')!.click(); fixture.detectChanges();
+    http.expectOne(`${environment.apiUrl}/fiscal/destinatario/7`).flush(destination); fixture.detectChanges(); await fixture.whenStable();
+  }
+
+  it('transmits the reviewed sale and shows authorization only after receiving the protocol', async () => {
+    await prepareEmission();
+    expect(element.querySelector('.emission-result')).toBeNull();
+    element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
+    const req = http.expectOne(`${environment.apiUrl}/notas-fiscais/emitir`);
+    expect(req.request.body.ambiente).toBe(1); expect(req.request.body.clienteId).toBe(7);
+    expect(req.request.body.itens[0].precoUnitario).toBe(42.9); expect(req.request.body.itens[0].origem).toBe('0');
+    expect(req.request.body.destinatario.codigoMunicipio).toBe('4314902');
+    expect(JSON.stringify(JSON.parse(localStorage.getItem(draftKey)!))).not.toContain('fixture-only');
+    req.flush(authorized); fixture.detectChanges();
+    expect(element.querySelector('.emission-result')!.textContent).toContain('Autorizada');
+    expect(element.querySelector('.emission-result')!.textContent).toContain(authorized.protocolo);
+    expect(element.querySelector<HTMLButtonElement>('.invoice-button')!.disabled).toBe(true);
+  });
+
+  it('recovers an unknown response with the same persisted request id after reloading the page', async () => {
+    await prepareEmission(); element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
+    const first = http.expectOne(`${environment.apiUrl}/notas-fiscais/emitir`); const requestId = first.request.body.solicitacaoId;
+    first.flush({}, { status: 500, statusText: 'Disconnected' }); fixture.detectChanges();
+    expect(element.querySelector<HTMLFieldSetElement>('.sale-fields')!.disabled).toBe(true);
+    fixture.destroy(); fixture = TestBed.createComponent(SalesComponent); element = fixture.nativeElement; fixture.detectChanges(); catalog([product], 'producao');
+    element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
+    const retry = http.expectOne(`${environment.apiUrl}/notas-fiscais/emitir`);
+    expect(retry.request.body.solicitacaoId).toBe(requestId); expect(retry.request.body.destinatario).toEqual(destination);
+    retry.flush({ ...authorized, situacao: 'Processando', codigo: '', protocolo: '', motivo: 'Sem confirmacao' }); fixture.detectChanges();
+    const queryButton = [...element.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent?.trim() === 'Consultar autorização')!;
+    queryButton.click(); http.expectOne(`${environment.apiUrl}/notas-fiscais/37/autorizacao/consultar`).flush(authorized); fixture.detectChanges();
+    expect(element.querySelector('.emission-result')!.textContent).toContain(authorized.protocolo);
+  });
+
+  it('shows a SEFAZ rejection and unlocks the inputs only when the user chooses to revise', async () => {
+    await prepareEmission(); element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
+    http.expectOne(`${environment.apiUrl}/notas-fiscais/emitir`).flush({ ...authorized, situacao: 'Rejeitada', codigo: '539', motivo: 'Rejeicao de teste', protocolo: '' }); fixture.detectChanges();
+    expect(element.querySelector('.emission-result')!.textContent).toContain('Rejeitada');
+    expect(element.querySelector<HTMLFieldSetElement>('.sale-fields')!.disabled).toBe(true);
+    [...element.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent?.trim() === 'Revisar dados para nova tentativa')!.click(); fixture.detectChanges();
+    expect(element.querySelector<HTMLFieldSetElement>('.sale-fields')!.disabled).toBe(false);
+  });
+  it('shows the saved production environment instead of a fixed homologation label', async () => {
+    fixture.destroy(); fixture = TestBed.createComponent(SalesComponent); element = fixture.nativeElement; fixture.detectChanges();
+    http.expectOne(`${environment.apiUrl}/fiscal/ambiente`).flush({ environment: 'producao', emissaoDisponivel: false });
+    http.expectOne(req => req.url === `${environment.apiUrl}/clientes`).flush([customer]);
+    http.expectOne(req => req.url === `${environment.apiUrl}/produtos`).flush({ produtos: [product], total: 1 });
+    fixture.detectChanges();
+    expect(element.querySelector('.sale-environment')!.textContent).toContain('Produção');
+    expect(element.querySelector('.review-environment')!.textContent).not.toContain('Homologação');
+    expect(element.querySelector('.review-environment')!.textContent).toContain('Produção');
+  });
   it('adds catalog products, adjusts quantity and reconciles the payment', async () => {
     await addProduct();
     element.querySelector<HTMLButtonElement>('[aria-label="Aumentar quantidade de Filtro de óleo"]')!.click();

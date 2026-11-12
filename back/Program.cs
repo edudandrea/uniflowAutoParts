@@ -13,6 +13,8 @@ builder.Services.AddControllers(options =>
 });
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<SefazEventosService>();
+builder.Services.AddScoped<SefazTransporte>();
+builder.Services.AddScoped<NfeAutorizacaoService>();
 
 // Cloudflare R2
 builder.Services.Configure<CloudflareR2Options>(

@@ -1,5 +1,8 @@
-﻿import { inject, Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { SessionService } from './session.service';
+
+export type FiscalEnvironment = 'homologacao' | 'producao';
+export interface FiscalEnvironmentSettings { environment: FiscalEnvironment; emissaoDisponivel: boolean; seriePadrao?: number }
 
 export interface FiscalCertificate {
   validUntil?: string;
@@ -7,7 +10,7 @@ export interface FiscalCertificate {
   base64: string;
   password: string;
   uf: 'RS';
-  environment: 'homologacao';
+  environment: FiscalEnvironment;
 }
 
 export interface FiscalTaxSettings {
@@ -28,7 +31,7 @@ export class FiscalCertificateService {
     const raw = localStorage.getItem(this.key);
     if (!raw) return null;
     const value = JSON.parse(raw) as FiscalCertificate;
-    if (typeof value.base64 !== 'string' || typeof value.password !== 'string' || typeof value.fileName !== 'string' || value.uf !== 'RS' || value.environment !== 'homologacao') {
+    if (typeof value.base64 !== 'string' || typeof value.password !== 'string' || typeof value.fileName !== 'string' || value.uf !== 'RS' || !['homologacao', 'producao'].includes(value.environment)) {
       throw new Error('Certificado salvo inválido. Cadastre novamente.');
     }
     return value;

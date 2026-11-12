@@ -64,6 +64,12 @@ describe('Hub session and company isolation', () => {
     expect(certificate.load()?.fileName).toBe('a.pfx'); expect(localStorage.getItem(service.storageKey('venda:rascunho'))).toBe('rascunho-A');
   });
 
+  it('accepts existing A1 certificates with either fiscal environment', () => {
+    service.session.set(TEST_SESSION);
+    const certificate = TestBed.inject(FiscalCertificateService);
+    certificate.save({ fileName: 'a.pfx', base64: 'test-only', password: 'test-only', uf: 'RS', environment: 'producao' });
+    expect(certificate.load()?.environment).toBe('producao');
+  });
   it('does not reuse the unscoped legacy company-1 certificate', () => {
     localStorage.setItem('uniflow:certificado:empresa-1', JSON.stringify({ fileName: 'legacy.pfx' }));
     service.session.set(TEST_SESSION);

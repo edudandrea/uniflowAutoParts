@@ -1,14 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-  </PropertyGroup>
-  <ItemGroup>
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <Compile Include="../../back/Models/NotaFiscal.cs" Link="Source/NotaFiscal.cs" />
-    <Compile Include="../../back/Services/NotaFiscalXml.cs" Link="Source/NotaFiscalXml.cs" />
-    <Compile Include="../../back/Services/SefazEventosService.cs" Link="Source/SefazEventosService.cs" />
-  </ItemGroup>
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../../back/UniflowAutoParts.Api.csproj" /><PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" /></ItemGroup>
 </Project>

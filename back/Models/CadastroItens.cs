@@ -28,6 +28,8 @@ namespace back.Models
         }
         public int EstoqueMinimo { get; set; }
         public int EstoqueMaximo { get; set; }
+        public string? Ean { get; set; }
+        public string UnidadeComercial { get; set; } = "UN";
         public int NCM { get; set; }
         public int CEST { get; set; }
         public string OrigemMercadoria { get; set; } = string.Empty;

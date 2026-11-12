@@ -1,9 +1,10 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { environment } from '../../environments/environment';
-import { FiscalCertificate, FiscalTaxSettings } from './fiscal-certificate.service';
+import { FiscalCertificate, FiscalTaxSettings, FiscalEnvironment, FiscalEnvironmentSettings } from './fiscal-certificate.service';
 
 import {
+  DestinatarioFiscalData, EmitenteFiscalData, EmitenteFiscalResponse, EmitirNfePayload, EmissaoNfeResponse, NotaFiscalEventoHistorico,
   Categoria,
   EstoqueProduto,
   EntradaCompraResumo,
@@ -45,9 +46,9 @@ export class ApiService {
     });
   }
 
-  registrarEventoFiscal(empresaId: number, id: number, acao: 'cancelar' | 'carta-correcao', texto: string, certificado: FiscalCertificate) {
+  registrarEventoFiscal(empresaId: number, id: number, acao: 'cancelar' | 'carta-correcao', texto: string, certificado: FiscalCertificate, confirmarNaoCirculacao = false) {
     return this.http.post<NotaFiscalEventoResponse>(`${this.apiUrl}/notas-fiscais/${id}/${acao}`, {
-      texto, base64: certificado.base64, password: certificado.password,
+      texto, base64: certificado.base64, password: certificado.password, confirmarNaoCirculacao,
     }, { params: { empresaId } });
   }
 
@@ -66,6 +67,24 @@ export class ApiService {
     );
   }
 
+  carregarDestinatarioFiscal(id: number) { return this.http.get<DestinatarioFiscalData>(`${this.apiUrl}/fiscal/destinatario/${id}`); }
+  carregarEmitenteFiscal() { return this.http.get<EmitenteFiscalResponse>(`${this.apiUrl}/fiscal/emitente`); }
+  salvarEmitenteFiscal(dados: EmitenteFiscalData) { return this.http.put<EmitenteFiscalResponse>(`${this.apiUrl}/fiscal/emitente`, dados); }
+  emitirNfe(payload: EmitirNfePayload, cert: FiscalCertificate) {
+    return this.http.post<EmissaoNfeResponse>(`${this.apiUrl}/notas-fiscais/emitir`, { ...payload, base64: cert.base64, password: cert.password });
+  }
+  consultarAutorizacao(id: number, cert: FiscalCertificate, reenviar = false) {
+    return this.http.post<EmissaoNfeResponse>(`${this.apiUrl}/notas-fiscais/${id}/autorizacao/${reenviar ? 'reenviar' : 'consultar'}`, { base64: cert.base64, password: cert.password });
+  }
+  listarEventosFiscais(empresaId: number, id: number) { return this.http.get<NotaFiscalEventoHistorico[]>(`${this.apiUrl}/notas-fiscais/${id}/eventos`, { params: { empresaId } }); }
+  baixarEventoFiscal(empresaId: number, id: number, eventoId: number) { return this.http.get(`${this.apiUrl}/notas-fiscais/${id}/eventos/${eventoId}/xml`, { params: { empresaId }, responseType: 'blob' }); }
+  carregarAmbienteFiscal() {
+    return this.http.get<FiscalEnvironmentSettings>(`${this.apiUrl}/fiscal/ambiente`);
+  }
+
+  salvarAmbienteFiscal(environment: FiscalEnvironment) {
+    return this.http.put<FiscalEnvironmentSettings>(`${this.apiUrl}/fiscal/ambiente`, { environment });
+  }
   validarCertificado(certificate: FiscalCertificate) {
     return this.http.post<{ validade: string }>(`${this.apiUrl}/fiscal/certificado/validar`, certificate);
   }
@@ -79,7 +98,7 @@ export class ApiService {
   }
 
   consultarStatusSefaz(certificate: FiscalCertificate) {
-    return this.http.post<{ codigo: string; motivo: string }>(`${this.apiUrl}/fiscal/sefaz/status`, certificate);
+    return this.http.post<{ codigo: string; motivo: string; ambiente: FiscalEnvironment }>(`${this.apiUrl}/fiscal/sefaz/status`, certificate);
   }
 
   listarEstoque(empresaId: number) {

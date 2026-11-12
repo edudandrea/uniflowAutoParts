@@ -235,6 +235,7 @@ export interface EstoqueProduto {
 }
 
 export interface Produto {
+  unidadeComercial?: string;
   id: number;
   empresaId: number;
   sku: number;
@@ -363,3 +364,23 @@ export interface EntradaCompraResumo {
   valorTotal: number;
   status: string;
 }
+
+export interface EmitenteFiscalData {
+  razaoSocial: string; inscricaoEstadual: string; logradouro: string; numero: string; complemento: string | null;
+  bairro: string; municipio: string; codigoMunicipio: string; uf: string; cep: string; serie: number; proximoNumero: number;
+}
+export interface EmitenteFiscalResponse { cnpj: string; dados: EmitenteFiscalData }
+export interface DestinatarioFiscalData { inscricaoEstadual: string; indicadorIe: number; consumidorFinal: boolean; logradouro: string; numero: string; complemento: string | null; bairro: string; municipio: string; codigoMunicipio: string; uf: string; cep: string }
+export interface EmitirNfePayload {
+  modalidadeFrete?: number; indicadorPresenca?: number;
+  destinatario?: DestinatarioFiscalData;
+  solicitacaoId: string; clienteId: number; ambiente: number; serie: number; natureza: string; cfop: string; modelo: string;
+  desconto: number; frete: number; despesas: number; observacoes: string;
+  itens: Array<{ produtoId: number; quantidade: number; precoUnitario: number; descontoPercentual: number; origem: string; ncm: string; unidade: string }>;
+  pagamentos: Array<{ forma: string; valor: number }>;
+}
+export interface EmissaoNfeResponse {
+  id: number; numero: string; serie: string; chaveAcesso: string; ambiente: number;
+  situacao: 'Autorizada' | 'Cancelada' | 'Processando' | 'Rejeitada'; codigo: string; motivo: string; protocolo: string; podeReenviar: boolean;
+}
+export interface NotaFiscalEventoHistorico { id: number; tipo: string; sequencia: number; situacao: string; codigo: string; motivo: string; protocolo: string; texto: string; criadoEm: string }

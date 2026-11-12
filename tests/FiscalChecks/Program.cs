@@ -36,7 +36,7 @@ Reject(() => NotaFiscalXml.Importar(xml.Replace("<cStat>100", "<cStat>301"), 1, 
 Reject(() => NotaFiscalXml.Ler("<!DOCTYPE x [<!ENTITY a SYSTEM 'file:///etc/passwd'>]><x>&a;</x>"), "Aceitou entidade externa.");
 
 using var rsa = RSA.Create(2048);
-var request = new CertificateRequest("CN=Fiscal checks", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+var request = new CertificateRequest("CN=Fiscal checks:" + cnpj, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 using var cert = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
 var cancelXml = SefazEventosService.CriarEvento(nota, "110111", 1, "Cancelamento solicitado pelo cliente", cert);
 var doc = new XmlDocument { PreserveWhitespace = true };
@@ -60,7 +60,7 @@ nota.Tipo = "NFCe";
 Reject(() => SefazEventosService.CriarEvento(nota, "110110", 1, "Correcao de uma NFC-e nao pode existir.", cert), "Permitiu carta de correcao em NFC-e.");
 nota.Tipo = "NFe";
 nota.Ambiente = 1;
-Reject(() => SefazEventosService.CriarEvento(nota, "110111", 1, "Cancelamento de nota de producao.", cert), "Transmitiu nota de producao em homologacao.");
+Check(XDocument.Parse(SefazEventosService.CriarEvento(nota, "110111", 1, "Cancelamento de nota de producao.", cert)).Descendants(ns + "tpAmb").Single().Value == "1", "Evento de producao usou ambiente de homologacao.");
 nota.Ambiente = 2;
 
 string Retorno(string codigo, string protocolo = "143260000000002") => $"""
@@ -76,4 +76,39 @@ Check(rejeitado.Codigo == "215" && !rejeitado.Confirmado, "Rejeicao de lote deve
 Reject(() => SefazEventosService.LerRetorno(Retorno("135"), nota, "110110", 1), "Aceitou retorno de outro tipo de evento.");
 Reject(() => SefazEventosService.LerRetorno(Retorno("135"), nota, "110111", 2), "Aceitou retorno de outra sequencia.");
 Reject(() => SefazEventosService.LerRetorno(Retorno("135").Replace("<tpAmb>2", "<tpAmb>1"), nota, "110111", 1), "Aceitou retorno de outro ambiente.");
+foreach (var (environment, codigo, host) in new[] { ("producao", 1, "nfe.sefazrs.rs.gov.br"), ("homologacao", 2, "nfe-homologacao.sefazrs.rs.gov.br") })
+{
+    Check(SefazAmbientes.Codigo(environment) == codigo && SefazAmbientes.Nome(codigo) == environment, "Codigo de ambiente incorreto.");
+    Check(new Uri(SefazAmbientes.UrlStatus(codigo)).Host == host, "Consulta de status foi roteada para o ambiente incorreto.");
+    Check(XDocument.Parse(SefazAmbientes.EnvelopeStatus(codigo)).Descendants(ns + "tpAmb").Single().Value == codigo.ToString(), "Envelope da SEFAZ usa outro ambiente.");
+}
+Reject(() => SefazAmbientes.UrlStatus(3), "Aceitou ambiente desconhecido para a SEFAZ.");
+Reject(() => SefazAmbientes.Codigo("https://invalid.test"), "Aceitou endereco arbitrario como ambiente.");
+using var emissionCertificate = NfeFixtures.Certificate();
+var generated = NfeGerador.Criar(NfeFixtures.Empresa(), NfeFixtures.Config(), NfeFixtures.Tax(), NfeFixtures.Cliente(),
+    new Dictionary<int, CadastroItens> { [1] = NfeFixtures.Produto() }, NfeFixtures.Request(), 1, 1, emissionCertificate);
+Check(generated.Valor == 40 && generated.Situacao == "Processando", "Nota foi autorizada sem retorno da SEFAZ.");
+var generatedDocument = new XmlDocument { PreserveWhitespace = true }; generatedDocument.LoadXml(generated.XmlEnvioNfe);
+var generatedSignature = new SignedXml(generatedDocument); generatedSignature.LoadXml((XmlElement)generatedDocument.GetElementsByTagName("Signature", SignedXml.XmlDsigNamespaceUrl)[0]!);
+Check(generatedSignature.CheckSignature(emissionCertificate, true), "Assinatura da NF-e invalida.");
+var authorization = NfeFixtures.Autorizacao(XElement.Parse(generated.XmlEnvioNfe));
+NfeAutorizacaoService.AplicarRetorno(generated, authorization);
+Check(generated.Situacao == "Autorizada" && generated.Protocolo.Length == 15 && XDocument.Parse(generated.Xml).Root!.Name.LocalName == "nfeProc", "Autorizacao nao gerou XML protocolado.");
+generatedDocument.LoadXml(generated.Xml);
+var signedNfe = generatedDocument.GetElementsByTagName("NFe", ns.NamespaceName)[0]!;
+var verificationDoc = new XmlDocument { PreserveWhitespace = true }; verificationDoc.LoadXml(signedNfe.OuterXml);
+var verificationSignature = new SignedXml(verificationDoc); verificationSignature.LoadXml((XmlElement)verificationDoc.GetElementsByTagName("Signature", SignedXml.XmlDsigNamespaceUrl)[0]!);
+Check(verificationSignature.CheckSignature(emissionCertificate, true), "XML protocolado perdeu a assinatura da NF-e.");
+Reject(() => NfeAutorizacaoService.AplicarRetorno(generated, NfeFixtures.Autorizacao(XElement.Parse(generated.XmlEnvioNfe), ambiente: 2)), "Aceitou autorizacao de outro ambiente.");
+var badDigest = NfeFixtures.Autorizacao(XElement.Parse(generated.XmlEnvioNfe)); badDigest.Descendants(ns + "digVal").Single().Value = "incorreto";
+Reject(() => NfeAutorizacaoService.AplicarRetorno(generated, badDigest), "Aceitou protocolo de outro XML.");
+using var otherCertificate = NfeFixtures.Certificate("98765432000199");
+Reject(() => NfeAssinatura.ValidarTitular(otherCertificate, cnpj), "Aceitou certificado de outro emitente.");
+Check(SefazAmbientes.UrlServico("NFeAutorizacao4", 1).Contains("https://nfe.sefazrs.rs.gov.br/"), "Autorizacao de producao roteada incorretamente.");
+Check(SefazAmbientes.UrlServico("NFeRecepcaoEvento4", 2).Contains("nfe-homologacao"), "Evento de teste roteado para producao.");
+var discountItems = Enumerable.Range(1, 4).ToDictionary(i => i, i => NfeFixtures.Produto(i));
+var splitRequest = NfeFixtures.Request() with { Itens = Enumerable.Range(1, 4).Select(i => new back.Contracts.EmitirNfeItemRequest(i, 1, 1, 0)).ToArray(), Desconto = 0.02m, Pagamentos = [new("Pix", 3.98m)] };
+var splitNote = NfeGerador.Criar(NfeFixtures.Empresa(), NfeFixtures.Config(), NfeFixtures.Tax(), NfeFixtures.Cliente(), discountItems, splitRequest, 2, 1, emissionCertificate);
+Check(splitNote.Valor == 3.98m && XDocument.Parse(splitNote.Xml).Descendants(ns + "prod").Sum(p => decimal.Parse(p.Element(ns + "vDesc")?.Value ?? "0", System.Globalization.CultureInfo.InvariantCulture)) == 0.02m, "Rateio perdeu centavos ou gerou valores negativos.");
+Reject(() => NfeGerador.Criar(NfeFixtures.Empresa(), NfeFixtures.Config(), NfeFixtures.Tax(), NfeFixtures.Cliente(), new Dictionary<int,CadastroItens> { [1] = NfeFixtures.Produto() }, NfeFixtures.Request() with { Modelo = "65" }, 3, 1, emissionCertificate), "Emitiu NFC-e sem CSC e leiaute especifico.");
 Console.WriteLine($"Fiscal checks: {checks} passed. Nenhuma chamada externa realizada.");

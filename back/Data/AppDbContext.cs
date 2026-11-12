@@ -29,13 +29,24 @@ namespace back.Data
         public DbSet<EntradaCompra> EntradasCompra => Set<EntradaCompra>();
         public DbSet<EntradaCompraItem> EntradaCompraItens => Set<EntradaCompraItem>();
         public DbSet<Users> Users => Set<Users>();
+        public DbSet<NotaFiscalItem> NotaFiscalItens => Set<NotaFiscalItem>();
+        public DbSet<NumeracaoNfe> NumeracoesNfe => Set<NumeracaoNfe>();
         public DbSet<NotaFiscal> NotasFiscais => Set<NotaFiscal>();
+        public DbSet<ConfiguracaoFiscal> ConfiguracoesFiscais => Set<ConfiguracaoFiscal>();
         public DbSet<NotaFiscalEvento> NotaFiscalEventos => Set<NotaFiscalEvento>();
         public DbSet<ConfiguracaoTributaria> ConfiguracoesTributarias => Set<ConfiguracaoTributaria>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            modelBuilder.Entity<ConfiguracaoFiscal>(entity =>
+            {
+                entity.HasKey(e => e.EmpresaId);
+                entity.Property(e => e.EmpresaId).ValueGeneratedNever();
+                entity.HasQueryFilter(e => e.EmpresaId == CurrentEmpresaId);
+                entity.HasOne<Empresas>().WithMany().HasForeignKey(e => e.EmpresaId).OnDelete(DeleteBehavior.Restrict);
+                entity.ToTable(t => t.HasCheckConstraint("CK_ConfiguracoesFiscais_Ambiente", "\"Ambiente\" IN (1, 2)"));
+            });
 
             modelBuilder.Entity<ConfiguracaoTributaria>(entity =>
             {
@@ -69,11 +80,30 @@ namespace back.Data
             modelBuilder.Entity<EntradaCompraItem>().HasQueryFilter(e => e.EntradaCompra != null && e.EntradaCompra.TenantId == CurrentEmpresaId);
             modelBuilder.Entity<NotaFiscalEvento>().HasQueryFilter(e => e.NotaFiscal.EmpresaId == CurrentEmpresaId);
 
+            modelBuilder.Entity<NumeracaoNfe>(entity =>
+            {
+                entity.HasKey(n => new { n.EmpresaId, n.Ambiente, n.Serie });
+                entity.HasQueryFilter(n => n.EmpresaId == CurrentEmpresaId);
+                entity.HasOne<Empresas>().WithMany().HasForeignKey(n => n.EmpresaId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<NotaFiscalItem>(entity =>
+            {
+                entity.HasQueryFilter(i => i.NotaFiscal.EmpresaId == CurrentEmpresaId);
+                entity.Property(i => i.Quantidade).HasPrecision(15, 4);
+                entity.Property(i => i.PrecoUnitario).HasPrecision(21, 10);
+                entity.HasOne(i => i.NotaFiscal).WithMany(n => n.Itens).HasForeignKey(i => i.NotaFiscalId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(i => i.Produto).WithMany().HasForeignKey(i => i.ProdutoId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<Estoque>().HasOne(e => e.NotaFiscalItem).WithMany().HasForeignKey(e => e.NotaFiscalItemId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<Estoque>().HasIndex(e => new { e.NotaFiscalItemId, e.Tipo }).IsUnique().HasFilter("\"NotaFiscalItemId\" IS NOT NULL");
             modelBuilder.Entity<NotaFiscal>(entity =>
             {
                 entity.HasIndex(e => new { e.EmpresaId, e.ChaveAcesso, e.Ambiente }).IsUnique();
                 entity.HasIndex(e => new { e.EmpresaId, e.Emissao });
                 entity.Property(e => e.Valor).HasPrecision(18, 2);
+                entity.HasIndex(e => new { e.EmpresaId, e.SolicitacaoId }).IsUnique().HasFilter("\"SolicitacaoId\" IS NOT NULL");
+                entity.HasIndex(e => new { e.EmpresaId, e.Ambiente, e.Tipo, e.Serie, e.Numero }).IsUnique();
+                entity.Property(e => e.HashSolicitacao).HasMaxLength(64);
                 entity.Property(e => e.ChaveAcesso).HasMaxLength(44);
                 entity.HasOne<Empresas>().WithMany().HasForeignKey(e => e.EmpresaId).OnDelete(DeleteBehavior.Restrict);
                 entity.HasMany(e => e.Eventos).WithOne(e => e.NotaFiscal)
@@ -82,6 +112,7 @@ namespace back.Data
             modelBuilder.Entity<NotaFiscalEvento>(entity =>
             {
                 entity.HasIndex(e => new { e.NotaFiscalId, e.Tipo, e.Sequencia });
+                entity.HasIndex(e => e.NotaFiscalId).IsUnique().HasFilter("\"Situacao\" IN ('Pendente', 'Indeterminado')");
             });
 
             modelBuilder.Entity<Empresas>(entity =>
@@ -196,6 +227,8 @@ namespace back.Data
                 entity.HasIndex(e => e.MarcaId);
                 entity.Property(e => e.AliquotaIpi).HasPrecision(9, 4);
                 entity.Property(e => e.MargemPreco).HasPrecision(9, 4);
+                entity.Property(e => e.UnidadeComercial).HasDefaultValue("UN");
+                entity.Property(e => e.Ean).HasMaxLength(14);
                 entity.Property(e => e.AliquotaIcms).HasPrecision(9, 4);
                 entity.Property(e => e.AliquotaMva).HasPrecision(9, 4);
                 entity.Property(e => e.ImpostosFabricante).HasMaxLength(80);

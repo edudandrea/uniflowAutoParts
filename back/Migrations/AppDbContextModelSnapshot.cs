@@ -142,6 +142,10 @@ namespace UniflowAutoParts.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Ean")
+                        .HasMaxLength(14)
+                        .HasColumnType("character varying(14)");
+
                     b.Property<int>("EmpresaId")
                         .HasColumnType("integer");
 
@@ -178,6 +182,12 @@ namespace UniflowAutoParts.Api.Migrations
 
                     b.Property<int>("SKU")
                         .HasColumnType("integer");
+
+                    b.Property<string>("UnidadeComercial")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("UN");
 
                     b.HasKey("Id");
 
@@ -483,6 +493,29 @@ namespace UniflowAutoParts.Api.Migrations
                     b.HasIndex("Placa");
 
                     b.ToTable("ClienteVeiculos");
+                });
+
+            modelBuilder.Entity("back.Models.ConfiguracaoFiscal", b =>
+                {
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Ambiente")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CodigoMunicipio")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("SeriePadrao")
+                        .HasColumnType("integer");
+
+                    b.HasKey("EmpresaId");
+
+                    b.ToTable("ConfiguracoesFiscais", t =>
+                        {
+                            t.HasCheckConstraint("CK_ConfiguracoesFiscais_Ambiente", "\"Ambiente\" IN (1, 2)");
+                        });
                 });
 
             modelBuilder.Entity("back.Models.ConfiguracaoTributaria", b =>
@@ -930,6 +963,9 @@ namespace UniflowAutoParts.Api.Migrations
                     b.Property<int>("ItemId")
                         .HasColumnType("integer");
 
+                    b.Property<long?>("NotaFiscalItemId")
+                        .HasColumnType("bigint");
+
                     b.Property<double>("PrecoPromocional")
                         .HasColumnType("double precision");
 
@@ -955,6 +991,10 @@ namespace UniflowAutoParts.Api.Migrations
                     b.HasIndex("ItemId");
 
                     b.HasIndex("EmpresaId", "ItemId");
+
+                    b.HasIndex("NotaFiscalItemId", "Tipo")
+                        .IsUnique()
+                        .HasFilter("\"NotaFiscalItemId\" IS NOT NULL");
 
                     b.ToTable("Estoques");
                 });
@@ -1028,12 +1068,19 @@ namespace UniflowAutoParts.Api.Migrations
                     b.Property<int>("Ambiente")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime?>("AutorizadaEm")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("ChaveAcesso")
                         .IsRequired()
                         .HasMaxLength(44)
                         .HasColumnType("character varying(44)");
 
                     b.Property<string>("Cliente")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CodigoAutorizacao")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -1047,6 +1094,15 @@ namespace UniflowAutoParts.Api.Migrations
                     b.Property<int>("EmpresaId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("HashSolicitacao")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("MotivoAutorizacao")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Numero")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1058,6 +1114,10 @@ namespace UniflowAutoParts.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Recibo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Serie")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1066,9 +1126,15 @@ namespace UniflowAutoParts.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("SolicitacaoId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Tipo")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int>("UsuarioEmissorId")
+                        .HasColumnType("integer");
 
                     b.Property<decimal>("Valor")
                         .HasPrecision(18, 2)
@@ -1078,11 +1144,26 @@ namespace UniflowAutoParts.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("XmlEnvioNfe")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("XmlRetornoAutorizacao")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EmpresaId", "Emissao");
 
+                    b.HasIndex("EmpresaId", "SolicitacaoId")
+                        .IsUnique()
+                        .HasFilter("\"SolicitacaoId\" IS NOT NULL");
+
                     b.HasIndex("EmpresaId", "ChaveAcesso", "Ambiente")
+                        .IsUnique();
+
+                    b.HasIndex("EmpresaId", "Ambiente", "Tipo", "Serie", "Numero")
                         .IsUnique();
 
                     b.ToTable("NotasFiscais");
@@ -1139,9 +1220,66 @@ namespace UniflowAutoParts.Api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("NotaFiscalId")
+                        .IsUnique()
+                        .HasFilter("\"Situacao\" IN ('Pendente', 'Indeterminado')");
+
                     b.HasIndex("NotaFiscalId", "Tipo", "Sequencia");
 
                     b.ToTable("NotaFiscalEventos");
+                });
+
+            modelBuilder.Entity("back.Models.NotaFiscalItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<double>("CustoUnitario")
+                        .HasColumnType("double precision");
+
+                    b.Property<long>("NotaFiscalId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("PrecoUnitario")
+                        .HasPrecision(21, 10)
+                        .HasColumnType("numeric(21,10)");
+
+                    b.Property<int>("ProdutoId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Quantidade")
+                        .HasPrecision(15, 4)
+                        .HasColumnType("numeric(15,4)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NotaFiscalId");
+
+                    b.HasIndex("ProdutoId");
+
+                    b.ToTable("NotaFiscalItens");
+                });
+
+            modelBuilder.Entity("back.Models.NumeracaoNfe", b =>
+                {
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Ambiente")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Serie")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ProximoNumero")
+                        .HasColumnType("integer");
+
+                    b.HasKey("EmpresaId", "Ambiente", "Serie");
+
+                    b.ToTable("NumeracoesNfe");
                 });
 
             modelBuilder.Entity("back.Models.Users", b =>
@@ -1289,6 +1427,15 @@ namespace UniflowAutoParts.Api.Migrations
                     b.Navigation("Cliente");
                 });
 
+            modelBuilder.Entity("back.Models.ConfiguracaoFiscal", b =>
+                {
+                    b.HasOne("back.Models.Empresas", null)
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("back.Models.ConfiguracaoTributaria", b =>
                 {
                     b.HasOne("back.Models.Empresas", null)
@@ -1350,7 +1497,14 @@ namespace UniflowAutoParts.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("back.Models.NotaFiscalItem", "NotaFiscalItem")
+                        .WithMany()
+                        .HasForeignKey("NotaFiscalItemId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("EntradaCompraItem");
+
+                    b.Navigation("NotaFiscalItem");
 
                     b.Navigation("Produto");
                 });
@@ -1373,6 +1527,34 @@ namespace UniflowAutoParts.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("NotaFiscal");
+                });
+
+            modelBuilder.Entity("back.Models.NotaFiscalItem", b =>
+                {
+                    b.HasOne("back.Models.NotaFiscal", "NotaFiscal")
+                        .WithMany("Itens")
+                        .HasForeignKey("NotaFiscalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("back.Models.CadastroItens", "Produto")
+                        .WithMany()
+                        .HasForeignKey("ProdutoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("NotaFiscal");
+
+                    b.Navigation("Produto");
+                });
+
+            modelBuilder.Entity("back.Models.NumeracaoNfe", b =>
+                {
+                    b.HasOne("back.Models.Empresas", null)
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("back.Models.Users", b =>
@@ -1421,6 +1603,8 @@ namespace UniflowAutoParts.Api.Migrations
             modelBuilder.Entity("back.Models.NotaFiscal", b =>
                 {
                     b.Navigation("Eventos");
+
+                    b.Navigation("Itens");
                 });
 #pragma warning restore 612, 618
         }

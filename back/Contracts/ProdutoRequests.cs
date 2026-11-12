@@ -23,7 +23,7 @@ public record ProdutoResponse(
     decimal AliquotaIcms,
     decimal AliquotaMva,
     string ImpostosFabricante,
-    bool Ativo);
+    bool Ativo, string UnidadeComercial = "UN");
 
 public record ProdutoListaResponse(
     int Pagina,
@@ -53,7 +53,7 @@ public record CriarProdutoRequest(
     decimal AliquotaIcms,
     decimal AliquotaMva,
     string? ImpostosFabricante,
-    bool Ativo);
+    bool Ativo, string UnidadeComercial = "UN");
 
 public record ImportarProdutosFabricanteResponse(
     string Fabricante,

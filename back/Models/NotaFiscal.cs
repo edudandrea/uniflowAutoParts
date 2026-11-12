@@ -18,6 +18,16 @@ public class NotaFiscal
     public int Ambiente { get; set; }
     public string Xml { get; set; } = "";
     public byte[]? Pdf { get; set; }
+    public Guid? SolicitacaoId { get; set; }
+    public string HashSolicitacao { get; set; } = "";
+    public string XmlEnvioNfe { get; set; } = "";
+    public string XmlRetornoAutorizacao { get; set; } = "";
+    public string Recibo { get; set; } = "";
+    public string CodigoAutorizacao { get; set; } = "";
+    public string MotivoAutorizacao { get; set; } = "";
+    public DateTime? AutorizadaEm { get; set; }
+    public int UsuarioEmissorId { get; set; }
+    public List<NotaFiscalItem> Itens { get; set; } = [];
     public List<NotaFiscalEvento> Eventos { get; set; } = [];
 }
 
@@ -36,4 +46,24 @@ public class NotaFiscalEvento
     public string XmlEnvio { get; set; } = "";
     public string XmlRetorno { get; set; } = "";
     public DateTime CriadoEm { get; set; } = DateTime.UtcNow;
+}
+
+public sealed class NotaFiscalItem
+{
+    public long Id { get; set; }
+    public long NotaFiscalId { get; set; }
+    public NotaFiscal NotaFiscal { get; set; } = null!;
+    public int ProdutoId { get; set; }
+    public CadastroItens Produto { get; set; } = null!;
+    public decimal Quantidade { get; set; }
+    public decimal PrecoUnitario { get; set; }
+    public double CustoUnitario { get; set; }
+}
+
+public sealed class NumeracaoNfe
+{
+    public int EmpresaId { get; set; }
+    public int Ambiente { get; set; }
+    public int Serie { get; set; }
+    public int ProximoNumero { get; set; } = 1;
 }

@@ -11,6 +11,8 @@ namespace back.Models
         public int EmpresaId { get; set; }
         public int ItemId { get; set; }
         public CadastroItens? Produto { get; set; }
+        public long? NotaFiscalItemId { get; set; }
+        public NotaFiscalItem? NotaFiscalItem { get; set; }
         public long? EntradaCompraItemId { get; set; }
         public EntradaCompraItem? EntradaCompraItem { get; set; }
         public string Tipo { get; set; } = string.Empty;

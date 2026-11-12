@@ -88,7 +88,8 @@ public sealed class NfeProdutosService(AppDbContext db)
                         EmpresaId = empresaId, SKU = sku, Codintern = sku,
                         Descricao = descricao.Length > 0 ? descricao : $"Produto NF-e {item.CodigoFornecedor}",
                         Categoria = categoria, Marca = marca, NCM = ncm, CEST = Inteiro(item.Cest),
-                        Custo = (double)item.CustoUnitario, Ativo = true
+                        Ean = ean, Custo = (double)item.CustoUnitario, UnidadeComercial = item.UnidadeComercial.Length > 0 ? item.UnidadeComercial : "UN",
+                        OrigemMercadoria = Origem(item.TributacaoXml), Ativo = true
                     };
                     db.CadastroItens.Add(produto);
                 }
@@ -99,6 +100,12 @@ public sealed class NfeProdutosService(AppDbContext db)
         }
     }
 
+    private static string Origem(string? xml)
+    {
+        if (string.IsNullOrWhiteSpace(xml)) return "";
+        try { return System.Xml.Linq.XElement.Parse(xml).Descendants().FirstOrDefault(e => e.Name.LocalName == "orig")?.Value ?? ""; }
+        catch (System.Xml.XmlException) { return ""; }
+    }
     private static int Inteiro(string? valor) => int.TryParse(valor, NumberStyles.None,
         CultureInfo.InvariantCulture, out var numero) ? numero : 0;
 

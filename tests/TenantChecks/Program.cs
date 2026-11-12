@@ -34,6 +34,8 @@ builder.Services.AddScoped<TenantActionFilter>();
 builder.Services.AddDbContext<AppDbContext>(b => b.UseInMemoryDatabase("tenant-checks", root));
 builder.Services.AddSingleton(new HubAuthSettings(new ConfigurationBuilder().Build(), builder.Environment));
 builder.Services.AddScoped<SefazEventosService>();
+builder.Services.AddScoped<SefazTransporte>();
+builder.Services.AddScoped<NfeAutorizacaoService>();
 builder.Services.AddSingleton<ICloudflareR2StorageService, ChecksStorage>();
 builder.Services.AddAntiforgery(o => o.HeaderName = "X-Parts-CSRF");
 builder.Services.AddAuthentication("Checks").AddScheme<AuthenticationSchemeOptions, ChecksAuthentication>("Checks", _ => { });
@@ -57,6 +59,7 @@ await HubRedirectChecks.RunAsync();
 await StockPostgresChecks.RunAsync();
 await NfeImportChecks.RunAsync();
 await NfeProductChecks.RunAsync();
+await NfeEmissionChecks.RunAsync();
 TenantContext Tenant(int id) => new(new HttpContextAccessor { HttpContext = new DefaultHttpContext { User = ChecksAuthentication.Principal(id) } });
 
 var directoryOptions = new DbContextOptionsBuilder<HubDirectoryDbContext>().UseInMemoryDatabase("tenant-checks", root).Options;
@@ -124,6 +127,19 @@ for (var tenantId = 1; tenantId <= 2; tenantId++)
     client.DefaultRequestHeaders.Add("X-Parts-CSRF", session.GetProperty("csrfToken").GetString());
     Check((await client.GetAsync("/api/fiscal/tributacao")).StatusCode == HttpStatusCode.NoContent,
         "Empresa sem tributacao recebeu configuracao de outra empresa.");
+    var defaultEnvironment = await client.GetFromJsonAsync<JsonElement>("/api/fiscal/ambiente");
+    Check(defaultEnvironment.GetProperty("environment").GetString() == "homologacao",
+        "Ambiente padrao de uma empresa foi alterado pela configuracao de outra empresa.");
+    var desiredEnvironment = tenantId == 1 ? "producao" : "homologacao";
+    Check((await client.PutAsJsonAsync("/api/fiscal/ambiente", new { environment = desiredEnvironment })).StatusCode == HttpStatusCode.OK,
+        "Nao salvou o ambiente fiscal da empresa autenticada.");
+    Check((await client.PutAsJsonAsync("/api/fiscal/ambiente", new { environment = desiredEnvironment })).StatusCode == HttpStatusCode.OK,
+        "Nao atualizou a configuracao de ambiente existente.");
+    var savedEnvironment = await client.GetFromJsonAsync<JsonElement>("/api/fiscal/ambiente");
+    Check(savedEnvironment.GetProperty("environment").GetString() == desiredEnvironment && savedEnvironment.GetProperty("emissaoDisponivel").GetBoolean(),
+        "Configuracao de ambiente nao persistiu ou nao disponibilizou o fluxo de emissao.");
+    Check((await client.PutAsJsonAsync("/api/fiscal/ambiente", new { environment = "invalido" })).StatusCode == HttpStatusCode.BadRequest,
+        "Aceitou um ambiente fiscal invalido.");
     var taxSettings = new { regime = "1", icmsCode = "101", pisCode = "49", cofinsCode = "49",
         icmsRate = (decimal?)null, pisRate = tenantId + 0.1234m, cofinsRate = 0m };
     Check((await client.PutAsJsonAsync("/api/fiscal/tributacao", taxSettings)).StatusCode == HttpStatusCode.OK,
@@ -187,6 +203,8 @@ for (var tenantId = 1; tenantId <= 2; tenantId++)
 }
 client.DefaultRequestHeaders.Remove("Test-Company");
 client.DefaultRequestHeaders.Add("Test-Company", "1");
+var persistedEnvironment = await client.GetFromJsonAsync<JsonElement>("/api/fiscal/ambiente");
+Check(persistedEnvironment.GetProperty("environment").GetString() == "producao", "Empresa B alterou o ambiente de producao salvo para empresa A.");
 var persistedTax = await client.GetFromJsonAsync<JsonElement>("/api/fiscal/tributacao");
 Check(persistedTax.GetProperty("pisRate").GetDecimal() == 1.1234m,
     "Salvar tributacao da empresa B sobrescreveu a empresa A.");

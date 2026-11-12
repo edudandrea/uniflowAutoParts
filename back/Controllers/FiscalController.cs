@@ -1,23 +1,27 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using back.Data;
+using back.Services;
 
 namespace back.Controllers;
 
 [ApiController]
 [Route("api/fiscal")]
-public class FiscalController : ControllerBase
+public class FiscalController(AppDbContext db, TenantContext tenant) : ControllerBase
 {
-    // Endpoint oficial da SEFAZ/RS, exclusivamente em homologação.
-    private const string StatusUrl = "https://nfe-homologacao.sefazrs.rs.gov.br/ws/NfeStatusServico/NfeStatusServico4.asmx";
 
     [HttpPost("sefaz/status")]
     [RequestSizeLimit(1_500_000)]
     public async Task<IActionResult> ConsultarStatus(CertificadoRequest request, CancellationToken cancellationToken)
     {
+        if (tenant.EmpresaId <= 0) return Unauthorized();
+        var ambiente = await db.ConfiguracoesFiscais.AsNoTracking().Where(c => c.EmpresaId == tenant.EmpresaId)
+            .Select(c => (int?)c.Ambiente).SingleOrDefaultAsync(cancellationToken) ?? 2;
         var validation = ValidarCertificado(request);
         if (validation is not OkObjectResult) return validation;
         var bytes = Convert.FromBase64String(request.Base64);
@@ -28,19 +32,11 @@ public class FiscalController : ControllerBase
             using var handler = new HttpClientHandler();
             handler.ClientCertificates.Add(certificate);
             using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
-            const string envelope = """
-                <soap12:Envelope xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
-                  <soap12:Body>
-                    <nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4">
-                      <consStatServ versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe"><tpAmb>2</tpAmb><cUF>43</cUF><xServ>STATUS</xServ></consStatServ>
-                    </nfeDadosMsg>
-                  </soap12:Body>
-                </soap12:Envelope>
-                """;
+            var envelope = SefazAmbientes.EnvelopeStatus(ambiente);
             using var content = new StringContent(envelope, Encoding.UTF8, "application/soap+xml");
             content.Headers.ContentType!.Parameters.Add(new System.Net.Http.Headers.NameValueHeaderValue(
                 "action", "\"http://www.portalfiscal.inf.br/nfe/wsdl/NFeStatusServico4/nfeStatusServicoNF\""));
-            using var response = await client.PostAsync(StatusUrl, content, cancellationToken);
+            using var response = await client.PostAsync(SefazAmbientes.UrlStatus(ambiente), content, cancellationToken);
             if (!response.IsSuccessStatusCode)
                 return Problem(statusCode: 502, detail: "A SEFAZ/RS não aceitou a conexão. Verifique o certificado e o credenciamento do emitente.");
             await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
@@ -53,9 +49,9 @@ public class FiscalController : ControllerBase
             var result = document.Descendants(ns + "retConsStatServ").SingleOrDefault();
             var code = result?.Element(ns + "cStat")?.Value;
             var reason = result?.Element(ns + "xMotivo")?.Value;
-            if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(reason))
+            if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(reason) || result?.Element(ns + "tpAmb")?.Value != ambiente.ToString(System.Globalization.CultureInfo.InvariantCulture))
                 return Problem(statusCode: 502, detail: "A SEFAZ retornou uma resposta de status inesperada.");
-            return Ok(new { codigo = code, motivo = reason, ambiente = "homologacao", uf = "RS" });
+            return Ok(new { codigo = code, motivo = reason, ambiente = SefazAmbientes.Nome(ambiente), uf = "RS" });
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or XmlException or CryptographicException)
         {

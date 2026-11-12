@@ -54,6 +54,7 @@ public static class NotaFiscalXml
             EmpresaId = empresaId, Numero = Read(ide, "nNF"), Serie = Read(ide, "serie"), Emissao = emissao.UtcDateTime,
             Cliente = Read(dest, "xNome"), DocumentoCliente = Read(dest, "CNPJ") is { Length: > 0 } cpfCnpj ? cpfCnpj : Read(dest, "CPF"),
             Tipo = modelo == "55" ? "NFe" : "NFCe", Valor = valor, ChaveAcesso = chave,
+            AutorizadaEm = DateTimeOffset.TryParse(Read(protocolo, "dhRecbto"), out var autorizada) ? autorizada.UtcDateTime : null,
             Protocolo = Read(protocolo, "nProt"), Ambiente = int.Parse(ambiente), Xml = xml
         };
     }

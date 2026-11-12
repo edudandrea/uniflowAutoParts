@@ -11,16 +11,15 @@ namespace back.Services;
 
 public record SefazEventoResultado(string Codigo, string Motivo, string Protocolo, string Xml)
 {
-    public bool Confirmado => Codigo == "135" && Protocolo.Length == 15 && Protocolo.All(char.IsAsciiDigit);
+    public bool Confirmado => Codigo is "135" or "155" && Protocolo.Length == 15 && Protocolo.All(char.IsAsciiDigit);
 }
 
-public class SefazEventosService
+public class SefazEventosService(SefazTransporte? transporte = null)
 {
     public const string CondicoesCorrecao = "A Carta de Correcao e disciplinada pelo paragrafo 1o-A do art. 7o do Convenio S/N, de 15 de dezembro de 1970 e pode ser utilizada para regularizacao de erro ocorrido na emissao de documento fiscal, desde que o erro nao esteja relacionado com: I - as variaveis que determinam o valor do imposto tais como: base de calculo, aliquota, diferenca de preco, quantidade, valor da operacao ou da prestacao; II - a correcao de dados cadastrais que implique mudanca do remetente ou do destinatario; III - a data de emissao ou de saida.";
-    private const string ServiceNamespace = "http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4";
 
     public static string? Bloqueio(NotaFiscal nota) =>
-        nota.Ambiente != 2 ? "A integracao atual atende somente homologacao. Notas de producao estao disponiveis para consulta e download." :
+        nota.Ambiente is not (1 or 2) ? "Ambiente fiscal invalido." :
         !nota.ChaveAcesso.StartsWith("43", StringComparison.Ordinal) ? "A integracao direta atual atende somente a SEFAZ/RS." :
         nota.ChaveAcesso.Length != 44 || nota.ChaveAcesso[34] != '1' ? "Eventos de notas emitidas em contingencia ainda nao estao habilitados." :
         nota.Situacao != "Autorizada" ? "Somente notas autorizadas podem receber estes eventos." : null;
@@ -48,9 +47,11 @@ public class SefazEventosService
 
     public static string CriarEvento(NotaFiscal nota, string tipo, int sequencia, string texto, X509Certificate2 cert)
     {
-        var bloqueio = Bloqueio(nota);
+        NfeAssinatura.ValidarTitular(cert, nota.ChaveAcesso.Substring(6, 14));
+        var bloqueio = tipo == "110111" ? BloqueioCancelamento(nota) : Bloqueio(nota);
         if (bloqueio is not null) throw new ArgumentException(bloqueio);
         if (tipo is not ("110110" or "110111")) throw new ArgumentException("Tipo de evento invalido.");
+        if (tipo == "110111" && !System.Text.RegularExpressions.Regex.IsMatch(nota.Protocolo, @"^\d{15}$")) throw new ArgumentException("Cancelamento exige o protocolo de autorizacao da NF-e.");
         if (tipo == "110110" && nota.Tipo != "NFe") throw new ArgumentException("Carta de correcao disponivel somente para NF-e.");
         if (sequencia < 1 || sequencia > (tipo == "110111" ? 1 : 20)) throw new ArgumentException("Limite de eventos atingido.");
         texto = texto.Trim();
@@ -64,7 +65,7 @@ public class SefazEventosService
         else det.Add(new XElement(ns + "xCorrecao", texto), new XElement(ns + "xCondUso", CondicoesCorrecao));
         var evento = new XElement(ns + "evento", new XAttribute("versao", "1.00"),
             new XElement(ns + "infEvento", new XAttribute("Id", id),
-                new XElement(ns + "cOrgao", "43"), new XElement(ns + "tpAmb", "2"),
+                new XElement(ns + "cOrgao", "43"), new XElement(ns + "tpAmb", nota.Ambiente),
                 new XElement(ns + "CNPJ", nota.ChaveAcesso.Substring(6, 14)),
                 new XElement(ns + "chNFe", nota.ChaveAcesso),
                 new XElement(ns + "dhEvento", DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(-3)).ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture)),
@@ -103,6 +104,7 @@ public class SefazEventosService
             throw new XmlException("A SEFAZ nao retornou o protocolo do evento. Consulte a situacao antes de reenviar.");
         var codigo = info.Element(ns + "cStat")?.Value ?? "";
         if (codigo.Length != 3 || !codigo.All(char.IsAsciiDigit)) throw new XmlException("Retorno sem codigo de processamento valido.");
+        if (codigo == "155" && tipo != "110111") throw new XmlException("Retorno de cancelamento recebido para outro tipo de evento.");
         if (info.Element(ns + "tpAmb")?.Value != nota.Ambiente.ToString(CultureInfo.InvariantCulture)
             || info.Element(ns + "chNFe")?.Value != nota.ChaveAcesso
             || info.Element(ns + "tpEvento")?.Value != tipo
@@ -112,49 +114,24 @@ public class SefazEventosService
             info.Element(ns + "nProt")?.Value ?? "", xml);
     }
 
+    public static string? BloqueioCancelamento(NotaFiscal nota) => Bloqueio(nota) ??
+        (nota.AutorizadaEm.HasValue && DateTime.UtcNow - nota.AutorizadaEm.Value > TimeSpan.FromHours(168)
+            ? "O prazo de cancelamento de 168 horas no RS foi ultrapassado. Verifique a regularizacao fiscal aplicavel." : null);
+
     public virtual async Task<SefazEventoResultado> EnviarAsync(NotaFiscal nota, NotaFiscalEvento evento, X509Certificate2 cert, CancellationToken token)
     {
-        using var handler = new HttpClientHandler();
-        handler.ClientCertificates.Add(cert);
-        using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
-        var host = nota.Tipo == "NFCe" ? "nfce-homologacao" : "nfe-homologacao";
-        var envelope = $"<soap12:Envelope xmlns:soap12=\"http://www.w3.org/2003/05/soap-envelope\"><soap12:Body><nfeDadosMsg xmlns=\"{ServiceNamespace}\">{evento.XmlEnvio}</nfeDadosMsg></soap12:Body></soap12:Envelope>";
-        using var content = new StringContent(envelope, Encoding.UTF8, "application/soap+xml");
-        content.Headers.ContentType!.Parameters.Add(new System.Net.Http.Headers.NameValueHeaderValue("action", $"\"{ServiceNamespace}/nfeRecepcaoEvento\""));
-        using var response = await client.PostAsync($"https://{host}.sefazrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx", content, token);
-        response.EnsureSuccessStatusCode();
-        await using var stream = await response.Content.ReadAsStreamAsync(token);
-        using var reader = XmlReader.Create(stream, new XmlReaderSettings
-        {
-            Async = true, DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = 5_000_000
-        });
-        var doc = await XDocument.LoadAsync(reader, LoadOptions.PreserveWhitespace, token);
+        var doc = await (transporte ?? new SefazTransporte()).EnviarAsync("NFeRecepcaoEvento4", nota.Ambiente, nota.Tipo, evento.XmlEnvio, cert, token);
         return LerRetorno(doc.ToString(SaveOptions.DisableFormatting), nota, evento.Tipo, evento.Sequencia);
     }
 
     public virtual async Task<XElement> ConsultarAsync(NotaFiscal nota, X509Certificate2 cert, CancellationToken token)
     {
-        const string service = "http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4";
         var ns = NotaFiscalXml.Ns;
         var consulta = new XElement(ns + "consSitNFe", new XAttribute("versao", "4.00"),
-            new XElement(ns + "tpAmb", "2"), new XElement(ns + "xServ", "CONSULTAR"), new XElement(ns + "chNFe", nota.ChaveAcesso));
-        var envelope = $"<soap12:Envelope xmlns:soap12=\"http://www.w3.org/2003/05/soap-envelope\"><soap12:Body><nfeDadosMsg xmlns=\"{service}\">{consulta.ToString(SaveOptions.DisableFormatting)}</nfeDadosMsg></soap12:Body></soap12:Envelope>";
-        using var handler = new HttpClientHandler();
-        handler.ClientCertificates.Add(cert);
-        using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
-        using var content = new StringContent(envelope, Encoding.UTF8, "application/soap+xml");
-        content.Headers.ContentType!.Parameters.Add(new System.Net.Http.Headers.NameValueHeaderValue("action", $"\"{service}/nfeConsultaNF\""));
-        var host = nota.Tipo == "NFCe" ? "nfce-homologacao" : "nfe-homologacao";
-        using var response = await client.PostAsync($"https://{host}.sefazrs.rs.gov.br/ws/NfeConsulta/NfeConsulta4.asmx", content, token);
-        response.EnsureSuccessStatusCode();
-        await using var stream = await response.Content.ReadAsStreamAsync(token);
-        using var reader = XmlReader.Create(stream, new XmlReaderSettings
-        {
-            Async = true, DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = 5_000_000
-        });
-        var doc = await XDocument.LoadAsync(reader, LoadOptions.PreserveWhitespace, token);
-        var retorno = doc.Descendants(ns + "retConsSitNFe").SingleOrDefault();
-        if (retorno?.Element(ns + "chNFe")?.Value != nota.ChaveAcesso || retorno.Element(ns + "tpAmb")?.Value != "2")
+            new XElement(ns + "tpAmb", nota.Ambiente), new XElement(ns + "xServ", "CONSULTAR"), new XElement(ns + "chNFe", nota.ChaveAcesso));
+        var doc = await (transporte ?? new SefazTransporte()).EnviarAsync("NFeConsultaProtocolo4", nota.Ambiente, nota.Tipo, consulta.ToString(SaveOptions.DisableFormatting), cert, token);
+        var retorno = doc.Descendants(ns + "retConsSitNFe").SingleOrDefault() ?? (doc.Root?.Name == ns + "retConsSitNFe" ? doc.Root : null);
+        if (retorno?.Element(ns + "chNFe")?.Value != nota.ChaveAcesso || retorno.Element(ns + "tpAmb")?.Value != nota.Ambiente.ToString(CultureInfo.InvariantCulture))
             throw new XmlException("Resposta da consulta nao corresponde a nota fiscal.");
         return retorno;
     }

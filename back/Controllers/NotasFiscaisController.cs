@@ -12,7 +12,7 @@ namespace back.Controllers;
 
 [ApiController]
 [Route("api/notas-fiscais")]
-public class NotasFiscaisController(AppDbContext db, SefazEventosService sefaz) : ControllerBase
+public class NotasFiscaisController(AppDbContext db, SefazEventosService sefaz, NfeAutorizacaoService autorizacao) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<NotaFiscalListaResponse>> Listar(
@@ -66,7 +66,7 @@ public class NotasFiscaisController(AppDbContext db, SefazEventosService sefaz) 
             .Select(n => new
             {
                 n.Id, n.Numero, n.Serie, n.Emissao, n.Cliente, n.DocumentoCliente, n.Tipo,
-                n.Situacao, n.Valor, n.ChaveAcesso, n.Ambiente, TemPdf = n.Pdf != null,
+                n.Situacao, n.Valor, n.ChaveAcesso, n.Ambiente, n.AutorizadaEm, TemPdf = n.Pdf != null,
                 Pendente = n.Eventos.Any(e => e.Situacao == "Pendente" || e.Situacao == "Indeterminado"),
                 Correcoes = n.Eventos.Count(e => e.Tipo == "110110" && e.Situacao == "Confirmado")
             }).ToListAsync(cancellationToken);
@@ -76,7 +76,7 @@ public class NotasFiscaisController(AppDbContext db, SefazEventosService sefaz) 
                 SefazEventosService.Bloqueio(new NotaFiscal { Ambiente = n.Ambiente, ChaveAcesso = n.ChaveAcesso, Situacao = n.Situacao });
             return new NotaFiscalResponse(n.Id, n.Numero, n.Serie, n.Emissao, n.Cliente, n.DocumentoCliente,
                 n.Tipo, n.Situacao, n.Valor, n.ChaveAcesso, n.Ambiente, n.TemPdf,
-                bloqueio is null, bloqueio is null && n.Tipo == "NFe" && n.Correcoes < 20, bloqueio);
+                bloqueio is null && SefazEventosService.BloqueioCancelamento(new NotaFiscal { Ambiente = n.Ambiente, ChaveAcesso = n.ChaveAcesso, Situacao = n.Situacao, AutorizadaEm = n.AutorizadaEm }) is null, bloqueio is null && n.Tipo == "NFe" && n.Correcoes < 20, bloqueio);
         }).ToList();
         return Ok(new NotaFiscalListaResponse(pagina, 10, total, resumo, result));
     }
@@ -121,8 +121,9 @@ public class NotasFiscaisController(AppDbContext db, SefazEventosService sefaz) 
     {
         if (formato is not ("pdf" or "xml")) return NotFound();
         var nota = await db.NotasFiscais.AsNoTracking().Where(n => n.Id == id && n.EmpresaId == empresaId)
-            .Select(n => new { n.Numero, n.Serie, n.Xml, n.Pdf }).FirstOrDefaultAsync(token);
+            .Select(n => new { n.Numero, n.Serie, n.Xml, n.Pdf, n.XmlEnvioNfe, n.Situacao }).FirstOrDefaultAsync(token);
         if (nota is null) return NotFound("Nota fiscal nao encontrada.");
+        if (nota.XmlEnvioNfe.Length > 0 && nota.Situacao is not ("Autorizada" or "Cancelada")) return Conflict("O XML ainda nao possui protocolo de autorizacao da SEFAZ.");
         var nome = $"nota-{nota.Numero}-{nota.Serie}";
         if (formato == "xml") return File(Encoding.UTF8.GetBytes(nota.Xml), "application/xml", nome + ".xml");
         return nota.Pdf is null ? NotFound("O PDF desta nota ainda nao foi anexado.") : File(nota.Pdf, "application/pdf", nome + ".pdf");
@@ -133,133 +134,131 @@ public class NotasFiscaisController(AppDbContext db, SefazEventosService sefaz) 
     public Task<IActionResult> Cancelar(long id, [FromQuery] int empresaId, NotaFiscalEventoRequest request, CancellationToken token)
         => RegistrarEvento(id, empresaId, "110111", request, token);
 
+    [HttpPost("{id:long}/carta-correcao")]
+    [RequestSizeLimit(1_500_000)]
+    public Task<IActionResult> Corrigir(long id, [FromQuery] int empresaId, NotaFiscalEventoRequest request, CancellationToken token)
+        => RegistrarEvento(id, empresaId, "110110", request, token);
+
     [HttpPost("{id:long}/consultar")]
     [RequestSizeLimit(1_500_000)]
     public async Task<IActionResult> Consultar(long id, [FromQuery] int empresaId, CertificadoRequest request, CancellationToken token)
     {
         if (id <= 0 || empresaId <= 0) return BadRequest("Nota e empresa sao obrigatorias.");
-        await db.Database.OpenConnectionAsync(token);
-        var locked = false;
+        await using var gate = await FiscalLock.AdquirirAsync(db, -id, token);
+        if (gate is null) return Conflict("Existe uma operacao em andamento nesta nota fiscal.");
         try
         {
-            locked = await db.Database.SqlQuery<bool>($"SELECT pg_try_advisory_lock({-id}) AS \"Value\"").SingleAsync(token);
-            if (!locked) return Conflict("Ja existe uma operacao em andamento nesta nota fiscal.");
             var nota = await db.NotasFiscais.Include(n => n.Eventos).FirstOrDefaultAsync(n => n.Id == id && n.EmpresaId == empresaId, token);
             if (nota is null) return NotFound();
             var bloqueio = SefazEventosService.Bloqueio(new NotaFiscal { ChaveAcesso = nota.ChaveAcesso, Ambiente = nota.Ambiente, Situacao = "Autorizada" });
             if (bloqueio is not null) return Conflict(bloqueio);
             using var certificate = SefazEventosService.CarregarCertificado(request.Base64, request.Password);
+            NfeAssinatura.ValidarTitular(certificate, nota.ChaveAcesso.Substring(6, 14));
+            if (nota.XmlEnvioNfe.Length > 0 && nota.Situacao == "Processando" && nota.Recibo.Length > 0)
+            {
+                NfeAutorizacaoService.AplicarRetorno(nota, await autorizacao.ConsultarReciboAsync(nota, certificate, token));
+                await new NfeEstoqueSaidaService(db).SincronizarAsync(nota, CancellationToken.None);
+                await db.SaveChangesAsync(CancellationToken.None);
+                return Ok(new { codigo = nota.CodigoAutorizacao, motivo = nota.MotivoAutorizacao, nota.Situacao, pendente = nota.Situacao == "Processando" });
+            }
             var retorno = await sefaz.ConsultarAsync(nota, certificate, token);
             var ns = NotaFiscalXml.Ns;
             var codigo = retorno.Element(ns + "cStat")?.Value;
-            if (codigo is "100" or "150") nota.Situacao = "Autorizada";
+            if (nota.XmlEnvioNfe.Length > 0) NfeAutorizacaoService.AplicarRetorno(nota, new System.Xml.Linq.XDocument(retorno));
+            else if (codigo is "100" or "150") nota.Situacao = "Autorizada";
             else if (codigo is "101" or "151" or "155") nota.Situacao = "Cancelada";
             else return Problem(statusCode: 422, detail: $"SEFAZ {codigo}: {retorno.Element(ns + "xMotivo")?.Value}");
             foreach (var proc in retorno.Elements(ns + "procEventoNFe"))
             {
                 var envio = proc.Element(ns + "evento")?.Element(ns + "infEvento");
                 var info = proc.Element(ns + "retEvento")?.Element(ns + "infEvento");
-                if (info?.Element(ns + "cStat")?.Value != "135" || info.Element(ns + "chNFe")?.Value != nota.ChaveAcesso
-                    || info.Element(ns + "tpAmb")?.Value != "2" || string.IsNullOrWhiteSpace(info.Element(ns + "nProt")?.Value)) continue;
+                if (info?.Element(ns + "cStat")?.Value is not ("135" or "155") || info.Element(ns + "chNFe")?.Value != nota.ChaveAcesso
+                    || info.Element(ns + "tpAmb")?.Value != nota.Ambiente.ToString() || !System.Text.RegularExpressions.Regex.IsMatch(info.Element(ns + "nProt")?.Value ?? "", @"^\d{15}$")) continue;
                 var tipo = info.Element(ns + "tpEvento")?.Value;
                 if (tipo is not ("110110" or "110111") || !int.TryParse(info.Element(ns + "nSeqEvento")?.Value, out var seq)) continue;
+                if (info.Element(ns + "cStat")?.Value == "155" && tipo != "110111") continue;
                 var evento = nota.Eventos.FirstOrDefault(e => e.Tipo == tipo && e.Sequencia == seq && e.Situacao != "Rejeitado");
-                if (evento is null)
-                {
-                    evento = new NotaFiscalEvento { Tipo = tipo, Sequencia = seq };
-                    nota.Eventos.Add(evento);
-                }
-                evento.Codigo = "135";
+                if (evento is null) { evento = new NotaFiscalEvento { Tipo = tipo, Sequencia = seq }; nota.Eventos.Add(evento); }
+                evento.Codigo = info.Element(ns + "cStat")!.Value;
                 evento.Protocolo = info.Element(ns + "nProt")!.Value;
                 evento.Motivo = info.Element(ns + "xMotivo")?.Value ?? "Evento confirmado.";
                 evento.Situacao = "Confirmado";
                 evento.XmlRetorno = proc.ToString(System.Xml.Linq.SaveOptions.DisableFormatting);
                 evento.Texto = envio?.Element(ns + "detEvento")?.Element(ns + (tipo == "110110" ? "xCorrecao" : "xJust"))?.Value ?? evento.Texto;
             }
+            await new NfeEstoqueSaidaService(db).SincronizarAsync(nota, CancellationToken.None);
             await db.SaveChangesAsync(CancellationToken.None);
-            return Ok(new { codigo, motivo = retorno.Element(ns + "xMotivo")?.Value, nota.Situacao,
-                pendente = nota.Eventos.Any(e => e.Situacao is "Pendente" or "Indeterminado") });
+            return Ok(new { codigo, motivo = retorno.Element(ns + "xMotivo")?.Value, nota.Situacao, pendente = nota.Situacao == "Processando" || nota.Eventos.Any(e => e.Situacao is "Pendente" or "Indeterminado") });
         }
         catch (Exception error) when (error is ArgumentException or CryptographicException)
-        {
-            return Problem(statusCode: 400, detail: error is CryptographicException ? "Certificado A1 invalido ou senha incorreta." : error.Message);
-        }
+        { return Problem(statusCode: 400, detail: error is CryptographicException ? "Certificado A1 invalido ou senha incorreta." : error.Message); }
         catch (Exception error) when (error is HttpRequestException or TaskCanceledException or XmlException)
-        {
-            return Problem(statusCode: 502, detail: "Nao foi possivel consultar a situacao na SEFAZ. Tente novamente.");
-        }
-        finally
-        {
-            try { if (locked) await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_unlock({-id})", CancellationToken.None); }
-            finally { await db.Database.CloseConnectionAsync(); }
-        }
+        { return Problem(statusCode: 502, detail: "Nao foi possivel confirmar a situacao na SEFAZ. A mesma nota deve ser consultada novamente."); }
     }
-
-    [HttpPost("{id:long}/carta-correcao")]
-    [RequestSizeLimit(1_500_000)]
-    public Task<IActionResult> Corrigir(long id, [FromQuery] int empresaId, NotaFiscalEventoRequest request, CancellationToken token)
-        => RegistrarEvento(id, empresaId, "110110", request, token);
 
     private async Task<IActionResult> RegistrarEvento(long id, int empresaId, string tipo, NotaFiscalEventoRequest request, CancellationToken token)
     {
         if (id <= 0 || empresaId <= 0) return BadRequest("Nota e empresa sao obrigatorias.");
-        await db.Database.OpenConnectionAsync(token);
-        var locked = false;
+        if (tipo == "110111" && !request.ConfirmarNaoCirculacao) return BadRequest("Confirme que nao houve circulacao da mercadoria nem realizacao da operacao.");
+        await using var gate = await FiscalLock.AdquirirAsync(db, -id, token);
+        if (gate is null) return Conflict("Existe uma operacao em andamento nesta nota fiscal.");
         try
         {
-            // Lock de sessao impede transmissao simultanea mesmo em replicas distintas.
-            locked = await db.Database.SqlQuery<bool>($"SELECT pg_try_advisory_lock({-id}) AS \"Value\"").SingleAsync(token);
-            if (!locked) return Conflict("Ja existe uma operacao em andamento nesta nota fiscal.");
             var nota = await db.NotasFiscais.Include(n => n.Eventos).FirstOrDefaultAsync(n => n.Id == id && n.EmpresaId == empresaId, token);
             if (nota is null) return NotFound("Nota fiscal nao encontrada.");
-            var bloqueio = SefazEventosService.Bloqueio(nota);
+            var bloqueio = tipo == "110111" ? SefazEventosService.BloqueioCancelamento(nota) : SefazEventosService.Bloqueio(nota);
             if (bloqueio is not null) return Conflict(bloqueio);
-            if (nota.Eventos.Any(e => e.Situacao is "Pendente" or "Indeterminado"))
-                return Conflict("Existe evento sem confirmacao. Consulte a SEFAZ antes de enviar outro evento.");
+            if (nota.Eventos.Any(e => e.Situacao is "Pendente" or "Indeterminado")) return Conflict("Existe evento sem confirmacao. Consulte a SEFAZ antes de enviar outro evento.");
             using var certificate = SefazEventosService.CarregarCertificado(request.Base64, request.Password);
             var sequencia = nota.Eventos.Where(e => e.Tipo == tipo && e.Situacao == "Confirmado").Select(e => e.Sequencia).DefaultIfEmpty(0).Max() + 1;
-            var evento = new NotaFiscalEvento
-            {
-                NotaFiscalId = nota.Id, Tipo = tipo, Sequencia = sequencia, Texto = request.Texto?.Trim() ?? "",
-            };
+            var evento = new NotaFiscalEvento { NotaFiscalId = nota.Id, Tipo = tipo, Sequencia = sequencia, Texto = request.Texto?.Trim() ?? "" };
             evento.XmlEnvio = SefazEventosService.CriarEvento(nota, tipo, sequencia, evento.Texto, certificate);
             db.NotaFiscalEventos.Add(evento);
-            // Grava antes de transmitir: timeout ou queda nao liberam um reenvio cego.
             await db.SaveChangesAsync(token);
             try
             {
                 var result = await sefaz.EnviarAsync(nota, evento, certificate, token);
-                evento.Codigo = result.Codigo;
-                evento.Motivo = result.Motivo;
-                evento.Protocolo = result.Protocolo;
-                evento.XmlRetorno = result.Xml;
-                evento.Situacao = result.Confirmado ? "Confirmado" :
-                    int.TryParse(result.Codigo, out var codigo) && codigo >= 200 && codigo != 573 ? "Rejeitado" : "Indeterminado";
-                if (result.Confirmado && tipo == "110111") nota.Situacao = "Cancelada";
+                evento.Codigo = result.Codigo; evento.Motivo = result.Motivo; evento.Protocolo = result.Protocolo; evento.XmlRetorno = result.Xml;
+                evento.Situacao = result.Confirmado ? "Confirmado" : int.TryParse(result.Codigo, out var code) && code >= 200 && code != 573 ? "Rejeitado" : "Indeterminado";
+                if (result.Confirmado && tipo == "110111") { nota.Situacao = "Cancelada"; await new NfeEstoqueSaidaService(db).SincronizarAsync(nota, CancellationToken.None); }
                 await db.SaveChangesAsync(CancellationToken.None);
-                if (!result.Confirmado)
-                    return Problem(statusCode: 422, detail: $"SEFAZ {result.Codigo}: {result.Motivo}");
+                if (!result.Confirmado) return Problem(statusCode: 422, detail: $"SEFAZ {result.Codigo}: {result.Motivo}");
                 return Ok(new NotaFiscalEventoResponse(result.Codigo, result.Motivo, result.Protocolo, sequencia));
             }
             catch (Exception error) when (error is HttpRequestException or TaskCanceledException or XmlException)
             {
-                evento.Situacao = "Indeterminado";
-                evento.Motivo = "Sem confirmacao de processamento. Consulte a SEFAZ antes de reenviar.";
+                evento.Situacao = "Indeterminado"; evento.Motivo = "Sem confirmacao de processamento. Consulte a SEFAZ antes de reenviar.";
                 await db.SaveChangesAsync(CancellationToken.None);
                 return Problem(statusCode: 502, detail: evento.Motivo);
             }
         }
         catch (Exception error) when (error is ArgumentException or CryptographicException)
+        { return Problem(statusCode: 400, detail: error is CryptographicException ? "Certificado A1 invalido ou senha incorreta." : error.Message); }
+    }
+
+    [HttpGet("{id:long}/eventos")]
+    public async Task<IActionResult> Eventos(long id, [FromQuery] int empresaId, CancellationToken token)
+    {
+        if (!await db.NotasFiscais.AnyAsync(n => n.Id == id && n.EmpresaId == empresaId, token)) return NotFound();
+        return Ok(await db.NotaFiscalEventos.AsNoTracking().Where(e => e.NotaFiscalId == id)
+            .OrderByDescending(e => e.CriadoEm).Select(e => new { e.Id, e.Tipo, e.Sequencia, e.Situacao, e.Codigo, e.Motivo, e.Protocolo, e.Texto, e.CriadoEm }).ToListAsync(token));
+    }
+
+    [HttpGet("{id:long}/eventos/{eventoId:long}/xml")]
+    public async Task<IActionResult> BaixarEvento(long id, long eventoId, [FromQuery] int empresaId, CancellationToken token)
+    {
+        var evento = await db.NotaFiscalEventos.AsNoTracking().SingleOrDefaultAsync(e => e.Id == eventoId && e.NotaFiscalId == id && e.NotaFiscal.EmpresaId == empresaId, token);
+        if (evento is null) return NotFound();
+        if (evento.Situacao != "Confirmado") return Conflict("O evento ainda nao possui confirmacao da SEFAZ.");
+        var ns = NotaFiscalXml.Ns;
+        var retorno = NotaFiscalXml.Ler(evento.XmlRetorno);
+        var proc = retorno.Descendants(ns + "procEventoNFe").FirstOrDefault() ?? (retorno.Root?.Name == ns + "procEventoNFe" ? retorno.Root : null);
+        if (proc is null)
         {
-            return Problem(statusCode: 400, detail: error is CryptographicException ? "Certificado A1 invalido ou senha incorreta." : error.Message);
+            var envio = NotaFiscalXml.Ler(evento.XmlEnvio).Descendants(ns + "evento").Single();
+            var ret = retorno.Descendants(ns + "retEvento").Single();
+            proc = new System.Xml.Linq.XElement(ns + "procEventoNFe", new System.Xml.Linq.XAttribute("versao", "1.00"), new System.Xml.Linq.XElement(envio), new System.Xml.Linq.XElement(ret));
         }
-        finally
-        {
-            try
-            {
-                if (locked) await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_unlock({-id})", CancellationToken.None);
-            }
-            finally { await db.Database.CloseConnectionAsync(); }
-        }
+        return File(Encoding.UTF8.GetBytes(proc.ToString(System.Xml.Linq.SaveOptions.DisableFormatting)), "application/xml", $"evento-{id}-{evento.Tipo}-{evento.Sequencia}.xml");
     }
 }

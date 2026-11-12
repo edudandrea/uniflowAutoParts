@@ -62,9 +62,10 @@
                 <td><span class="status" [class.authorized]="nota.situacao === 'Autorizada'" [class.cancelled]="nota.situacao === 'Cancelada'" [class.processing]="nota.situacao === 'Processando'" [class.rejected]="nota.situacao === 'Rejeitada'"><app-icon [name]="nota.situacao === 'Autorizada' ? 'check' : nota.situacao === 'Cancelada' || nota.situacao === 'Rejeitada' ? 'x' : 'calendar'" [size]="13" />{{ nota.situacao === 'Processando' ? 'Em processamento' : nota.situacao }}</span></td>
                 <td><div class="key-cell"><span class="access-key" [title]="nota.chaveAcesso">{{ nota.chaveAcesso }}</span><button type="button" class="small-icon" (click)="copyKey(nota)" [attr.aria-label]="'Copiar chave da nota ' + nota.numero" title="Copiar chave de acesso"><app-icon name="file-text" [size]="15" /></button></div></td>
                 <td><div class="row-actions">
-                  <button class="action" type="button" title="Consultar situação na SEFAZ" [attr.aria-label]="'Consultar nota ' + nota.numero + ' na SEFAZ'" [disabled]="consulting() !== null || nota.ambiente !== 2 || !nota.chaveAcesso.startsWith('43') || nota.chaveAcesso[34] !== '1'" (click)="consult(nota)"><app-icon name="search" [size]="15" /></button>
+                  <button class="action" type="button" title="Consultar situação na SEFAZ" [attr.aria-label]="'Consultar nota ' + nota.numero + ' na SEFAZ'" [disabled]="consulting() !== null || !nota.chaveAcesso.startsWith('43') || nota.chaveAcesso[34] !== '1'" (click)="consult(nota)"><app-icon name="search" [size]="15" /></button>
                   <button class="action" type="button" [disabled]="!nota.temPdf || downloading() !== null" [title]="nota.temPdf ? 'Baixar PDF' : 'PDF não anexado à nota'" [attr.aria-label]="'Baixar PDF da nota ' + nota.numero" (click)="download(nota, 'pdf')"><app-icon name="file-text" [size]="15" />PDF</button>
                   <button class="action" type="button" [disabled]="downloading() !== null" [attr.aria-label]="'Baixar XML da nota ' + nota.numero" (click)="download(nota, 'xml')"><app-icon name="download" [size]="15" />XML</button>
+                  <button class="action" type="button" (click)="showHistory(nota)"><app-icon name="receipt-text" [size]="15" />Eventos</button>
                   <button class="action correction" type="button" [disabled]="!nota.podeCorrigir" [title]="nota.bloqueioEventos || (nota.tipo === 'NFCe' ? 'Carta de correção disponível somente para NF-e' : 'Registrar carta de correção')" (click)="openEvent(nota, 'carta-correcao')"><app-icon name="pencil" [size]="15" />Carta de correção</button>
                   <button class="action danger" type="button" [disabled]="!nota.podeCancelar" [title]="nota.bloqueioEventos || 'Cancelar nota fiscal'" (click)="openEvent(nota, 'cancelar')"><app-icon name="x" [size]="15" />Cancelar</button>
                 </div></td>
@@ -84,16 +85,16 @@
       </nav></footer>
     }
   </section>
-  <p class="integration-note"><app-icon name="lock" [size]="14" />Eventos disponíveis para RS em homologação, com certificado A1. Notas de produção permitem consulta e download.</p>
+  <p class="integration-note"><app-icon name="lock" [size]="14" />Autorização, consulta, cancelamento e carta de correção na SEFAZ/RS, em produção ou homologação. A CC-e está disponível somente para NF-e. Eventos confirmados podem ser baixados no histórico.</p>
 </section>
 
 <dialog #eventDialog class="fiscal-dialog" aria-labelledby="event-title" (cancel)="$event.preventDefault(); closeEvent()">
   <form (ngSubmit)="submitEvent()">
-    <header><div><span class="eyebrow">EVENTO FISCAL · HOMOLOGAÇÃO RS</span><h2 id="event-title">{{ event()?.acao === 'cancelar' ? 'Cancelar nota fiscal' : 'Carta de correção' }}</h2></div><button class="small-icon" type="button" aria-label="Fechar" [disabled]="busy()" (click)="closeEvent()"><app-icon name="x" /></button></header>
+    <header><div><span class="eyebrow">EVENTO FISCAL · {{ event()?.nota?.ambiente === 1 ? 'PRODUÇÃO' : 'HOMOLOGAÇÃO' }} RS</span><h2 id="event-title">{{ event()?.acao === 'cancelar' ? 'Cancelar nota fiscal' : 'Carta de correção' }}</h2></div><button class="small-icon" type="button" aria-label="Fechar" [disabled]="busy()" (click)="closeEvent()"><app-icon name="x" /></button></header>
     @if (event(); as selected) {
       <div class="selected-invoice"><strong>{{ typeLabel(selected.nota.tipo) }} {{ selected.nota.numero }} · Série {{ selected.nota.serie }}</strong><span>{{ selected.nota.cliente || 'Consumidor não identificado' }}</span><small>{{ selected.nota.chaveAcesso }}</small></div>
       @if (selected.acao === 'cancelar') {
-        <p>Informe a justificativa para solicitar o cancelamento à SEFAZ. A nota só será marcada como cancelada após a confirmação do evento.</p>
+        <p>Informe a justificativa para solicitar o cancelamento à SEFAZ. A nota só será marcada como cancelada após a confirmação do evento. O prazo aplicável no RS é de até 168 horas após a autorização.</p><label class="circulation-confirmation"><input type="checkbox" name="noCirculation" [(ngModel)]="noCirculation" [disabled]="busy()" />Confirmo que não houve circulação da mercadoria nem realização da operação.</label>
       } @else {
         <p>A correção mais recente deve incluir todas as correções anteriores. Não utilize a CC-e para alterar valores, impostos, remetente, destinatário ou datas.</p>
       }
@@ -101,7 +102,7 @@
       <small id="text-limit">{{ eventText.trim().length }} / {{ selected.acao === 'cancelar' ? 255 : 1000 }} caracteres · mínimo de 15</small>
     }
     @if (eventError()) { <p class="error" role="alert">{{ eventError() }}</p> }
-    <footer><button class="outline" type="button" [disabled]="busy()" (click)="closeEvent()">Voltar</button><button [class.danger-primary]="event()?.acao === 'cancelar'" class="primary" type="submit" [disabled]="busy() || eventText.trim().length < 15"><app-icon name="send" [size]="17" />{{ busy() ? 'Aguardando a SEFAZ...' : 'Transmitir à SEFAZ' }}</button></footer>
+    <footer><button class="outline" type="button" [disabled]="busy()" (click)="closeEvent()">Voltar</button><button [class.danger-primary]="event()?.acao === 'cancelar'" class="primary" type="submit" [disabled]="busy() || eventText.trim().length < 15 || event()?.acao === 'cancelar' && !noCirculation"><app-icon name="send" [size]="17" />{{ busy() ? 'Aguardando a SEFAZ...' : 'Transmitir à SEFAZ' }}</button></footer>
   </form>
 </dialog>
 
@@ -115,4 +116,11 @@
     @if (importError()) { <p class="error" role="alert">{{ importError() }}</p> }
     <footer><button class="outline" type="button" [disabled]="importing()" (click)="closeImport()">Voltar</button><button class="primary" type="submit" [disabled]="importing()"><app-icon name="upload" [size]="17" />{{ importing() ? 'Importando...' : 'Importar nota' }}</button></footer>
   </form>
+</dialog>
+
+<dialog #historyDialog class="fiscal-dialog" aria-labelledby="history-title"><header><h2 id="history-title">Eventos da NF-e {{ historyNote()?.numero }}</h2><button type="button" class="small-icon" aria-label="Fechar histórico" (click)="closeHistory()"><app-icon name="x" /></button></header>
+  @if (historyBusy()) { <p>Carregando eventos...</p> }
+  @for (evento of history(); track evento.id) { <section class="event-history-item"><h3>{{ evento.tipo === '110111' ? 'Cancelamento' : 'Carta de correção' }} · {{ evento.sequencia }} · {{ evento.situacao }}</h3><p>{{ evento.texto }}</p><p>SEFAZ {{ evento.codigo }}: {{ evento.motivo }}</p><p>Protocolo: {{ evento.protocolo || 'Aguardando confirmação' }}</p><button class="outline" type="button" [disabled]="evento.situacao !== 'Confirmado'" (click)="downloadEvent(evento)">Baixar XML do evento</button></section> } @empty { @if (!historyBusy() && !historyError()) { <p>Nenhum evento registrado para esta nota.</p> } }
+  @if (historyError()) { <p role="alert" class="error">{{ historyError() }}</p> }
+  <footer><button class="outline" type="button" (click)="closeHistory()">Fechar</button></footer>
 </dialog>
