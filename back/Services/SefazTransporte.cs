@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Xml;
@@ -5,7 +6,7 @@ using System.Xml.Linq;
 
 namespace back.Services;
 
-public class SefazTransporte
+public class SefazTransporte(ILogger<SefazTransporte>? logger = null)
 {
     public virtual async Task<XDocument> EnviarAsync(string servico, int ambiente, string tipo, string xml,
         X509Certificate2 cert, CancellationToken token)
@@ -24,10 +25,28 @@ public class SefazTransporte
         var envelope = $"<soap12:Envelope xmlns:soap12=\"http://www.w3.org/2003/05/soap-envelope\"><soap12:Body><nfeDadosMsg xmlns=\"{serviceNamespace}\">{xml}</nfeDadosMsg></soap12:Body></soap12:Envelope>";
         using var content = new StringContent(envelope, Encoding.UTF8, "application/soap+xml");
         content.Headers.ContentType!.Parameters.Add(new System.Net.Http.Headers.NameValueHeaderValue("action", $"\"{serviceNamespace}/{action}\""));
-        using var response = await client.PostAsync(SefazAmbientes.UrlServico(servico, ambiente, tipo), content, token);
-        response.EnsureSuccessStatusCode();
-        await using var stream = await response.Content.ReadAsStreamAsync(token);
-        using var reader = XmlReader.Create(stream, new XmlReaderSettings { Async = true, DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = 5_000_000 });
-        return await XDocument.LoadAsync(reader, LoadOptions.PreserveWhitespace, token);
+        var url = SefazAmbientes.UrlServico(servico, ambiente, tipo);
+        var clock = Stopwatch.StartNew();
+        int? httpStatus = null;
+        logger?.LogInformation("SEFAZ: iniciando {Servico}, ambiente {Ambiente}, modelo {Modelo}, destino {Destino}.", servico, ambiente, tipo, url);
+        try
+        {
+            using var response = await client.PostAsync(url, content, token);
+            httpStatus = (int)response.StatusCode;
+            response.EnsureSuccessStatusCode();
+            await using var stream = await response.Content.ReadAsStreamAsync(token);
+            using var reader = XmlReader.Create(stream, new XmlReaderSettings { Async = true, DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null, MaxCharactersInDocument = 5_000_000 });
+            var document = await XDocument.LoadAsync(reader, LoadOptions.PreserveWhitespace, token);
+            var codes = string.Join(",", document.Descendants(NotaFiscalXml.Ns + "cStat").Select(e => e.Value).Take(5));
+            logger?.LogInformation("SEFAZ: resposta de {Servico}, ambiente {Ambiente}, HTTP {HttpStatus}, cStat {Codigos}, duracao {DuracaoMs} ms.", servico, ambiente, httpStatus, codes, clock.ElapsedMilliseconds);
+            return document;
+        }
+        catch (Exception error) when (error is HttpRequestException or OperationCanceledException or XmlException)
+        {
+            // Registra o diagnostico tecnico sem XML fiscal, certificado, senha ou corpo da resposta.
+            logger?.LogWarning(error, "SEFAZ: falha em {Servico}, ambiente {Ambiente}, destino {Destino}, HTTP {HttpStatus}, duracao {DuracaoMs} ms, requisicao cancelada {Cancelada}.",
+                servico, ambiente, url, httpStatus, clock.ElapsedMilliseconds, token.IsCancellationRequested);
+            throw;
+        }
     }
 }

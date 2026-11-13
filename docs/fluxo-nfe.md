@@ -47,3 +47,9 @@ Os testes automatizados usam certificados sintéticos e transporte SEFAZ simulad
 - [Manual de Orientação do Contribuinte, leiaute e regras](https://www.confaz.fazenda.gov.br/legislacao/arquivo-manuais/moc7-anexo-i-leiaute-e-rv.pdf).
 
 A revisão da venda permite escolher o CSOSN apenas para a nota atual, sem alterar a configuração tributária da empresa. Para operação tributada sem permissão de crédito, pode-se selecionar 102, inclusive para CPF ou CNPJ não contribuinte. O código deve corresponder à operação e à orientação contábil. Sem escolha, mantém-se o código da empresa. A validação de 101 para destinatário contribuinte com direito a crédito permanece ativa.
+
+### Diagnostico de falhas de comunicacao
+
+O transporte SEFAZ registra inicio, servico, ambiente, destino, duracao, status HTTP, codigos cStat e excecoes de rede/timeout/XML. Nao registra XML fiscal, certificado A1, senha ou corpo da resposta. Ao investigar uma consulta com 502, compare esses registros do backend com os logs de erro do Nginx no frontend no mesmo horario. Um registro de inicio sem resposta deve ser correlacionado com reinicios ou encerramentos da instancia.
+
+O frontend Docker define proxy_read_timeout e proxy_send_timeout de 90 segundos para permitir que a API devolva o resultado do cliente SEFAZ, cujo limite e 60 segundos. Esse ajuste nao corrige indisponibilidade da SEFAZ, erros TLS ou falhas do gateway externo; os logs devem identificar a causa. API_PROXY_TARGET deve apontar para a origem do servico backend (sem /api), nunca para o proprio frontend. Publicar backend e frontend e necessario para ativar estes ajustes na hospedagem.
