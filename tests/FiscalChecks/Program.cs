@@ -111,4 +111,26 @@ var splitRequest = NfeFixtures.Request() with { Itens = Enumerable.Range(1, 4).S
 var splitNote = NfeGerador.Criar(NfeFixtures.Empresa(), NfeFixtures.Config(), NfeFixtures.Tax(), NfeFixtures.Cliente(), discountItems, splitRequest, 2, 1, emissionCertificate);
 Check(splitNote.Valor == 3.98m && XDocument.Parse(splitNote.Xml).Descendants(ns + "prod").Sum(p => decimal.Parse(p.Element(ns + "vDesc")?.Value ?? "0", System.Globalization.CultureInfo.InvariantCulture)) == 0.02m, "Rateio perdeu centavos ou gerou valores negativos.");
 Reject(() => NfeGerador.Criar(NfeFixtures.Empresa(), NfeFixtures.Config(), NfeFixtures.Tax(), NfeFixtures.Cliente(), new Dictionary<int,CadastroItens> { [1] = NfeFixtures.Produto() }, NfeFixtures.Request() with { Modelo = "65" }, 3, 1, emissionCertificate), "Emitiu NFC-e sem CSC e leiaute especifico.");
+// CPF and CNPJ recipients must generate the correct XML without changing company tax settings.
+foreach (var documento in new[] { "12345678909", "98765432000199" })
+{
+    var customer = NfeFixtures.Cliente(); customer.CpfCnpj = documento;
+    customer.IndicadorIe = IndicadorIe.NaoContribuinte; customer.ConsumidorFinal = true; customer.InscricaoEstadual = null;
+    var tax = NfeFixtures.Tax();
+    var sale = NfeFixtures.Request() with { Csosn = "102" };
+    var note = NfeGerador.Criar(NfeFixtures.Empresa(), NfeFixtures.Config(), tax, customer,
+        new Dictionary<int, CadastroItens> { [1] = NfeFixtures.Produto() }, sale, 4, 1, emissionCertificate);
+    var fiscalXml = XDocument.Parse(note.XmlEnvioNfe);
+    var dest = fiscalXml.Descendants(ns + "dest").Single();
+    Check(dest.Element(ns + (documento.Length == 11 ? "CPF" : "CNPJ"))?.Value == documento, "Documento incorreto no XML.");
+    Check(dest.Element(ns + "indIEDest")?.Value == "9" && dest.Element(ns + "IE") is null, "Nao contribuinte recebeu IE.");
+    Check(fiscalXml.Descendants(ns + "indFinal").Single().Value == "1", "Consumidor final incorreto.");
+    Check(fiscalXml.Descendants(ns + "ICMSSN102").Any() && !fiscalXml.Descendants(ns + "pCredSN").Any(), "102 gerou credito indevido.");
+    Check(tax.IcmsCode == "101", "Escolha da venda alterou tributacao da empresa.");
+    Reject(() => NfeGerador.Criar(NfeFixtures.Empresa(), NfeFixtures.Config(), tax, customer,
+        new Dictionary<int, CadastroItens> { [1] = NfeFixtures.Produto() }, sale with { Csosn = "101" }, 5, 1, emissionCertificate), "Permitiu credito para nao contribuinte.");
+}
+var invalidCsosn = NfeFixtures.Request() with { Csosn = "999" };
+Reject(() => NfeGerador.Criar(NfeFixtures.Empresa(), NfeFixtures.Config(), NfeFixtures.Tax(), NfeFixtures.Cliente(),
+    new Dictionary<int, CadastroItens> { [1] = NfeFixtures.Produto() }, invalidCsosn, 6, 1, emissionCertificate), "Aceitou CSOSN invalido.");
 Console.WriteLine($"Fiscal checks: {checks} passed. Nenhuma chamada externa realizada.");

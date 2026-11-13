@@ -45,3 +45,5 @@ Os testes automatizados usam certificados sintéticos e transporte SEFAZ simulad
 - [Documentos técnicos e schemas](https://dfe-portal.svrs.rs.gov.br/Nfe/Documentos).
 - [Condições e prazo de cancelamento no RS](https://atendimento.receita.rs.gov.br/quais-sao-as-condicoes-e-prazos-para-o-cancelamento-de-uma-nf-e).
 - [Manual de Orientação do Contribuinte, leiaute e regras](https://www.confaz.fazenda.gov.br/legislacao/arquivo-manuais/moc7-anexo-i-leiaute-e-rv.pdf).
+
+A revisão da venda permite escolher o CSOSN apenas para a nota atual, sem alterar a configuração tributária da empresa. Para operação tributada sem permissão de crédito, pode-se selecionar 102, inclusive para CPF ou CNPJ não contribuinte. O código deve corresponder à operação e à orientação contábil. Sem escolha, mantém-se o código da empresa. A validação de 101 para destinatário contribuinte com direito a crédito permanece ativa.

@@ -47,6 +47,7 @@ internal static class NfeEmissionChecks
             var replay = Result(await Controller(db).Emitir(request, default));
             Check(replay.Id == first.Id && transport.Authorizations == 1, "Repetir a mesma solicitacao retransmitiu a NF-e.");
             Check(await Controller(db).Emitir(request with { Observacoes = "Dados alterados" }, default) is ConflictObjectResult, "Reutilizou solicitacao com outros dados.");
+            Check(await Controller(db).Emitir(request with { Csosn = "102" }, default) is ConflictObjectResult, "Reutilizou solicitacao com CSOSN alterado.");
             var eventos = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport));
             Check(await eventos.Cancelar(first.Id, 1, new("Cancelamento solicitado pelo cliente", encoded, "fixture"), default) is BadRequestObjectResult, "Cancelou sem confirmar nao circulacao.");
             Check(await eventos.Corrigir(first.Id, 1, new("Corrigir observacao de entrega no portao dois", encoded, "fixture"), default) is OkObjectResult, "Nao registrou CC-e de producao.");

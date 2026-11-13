@@ -85,6 +85,25 @@ import { SalesComponent } from './sales.component';
     expect(element.querySelector<HTMLButtonElement>('.invoice-button')!.disabled).toBe(true);
   });
 
+  it('persists the sale CSOSN and reuses it when recovering an unknown response', async () => {
+    await prepareEmission();
+    const select = element.querySelector<HTMLSelectElement>('[aria-label="CSOSN desta venda"]')!;
+    select.value = '102'; select.dispatchEvent(new Event('change')); fixture.detectChanges(); await fixture.whenStable();
+    element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
+    const first = http.expectOne(`${environment.apiUrl}/notas-fiscais/emitir`);
+    expect(first.request.body.csosn).toBe('102');
+    const requestId = first.request.body.solicitacaoId;
+    first.flush({}, { status: 500, statusText: 'Disconnected' }); fixture.detectChanges();
+    expect(element.querySelector<HTMLSelectElement>('[aria-label="CSOSN desta venda"]')!.closest('fieldset')!.disabled).toBe(true);
+    fixture.destroy(); fixture = TestBed.createComponent(SalesComponent); element = fixture.nativeElement; fixture.detectChanges(); catalog([product], 'producao');
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(element.querySelector<HTMLSelectElement>('[aria-label="CSOSN desta venda"]')!.value).toBe('102');
+    element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
+    const retry = http.expectOne(`${environment.apiUrl}/notas-fiscais/emitir`);
+    expect(retry.request.body.csosn).toBe('102'); expect(retry.request.body.solicitacaoId).toBe(requestId);
+    retry.flush(authorized); fixture.detectChanges();
+  });
+
   it('recovers an unknown response with the same persisted request id after reloading the page', async () => {
     await prepareEmission(); element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
     const first = http.expectOne(`${environment.apiUrl}/notas-fiscais/emitir`); const requestId = first.request.body.solicitacaoId;

@@ -23,7 +23,7 @@ public sealed class EmissaoNfeController(AppDbContext db, TenantContext tenant, 
         if (tenant.EmpresaId <= 0) return Unauthorized();
         await using var gate = await FiscalLock.AdquirirAsync(db, tenant.EmpresaId, token);
         if (gate is null) return Conflict("Existe uma emissao em andamento para esta empresa.");
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { request.ClienteId, request.Ambiente, request.Serie, request.Natureza, request.Cfop, request.Modelo, request.Desconto, request.Frete, request.Despesas, request.Observacoes, request.Itens, request.Pagamentos, request.Destinatario, request.ModalidadeFrete, request.IndicadorPresenca }))));
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { request.ClienteId, request.Ambiente, request.Serie, request.Natureza, request.Cfop, request.Modelo, request.Desconto, request.Frete, request.Despesas, request.Observacoes, request.Itens, request.Pagamentos, request.Destinatario, request.ModalidadeFrete, request.IndicadorPresenca }) + (request.Csosn is null ? "" : "|CSOSN:" + request.Csosn))));
         var existing = await db.NotasFiscais.SingleOrDefaultAsync(n => n.EmpresaId == tenant.EmpresaId && n.SolicitacaoId == request.SolicitacaoId, token);
         if (existing is not null)
             return existing.HashSolicitacao == hash ? Ok(ToResponse(existing)) : Conflict("Esta solicitacao ja esta vinculada a outra nota. Consulte a nota antes de alterar a venda.");

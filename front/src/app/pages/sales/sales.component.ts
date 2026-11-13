@@ -14,7 +14,7 @@ interface SaleDraft {
   cliente: ClienteResumoResponse | null; itens: SaleItem[]; pagamentos: Payment[];
   tipo: string; vendedor: string; emitir: boolean; modelo: string; finalidade: string;
   natureza: string; cfop: string; serie: string; desconto: number; frete: number;
-  despesas: number; observacoes: string;
+  despesas: number; observacoes: string; csosn?: string;
   vehicleName?: string; vehiclePlate?: string; modalidadeFrete?: number; indicadorPresenca?: number;
   emissionRequestId?: string; emissionPayload?: EmitirNfePayload | null; emittedNote?: EmissaoNfeResponse | null; emissionAttempted?: boolean;
 }
@@ -36,6 +36,7 @@ export class SalesComponent {
   protected readonly emissionBusy = signal(false);
   protected readonly emissionAttempted = signal(false);
   protected readonly emittedNote = signal<EmissaoNfeResponse | null>(null);
+  protected csosn = '';
   protected destination: DestinatarioFiscalData | null = null;
   protected readonly destinationBusy = signal(false);
   private destinationId: number | null = null;
@@ -58,7 +59,7 @@ export class SalesComponent {
         desconto: this.desconto || 0, frete: this.frete || 0, despesas: this.despesas || 0, observacoes: this.observacoes,
         itens: this.itens().map(i => ({ produtoId: i.produto.id, quantidade: i.quantidade, precoUnitario: i.preco, descontoPercentual: i.desconto,
           origem: i.origem ?? i.produto.origemMercadoria ?? '', ncm: i.ncm ?? (i.produto.ncm ? String(i.produto.ncm).padStart(8, '0') : ''), unidade: i.unidade ?? i.produto.unidadeComercial ?? 'UN' })),
-        destinatario: this.destination ?? undefined,
+        destinatario: this.destination ?? undefined, csosn: this.csosn || undefined,
         pagamentos: this.pagamentos().map(p => ({ forma: p.forma, valor: p.valor })),
       };
       this.emissionAttempted.set(true);
@@ -186,7 +187,7 @@ export class SalesComponent {
       error: () => { this.loading.set(false); this.loadError.set('Não foi possível carregar clientes e produtos. Verifique se o backend está disponível e tente novamente.'); },
     });
   }
-  protected selectCustomer(c: ClienteResumoResponse): void { this.cliente.set(c); this.customerSearch.set(''); this.editingCustomer = false; this.destination = null; this.destinationId = null; }
+  protected selectCustomer(c: ClienteResumoResponse): void { this.csosn = ''; this.cliente.set(c); this.customerSearch.set(''); this.editingCustomer = false; this.destination = null; this.destinationId = null; }
   protected focusProductSearch(): void { this.productSearchInput()?.nativeElement.focus(); }
 
   @HostListener('document:keydown', ['$event'])
@@ -243,7 +244,7 @@ export class SalesComponent {
   protected currency(value: number): string { return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
   private round(value: number): number { return Math.round((value + Number.EPSILON) * 100) / 100; }
   private draft(): SaleDraft {
-    return { cliente: this.cliente(), itens: this.itens(), pagamentos: this.pagamentos(), tipo: this.tipo, vendedor: this.vendedor, emitir: this.emitir, modelo: this.modelo, finalidade: this.finalidade, natureza: this.natureza, cfop: this.cfop, serie: this.serie, desconto: this.desconto, frete: this.frete, despesas: this.despesas, observacoes: this.observacoes, vehicleName: this.vehicleName, vehiclePlate: this.vehiclePlate, modalidadeFrete: this.modalidadeFrete, indicadorPresenca: this.indicadorPresenca, emissionRequestId: this.emissionRequestId, emissionPayload: this.emissionPayload, emittedNote: this.emittedNote(), emissionAttempted: this.emissionAttempted() };
+    return { cliente: this.cliente(), itens: this.itens(), pagamentos: this.pagamentos(), tipo: this.tipo, vendedor: this.vendedor, emitir: this.emitir, modelo: this.modelo, finalidade: this.finalidade, natureza: this.natureza, cfop: this.cfop, serie: this.serie, desconto: this.desconto, frete: this.frete, despesas: this.despesas, observacoes: this.observacoes, csosn: this.csosn, vehicleName: this.vehicleName, vehiclePlate: this.vehiclePlate, modalidadeFrete: this.modalidadeFrete, indicadorPresenca: this.indicadorPresenca, emissionRequestId: this.emissionRequestId, emissionPayload: this.emissionPayload, emittedNote: this.emittedNote(), emissionAttempted: this.emissionAttempted() };
   }
   protected saveDraft(): boolean {
     try { localStorage.setItem(this.draftKey, JSON.stringify(this.draft())); this.message.set('Rascunho salvo neste navegador. Você pode continuar depois.'); return true; }
@@ -257,6 +258,7 @@ export class SalesComponent {
       this.cliente.set(draft.cliente); this.itens.set(draft.itens); this.pagamentos.set(draft.pagamentos);
       this.tipo = draft.tipo; this.vendedor = draft.vendedor; this.emitir = draft.emitir;
       this.modelo = draft.modelo; this.finalidade = draft.finalidade; this.natureza = draft.natureza;
+      this.csosn = draft.csosn ?? '';
       this.cfop = draft.cfop; this.serie = draft.serie; this.desconto = draft.desconto;
       this.frete = draft.frete; this.despesas = draft.despesas; this.observacoes = draft.observacoes;
       this.modalidadeFrete = draft.modalidadeFrete ?? 9; this.indicadorPresenca = draft.indicadorPresenca ?? 1;
@@ -270,6 +272,7 @@ export class SalesComponent {
     if ((this.itens().length || this.cliente()) && !window.confirm('Limpar a venda e excluir o rascunho salvo?')) return;
     this.emissionAttempted.set(false); this.emissionPayload = null; this.emittedNote.set(null); this.emissionRequestId = crypto.randomUUID(); this.fiscalMessage.set('');
     this.cliente.set(null); this.itens.set([]); this.pagamentos.set([{ id: 1, forma: 'Pix', valor: 0 }]);
+    this.csosn = ''; this.destination = null; this.destinationId = null;
     this.desconto = 0; this.frete = 0; this.despesas = 0; this.observacoes = ''; this.vendedor = '';
     this.vehicleName = ''; this.vehiclePlate = ''; this.editingVehicle = false; this.editingCustomer = false;
     this.customerSearch.set(''); this.productSearch.set(''); this.message.set('');

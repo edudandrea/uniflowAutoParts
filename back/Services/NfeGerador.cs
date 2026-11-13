@@ -67,6 +67,7 @@ public static class NfeGerador
         IReadOnlyDictionary<int, CadastroItens> produtos, EmitirNfeRequest request, int numero, int usuarioId, X509Certificate2 cert)
     {
         ValidarEmitente(empresa, config);
+        var icmsCode = request.Csosn ?? tax.IcmsCode;
         if (request.Destinatario is { } d)
             cliente = new Cliente { Id = cliente.Id, TenantId = cliente.TenantId, Ativo = cliente.Ativo, NomeRazaoSocial = cliente.NomeRazaoSocial,
                 CpfCnpj = cliente.CpfCnpj, Relacionamento = cliente.Relacionamento, IndicadorIe = (IndicadorIe)d.IndicadorIe, ConsumidorFinal = d.ConsumidorFinal, InscricaoEstadual = d.InscricaoEstadual,
@@ -76,10 +77,10 @@ public static class NfeGerador
         Exigir(config.Ambiente == request.Ambiente && config.Ambiente is 1 or 2, "O ambiente da empresa mudou. Recarregue a venda antes de emitir.");
         Exigir(Texto(request.Natureza, 1, 60) && Regex.IsMatch(request.Cfop ?? "", @"^5\d{3}$"), "Informe natureza e CFOP de venda interna (iniciado por 5).");
         Exigir(tax.Regime is "1" or "4", "A emissao automatica atual atende o Simples Nacional e MEI. Outros regimes exigem grupos tributarios adicionais, incluindo IBS/CBS.");
-        Exigir(new[] { "101", "102", "103", "300", "400" }.Contains(tax.IcmsCode), "O CSOSN selecionado exige parametrizacao de ST ou tributacao adicional. Configure o codigo aplicavel a esta venda antes de emitir.");
+        Exigir(new[] { "101", "102", "103", "300", "400" }.Contains(icmsCode), "O CSOSN selecionado exige parametrizacao de ST ou tributacao adicional. Configure o codigo aplicavel a esta venda antes de emitir.");
         foreach (var rate in new[] { tax.IcmsRate, tax.PisRate, tax.CofinsRate }) Exigir(rate is >= 0 and <= 100, "Defina as aliquotas fiscais (inclusive zero) na tributacao da empresa.");
         Exigir(cliente.Ativo && cliente.TenantId == empresa.Id && cliente.Relacionamento != RelacionamentoCadastro.Fornecedor, "Selecione um cliente ativo da empresa.");
-        Exigir(tax.IcmsCode != "101" || cliente.IndicadorIe == IndicadorIe.Contribuinte && !cliente.ConsumidorFinal, "CSOSN 101 exige destinatario contribuinte com direito a credito. Revise CSOSN e consumidor final com o contador.");
+        Exigir(icmsCode != "101" || cliente.IndicadorIe == IndicadorIe.Contribuinte && !cliente.ConsumidorFinal, "CSOSN 101 exige destinatario contribuinte com direito a credito. Na revisao da nota, selecione o CSOSN aplicavel a esta venda (102 para operacao tributada sem permissao de credito) ou corrija os dados fiscais do destinatario.");
         var documento = Digitos(cliente.CpfCnpj);
         Exigir(documento.Length is 11 or 14 && Texto(cliente.NomeRazaoSocial, 2, 60), "Complete o nome e CPF/CNPJ do destinatario.");
         Exigir((int)cliente.IndicadorIe is 1 or 2 or 9, "Cadastre o indicador da inscricao estadual do destinatario.");
@@ -138,8 +139,8 @@ public static class NfeGerador
             if (p.CEST > 0) prod.Add(E("CEST", p.CEST.ToString("D7")));
             prod.Add(E("CFOP", request.Cfop), E("uCom", item.Unidade ?? p.UnidadeComercial), E("qCom", F(item.Quantidade, 4)), E("vUnCom", F(item.PrecoUnitario, 10)), E("vProd", F(brutos[i])), E("cEANTrib", p.Ean ?? "SEM GTIN"), E("uTrib", item.Unidade ?? p.UnidadeComercial), E("qTrib", F(item.Quantidade, 4)), E("vUnTrib", F(item.PrecoUnitario, 10)));
             if (fretes[i] > 0) prod.Add(E("vFrete", F(fretes[i]))); if (desconto > 0) prod.Add(E("vDesc", F(desconto))); if (despesas[i] > 0) prod.Add(E("vOutro", F(despesas[i]))); prod.Add(E("indTot", "1"));
-            var icms = E(tax.IcmsCode == "101" ? "ICMSSN101" : "ICMSSN102", new object[] { E("orig", item.Origem ?? p.OrigemMercadoria), E("CSOSN", tax.IcmsCode) });
-            if (tax.IcmsCode == "101") icms.Add(E("pCredSN", F(tax.IcmsRate!.Value, 4)), E("vCredICMSSN", F(Moeda(baseFiscal * tax.IcmsRate.Value / 100))));
+            var icms = E(icmsCode == "101" ? "ICMSSN101" : "ICMSSN102", new object[] { E("orig", item.Origem ?? p.OrigemMercadoria), E("CSOSN", icmsCode) });
+            if (icmsCode == "101") icms.Add(E("pCredSN", F(tax.IcmsRate!.Value, 4)), E("vCredICMSSN", F(Moeda(baseFiscal * tax.IcmsRate.Value / 100))));
             var pis = Contribuicao("PIS", tax.PisCode, tax.PisRate!.Value, baseFiscal, out var vPis); pisTotal += vPis;
             var cofins = Contribuicao("COFINS", tax.CofinsCode, tax.CofinsRate!.Value, baseFiscal, out var vCofins); cofinsTotal += vCofins;
             inf.Add(new XElement(Ns + "det", new XAttribute("nItem", i + 1), prod, E("imposto", new object[] { E("ICMS", icms), pis, cofins })));

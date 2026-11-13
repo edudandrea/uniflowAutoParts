@@ -90,6 +90,19 @@
       } @else if (emissionAttempted()) { <p>Os dados enviados permanecem registrados no XML e na solicitação fiscal.</p> }
       @else { <button type="button" [disabled]="destinationBusy() || !cliente()" (click)="loadDestination()">{{ destinationBusy() ? 'Carregando endereço...' : 'Carregar dados do destinatário' }}</button> }
     </section>
+    <section class="review-fiscal-data"><h3>Tributação desta venda</h3>
+      <fieldset class="sale-fields" [disabled]="emissionAttempted() || emissionBusy()">
+        <label>CSOSN do ICMS<select aria-label="CSOSN desta venda" [(ngModel)]="csosn">
+          <option value="">Usar configuração da empresa</option>
+          <option value="101">101 · Tributada com permissão de crédito</option>
+          <option value="102">102 · Tributada sem permissão de crédito</option>
+          <option value="103">103 · Isenção por faixa de receita bruta</option>
+          <option value="300">300 · Imune</option>
+          <option value="400">400 · Não tributada pelo Simples Nacional</option>
+        </select></label>
+      </fieldset>
+      <p>Para pessoa física ou jurídica não contribuinte, revise o indicador de IE e consumidor final. O CSOSN 101 exige contribuinte com direito a crédito. Use 102 quando a operação for tributada sem permissão de crédito, conforme a orientação contábil. Esta escolha vale apenas para esta nota.</p>
+    </section>
     <div class="review-columns">
       <section><h3>Dados da operação</h3><dl><div><dt>Vendedor</dt><dd>{{ vendedor || 'Não informado' }}</dd></div><div><dt>Documento</dt><dd>{{ modelo === '55' ? 'NF-e' : 'NFC-e' }} · Série {{ serie }}</dd></div><div><dt>CFOP</dt><dd>{{ cfop }}</dd></div></dl><p>{{ natureza }}</p><p class="review-environment">RS · {{ environmentLabel() }}</p></section>
       <section><h3>Valores e pagamentos</h3><dl><div><dt>Subtotal</dt><dd>{{ currency(subtotal()) }}</dd></div><div><dt>Descontos</dt><dd>{{ currency(itemDiscount() + (desconto || 0)) }}</dd></div><div><dt>Frete</dt><dd>{{ currency(frete || 0) }}</dd></div><div><dt>Outras despesas</dt><dd>{{ currency(despesas || 0) }}</dd></div>@for (payment of pagamentos(); track payment.id) {<div><dt>{{ payment.forma }}</dt><dd>{{ currency(payment.valor) }}</dd></div>}</dl></section>

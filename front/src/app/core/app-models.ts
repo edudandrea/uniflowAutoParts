@@ -373,6 +373,7 @@ export interface EmitenteFiscalData {
 export interface EmitenteFiscalResponse { cnpj: string; dados: EmitenteFiscalData }
 export interface DestinatarioFiscalData { inscricaoEstadual: string; indicadorIe: number; consumidorFinal: boolean; logradouro: string; numero: string; complemento: string | null; bairro: string; municipio: string; codigoMunicipio: string; uf: string; cep: string }
 export interface EmitirNfePayload {
+  csosn?: string;
   modalidadeFrete?: number; indicadorPresenca?: number;
   destinatario?: DestinatarioFiscalData;
   solicitacaoId: string; clienteId: number; ambiente: number; serie: number; natureza: string; cfop: string; modelo: string;
