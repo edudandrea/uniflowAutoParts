@@ -12,12 +12,14 @@ public partial class AppDbContext
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         ValidateTenantWrites(CancellationToken.None).GetAwaiter().GetResult();
+        ApplyGlobalStockMargin(CancellationToken.None).GetAwaiter().GetResult();
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
 
     public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
         await ValidateTenantWrites(cancellationToken);
+        await ApplyGlobalStockMargin(cancellationToken);
         return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
     }
 

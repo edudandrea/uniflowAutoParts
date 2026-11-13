@@ -35,7 +35,7 @@ Eventos são persistidos antes do envio. Em resposta indeterminada, novos evento
 
 Esta entrega atende **NF-e modelo 55, saída normal, operação interna no RS, Simples Nacional/MEI (CRT 1/4), CSOSN 101/102/103/300/400**, com PIS/COFINS por alíquota ou grupos não tributados. CSOSN 101 requer destinatário contribuinte com direito a crédito. A alíquota de ICMS configurada nesse caso representa o crédito do Simples.
 
-NFC-e, contingência, operações interestaduais/exterior, substituição tributária, IPI, regimes com grupos IBS/CBS e outras finalidades fiscais exigem implementação adicional e são bloqueados neste fluxo. Não há geração automática de DANFE/PDF, inutilização de numeração ou cancelamento extemporâneo. Validar o schema não substitui a autorização da SEFAZ nem a revisão do enquadramento tributário.
+NFC-e, contingência, operações interestaduais/exterior, substituição tributária, IPI, regimes com grupos IBS/CBS e outras finalidades fiscais exigem implementação adicional e são bloqueados neste fluxo. Não há inutilização de numeração ou cancelamento extemporâneo. Validar o schema não substitui a autorização da SEFAZ nem a revisão do enquadramento tributário.
 
 Os testes automatizados usam certificados sintéticos e transporte SEFAZ simulado. Nenhuma nota real foi emitida durante a implementação. Para operar, publique o backend e o frontend atualizados, aplique as migrações e configure os dados reais da empresa, o certificado e a numeração.
 
@@ -73,3 +73,11 @@ A autorização, consulta e retransmissão do mesmo XML não repetem a baixa. O 
 Uma revisão de nota rejeitada informa `vendaOrigemId`, vinculando as tentativas à mesma venda. A revisão ajusta somente a diferença das quantidades (incluindo produtos removidos), sem baixar novamente toda a venda. Tentativas substituídas não podem ser retransmitidas e uma venda pendente, autorizada ou cancelada não pode ganhar outra revisão. A migração `LinkFiscalSaleStock` adiciona o vínculo; a API aplica as migrações na inicialização.
 
 Vendas e NF-e utilizam SweetAlert2 nos avisos, resultados e confirmações. O retorno da SEFAZ também permanece na tela para consulta.
+
+## Download do XML e DANFE em PDF
+
+Depois da autorização, a revisão da emissão oferece **Baixar XML** e **Baixar PDF / DANFE**. Os mesmos documentos estão disponíveis nos botões **XML** e **PDF** no menu **NF-e**. Notas pendentes ou rejeitadas não liberam documentos autorizados.
+
+O XML baixado é exatamente o XML protocolado salvo. Para NF-e modelo 55 autorizada sem PDF anexado, a API gera o DANFE sob demanda a partir desse XML, incluindo chave, protocolo, emitente, destinatário, itens e totais; a nota não é retransmitida e o cadastro atual não altera o documento histórico. Isso atende também notas já autorizadas antes da publicação. Notas canceladas recebem identificação de cancelamento no PDF. PDFs anexados a notas autorizadas importadas continuam disponíveis.
+
+A geração usa [NFEDanfe 2.3.6](https://github.com/fabyo/NFEDanfe) e PDFsharp, com fontes copiadas no build/publish para executar no container Linux. O pacote NFEDanfe classifica incorretamente fontes TTF como compilação; o projeto exclui esse conteúdo automático e copia as fontes como arquivos de conteúdo. A dependência transitiva System.Security.Cryptography.Pkcs foi fixada em 10.0.13. Não é necessária migração do banco para estes downloads. Publicar backend e frontend ativa as opções.

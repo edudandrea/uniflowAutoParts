@@ -1,3 +1,4 @@
+import { AlertService } from '../../core/alert.service';
 import { SessionService } from '../../core/session.service';
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -42,10 +43,11 @@ interface XmlPrecheck {
   selector: 'app-inventory',
   imports: [FormsModule, AppIconComponent],
   templateUrl: './inventory.component.html',
-  styleUrl: './inventory.component.scss',
+  styleUrls: ['./inventory.component.scss', './inventory-pricing.scss'],
 })
 export class InventoryComponent implements OnInit {
   private readonly api = inject(ApiService);
+  private readonly alerts = inject(AlertService);
   private readonly session = inject(SessionService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
@@ -76,40 +78,37 @@ export class InventoryComponent implements OnInit {
   });
 
   protected readonly products = signal<InventoryProduct[]>([]);
-  protected readonly marginEdits = signal<Record<number, number | null>>({});
-  protected readonly savingMargins = signal<ReadonlySet<number>>(new Set());
+  protected readonly globalMargin = signal<number | null>(null);
+  protected readonly savedMargin = signal<number | null>(null);
+  protected readonly loadingMargin = signal(false);
+  protected readonly savingMargin = signal(false);
+  protected readonly marginError = signal('');
   protected readonly marginMessage = signal('');
 
-  protected margemDoProduto(product: InventoryProduct): number | null {
-    return Object.hasOwn(this.marginEdits(), product.id) ? this.marginEdits()[product.id] : product.margemPreco;
+  protected carregarMargem(): void {
+    this.loadingMargin.set(true); this.marginError.set('');
+    this.api.carregarMargemEstoque(this.tenantId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: result => { this.globalMargin.set(result.margemPreco); this.savedMargin.set(result.margemPreco); this.loadingMargin.set(false); },
+      error: () => { this.loadingMargin.set(false); this.marginError.set('Não foi possível carregar a margem geral.'); },
+    });
   }
-
-  protected editarMargem(product: InventoryProduct, value: number | null): void {
-    this.marginEdits.update(edits => ({ ...edits, [product.id]: value }));
-    this.marginMessage.set('');
-  }
-
-  protected salvarMargem(product: InventoryProduct): void {
-    if (this.savingMargins().has(product.id)) return;
-    const margem = this.margemDoProduto(product);
+  protected async salvarMargem(): Promise<void> {
+    if (this.savingMargin() || this.loadingMargin() || this.marginError()) return;
+    const margem = this.globalMargin();
     if (margem == null || !Number.isFinite(margem) || margem < 0 || margem > 99999.9999 ||
       Math.abs(margem * 10000 - Math.round(margem * 10000)) > 0.00001) {
       this.marginMessage.set('Informe uma margem de zero a 99.999,9999%, com até quatro casas decimais.');
-      return;
+      this.alerts.notify(this.marginMessage(), 'info'); return;
     }
-    this.savingMargins.update(ids => new Set([...ids, product.id]));
-    this.api.salvarMargemPreco(this.tenantId, product.id, margem).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: saved => {
-        this.products.update(products => products.map(p => p.id === saved.id
-          ? { ...p, custo: saved.custo, margemPreco: saved.margemPreco, valor: saved.precoVenda } : p));
-        this.marginEdits.update(edits => { const next = { ...edits }; delete next[product.id]; return next; });
-        this.savingMargins.update(ids => new Set([...ids].filter(id => id !== product.id)));
-        this.marginMessage.set('Margem e preço de venda salvos no cadastro do produto.');
+    this.savingMargin.set(true);
+    if (!await this.alerts.confirm('Recalcular o preço de todos os produtos da empresa com margem de ' + margem + '% sobre o custo? A aplicação inclui produtos fora dos filtros e novos cadastros.', 'Aplicar margem em todo o estoque?')) { this.savingMargin.set(false); return; }
+    this.api.salvarMargemEstoque(this.tenantId, margem).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: result => {
+        this.savedMargin.set(result.margemPreco); this.globalMargin.set(result.margemPreco); this.savingMargin.set(false);
+        this.marginMessage.set('Margem geral aplicada a ' + result.produtosAtualizados + ' produto(s). Os próximos cadastros também usarão essa margem.');
+        this.alerts.notify(this.marginMessage(), 'success'); this.carregarEstoque();
       },
-      error: () => {
-        this.savingMargins.update(ids => new Set([...ids].filter(id => id !== product.id)));
-        this.marginMessage.set('Não foi possível salvar a margem. Tente novamente.');
-      },
+      error: error => { this.savingMargin.set(false); this.marginMessage.set(typeof error.error === 'string' ? error.error : error.error?.detail ?? 'Não foi possível confirmar a aplicação da margem geral. Atualize o estoque e confira os preços antes de tentar novamente.'); this.alerts.notify(this.marginMessage(), 'error'); },
     });
   }
 
@@ -166,7 +165,7 @@ export class InventoryComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.carregarEstoque();
+    this.carregarEstoque(); this.carregarMargem();
   }
 
   protected carregarEstoque(): void {

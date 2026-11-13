@@ -205,6 +205,16 @@ describe('InvoicesComponent', () => {
     expect(create).toHaveBeenCalledWith(blob);
   });
 
+  it('downloads a generated DANFE when the API advertises PDF availability', () => {
+    listRequest().flush(response()); fixture.detectChanges();
+    const create=vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:pdf-fixture');
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    action('PDF').click();
+    const blob=new Blob(['%PDF-fixture'], { type: 'application/pdf' });
+    http.expectOne(api + '/7/pdf?empresaId=1').flush(blob);
+    expect(create).toHaveBeenCalledWith(blob);
+  });
+
   it('consults the SEFAZ and refreshes the persisted situation', () => {
     listRequest().flush(response()); fixture.detectChanges(); click('[aria-label="Consultar nota 1700 na SEFAZ"]');
     http.expectOne(`${api}/7/consultar?empresaId=1`).flush({ codigo: '101', motivo: 'Cancelamento homologado', situacao: 'Cancelada', pendente: false });

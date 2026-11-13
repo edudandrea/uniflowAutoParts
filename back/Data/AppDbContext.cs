@@ -119,6 +119,8 @@ namespace back.Data
 
             modelBuilder.Entity<Empresas>(entity =>
             {
+                entity.Property(e => e.MargemPrecoEstoque).HasPrecision(9, 4);
+                entity.ToTable(t => t.HasCheckConstraint("CK_Empresas_MargemPrecoEstoque", "\"MargemPrecoEstoque\" IS NULL OR \"MargemPrecoEstoque\" BETWEEN 0 AND 99999.9999"));
                 entity.Property(e => e.HubIssuer).HasMaxLength(500);
                 entity.Property(e => e.HubTenantId).HasMaxLength(200);
                 entity.HasIndex(e => new { e.HubIssuer, e.HubTenantId }).IsUnique();

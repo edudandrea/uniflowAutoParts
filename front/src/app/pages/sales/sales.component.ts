@@ -155,11 +155,14 @@ export class SalesComponent {
     if (this.emissionAttempted()) return;
     this.itens.update(items => items.map(i => i.produto.id === id ? { ...i, [field]: value } : i));
   }
-  protected downloadAuthorizedXml(): void {
-    const nota = this.emittedNote(); if (!nota || !['Autorizada', 'Cancelada'].includes(nota.situacao)) return;
-    this.api.baixarNotaFiscal(this.session.empresaId, nota.id, 'xml').subscribe({ next: blob => {
-      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `nfe-${nota.chaveAcesso}.xml`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-    }, error: () => this.notify('Não foi possível baixar o XML autorizado.', 'error', true) });
+  protected readonly downloading = signal<'xml' | 'pdf' | null>(null);
+  protected downloadAuthorized(formato: 'xml' | 'pdf'): void {
+    const nota = this.emittedNote(); if (!nota || this.downloading() || !['Autorizada', 'Cancelada'].includes(nota.situacao)) return;
+    this.downloading.set(formato);
+    this.api.baixarNotaFiscal(this.session.empresaId, nota.id, formato).subscribe({ next: blob => {
+      this.downloading.set(null);
+      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `nfe-${nota.chaveAcesso}.${formato}`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }, error: () => { this.downloading.set(null); this.notify(`Não foi possível baixar o ${formato === 'pdf' ? 'DANFE em PDF' : 'XML autorizado'}. Tente novamente.`, 'error', true); } });
   }
   protected closeReview(): void {
     if (!this.emissionBusy()) this.reviewDialog()?.nativeElement.close();

@@ -26,6 +26,7 @@ namespace back.Models
         public string? InscricaoMunicipal { get; set; }
         public string? InscricaoEstadual { get; set; }
         public string? LogoUrl { get; set; }
+        public decimal? MargemPrecoEstoque { get; set; }
         public bool Ativo { get; set; } = true;
         public bool UtilizaAPAssistant { get; set; } = false;
         public bool AcessoBloqueado { get; set; } = false;

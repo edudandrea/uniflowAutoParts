@@ -44,6 +44,23 @@ internal static class NfeEmissionChecks
         {
             Check((await db.Estoques.SingleAsync()).Quantidade == 2 && (await db.Estoques.SingleAsync()).Tipo == "Saida", "Autorizacao nao baixou o estoque.");
             Check((await db.NotasFiscais.SingleAsync()).Xml.Contains("nfeProc"), "Nao persistiu XML protocolado.");
+            var downloads = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport));
+            var xmlDownload = await downloads.Baixar(first.Id, "xml", 1, default) as FileContentResult;
+            Check(xmlDownload is { ContentType: "application/xml" } && System.Text.Encoding.UTF8.GetString(xmlDownload.FileContents) == (await db.NotasFiscais.SingleAsync()).Xml, "Download alterou XML autorizado.");
+            var pdfDownload = await downloads.Baixar(first.Id, "pdf", 1, default) as FileContentResult;
+            Check(pdfDownload is { ContentType: "application/pdf" } && pdfDownload.FileContents.AsSpan().StartsWith("%PDF-"u8), "Nao gerou PDF de nota autorizada sem anexo.");
+            using (var parsed = PdfSharp.Pdf.IO.PdfReader.Open(new MemoryStream(pdfDownload!.FileContents), PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import))
+                Check(parsed.PageCount == 1 && parsed.Info.Subject.Contains(first.ChaveAcesso), "DANFE nao tem pagina ou chave da nota autorizada.");
+            if (Environment.GetEnvironmentVariable("NFE_PDF_DIR") is { } pdfDir) await System.IO.File.WriteAllBytesAsync(System.IO.Path.Combine(pdfDir, "danfe-authorized.pdf"), pdfDownload!.FileContents);
+            var multipage = await db.NotasFiscais.SingleAsync();
+            var expanded = NotaFiscalXml.Ler(multipage.Xml); var info = expanded.Descendants(NotaFiscalXml.Ns + "infNFe").Single();
+            var productXml = info.Element(NotaFiscalXml.Ns + "det")!;
+            for (var row = 2; row <= 140; row++) { var clone = new XElement(productXml); clone.SetAttributeValue("nItem", row); productXml.AddAfterSelf(clone); }
+            foreach (var field in new[] { "vProd", "vNF" }) info.Element(NotaFiscalXml.Ns + "total")!.Element(NotaFiscalXml.Ns + "ICMSTot")!.Element(NotaFiscalXml.Ns + field)!.Value = "5600.00";
+            var originalXml = multipage.Xml; multipage.Xml = expanded.ToString(SaveOptions.DisableFormatting);
+            var many = NfeDanfeService.Gerar(multipage); multipage.Xml = originalXml;
+            using (var parsed = PdfSharp.Pdf.IO.PdfReader.Open(new MemoryStream(many), PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import))
+                Check(parsed.PageCount > 1, "DANFE com muitos itens nao paginou.");
             var replay = Result(await Controller(db).Emitir(request, default));
             Check(replay.Id == first.Id && transport.Authorizations == 1, "Repetir a mesma solicitacao retransmitiu a NF-e.");
             Check(await Controller(db).Emitir(request with { Observacoes = "Dados alterados" }, default) is ConflictObjectResult, "Reutilizou solicitacao com outros dados.");
@@ -54,6 +71,10 @@ internal static class NfeEmissionChecks
             Check(await eventos.Corrigir(first.Id, 1, new("Corrigir entrega no portao dois e horario combinado", encoded, "fixture"), default) is OkObjectResult, "Nao registrou segunda CC-e.");
             Check(await db.NotaFiscalEventos.CountAsync(e => e.Situacao == "Confirmado") == 2 && transport.Events.Last().Sequence == 2, "CC-e nao incrementou sequencia.");
             Check(await eventos.Cancelar(first.Id, 1, new("Cancelamento solicitado pelo cliente", encoded, "fixture", true), default) is OkObjectResult, "Nao cancelou NF-e de producao.");
+            var canceledPdf = await eventos.Baixar(first.Id, "pdf", 1, default) as FileContentResult;
+            using (var parsed = PdfSharp.Pdf.IO.PdfReader.Open(new MemoryStream(canceledPdf!.FileContents), PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import))
+                Check(parsed.Info.Title.Contains("CANCELADA"), "DANFE de nota cancelada nao identifica cancelamento.");
+            if (Environment.GetEnvironmentVariable("NFE_PDF_DIR") is { } canceledDir) await System.IO.File.WriteAllBytesAsync(System.IO.Path.Combine(canceledDir, "danfe-canceled.pdf"), canceledPdf!.FileContents);
             Check(await db.Estoques.CountAsync() == 2 && await db.Estoques.Where(e => e.Tipo == "Entrada").SumAsync(e => e.Quantidade) == 2, "Cancelamento nao estornou o estoque uma unica vez.");
             Check(await eventos.Consultar(first.Id, 1, credentials, default) is OkObjectResult && await db.Estoques.CountAsync() == 2, "Consulta duplicou estorno de estoque.");
             Check(await eventos.Cancelar(first.Id, 1, new("Cancelamento novamente solicitado", encoded, "fixture", true), default) is ConflictObjectResult, "Cancelou nota ja cancelada.");
@@ -67,6 +88,8 @@ internal static class NfeEmissionChecks
         {
             pending = Result(await Controller(db).Emitir(timedOut, default));
             Check(pending.Situacao == "Processando", "Timeout confirmou nota sem protocolo.");
+            var downloads = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport));
+            Check(await downloads.Baixar(pending.Id, "pdf", 1, default) is ConflictObjectResult && await downloads.Baixar(pending.Id, "xml", 1, default) is ConflictObjectResult, "Liberou download de nota sem autorizacao.");
             Check(await db.Estoques.CountAsync() == 3 && await db.Estoques.Where(e => e.NotaFiscalItem!.NotaFiscalId == pending.Id).SumAsync(e => e.Quantidade) == 2, "Venda pendente nao baixou a quantidade registrada.");
         }
         await using (var db = new AppDbContext(options, Tenant(1)))
@@ -92,7 +115,11 @@ internal static class NfeEmissionChecks
             Check(resent.Situacao == "Autorizada" && resent.ChaveAcesso == notSent.ChaveAcesso && resent.Numero == notSent.Numero, "Reenvio mudou chave ou numero.");
         }
         await using (var db = new AppDbContext(options, Tenant(2)))
+        {
             Check(await Controller(db, 2).Consultar(first.Id, credentials, default) is NotFoundResult, "Consulta acessou nota de outra empresa.");
+            var downloads = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport));
+            Check(await downloads.Baixar(first.Id, "pdf", 2, default) is NotFoundObjectResult, "Download PDF acessou outra empresa.");
+        }
         using var wrong = NfeFixtures.Certificate("98765432000199");
         await using (var db = new AppDbContext(options, Tenant(1)))
         {

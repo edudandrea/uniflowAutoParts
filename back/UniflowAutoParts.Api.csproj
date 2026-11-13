@@ -19,8 +19,14 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.OpenApi" Version="2.12.2" />
+    <PackageReference Include="NFEDanfe" Version="2.3.6" ExcludeAssets="contentFiles" GeneratePathProperty="true" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
 
   <ItemGroup><Content Include="Schemas/**/*.xsd" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" /></ItemGroup>
+  <ItemGroup>
+    <!-- NFEDanfe 2.3.6 marca TTF como Compile no pacote; copiar somente como conteúdo. -->
+    <Content Include="$(PkgNFEDanfe)/contentFiles/any/any/fonts/*.ttf" Link="fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

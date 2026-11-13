@@ -260,6 +260,28 @@ import { SalesComponent } from './sales.component';
     revision.flush(authorized);
   });
 
+  it('downloads the authorized XML and generated DANFE from the emission review', async () => {
+    await prepareEmission(); element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
+    http.expectOne(environment.apiUrl + '/notas-fiscais/emitir').flush(authorized); fixture.detectChanges();
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fixture-download');
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    for (const formato of ['xml', 'pdf']) {
+      const button=element.querySelector<HTMLButtonElement>(formato === 'pdf' ? '.review-pdf' : '.review-download:not(.review-pdf)')!;
+      expect(button.disabled).toBe(false); button.click(); fixture.detectChanges();
+      const request=http.expectOne(req => req.url.endsWith('/notas-fiscais/37/' + formato));
+      expect(request.request.responseType).toBe('blob'); expect(button.disabled).toBe(true);
+      request.flush(new Blob([formato === 'pdf' ? '%PDF-fixture' : '<nfeProc/>'])); fixture.detectChanges();
+    }
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it('blocks fiscal downloads while the invoice remains pending', async () => {
+    await prepareEmission(); element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
+    http.expectOne(environment.apiUrl + '/notas-fiscais/emitir').flush({ ...authorized, situacao: 'Processando', codigo: '', protocolo: '' }); fixture.detectChanges();
+    for (const button of element.querySelectorAll<HTMLButtonElement>('.review-download')) { expect(button.disabled).toBe(true); button.click(); }
+    http.expectNone(req => req.url.endsWith('/37/pdf') || req.url.endsWith('/37/xml'));
+  });
+
   it('shows the saved production environment instead of a fixed homologation label', async () => {
     fixture.destroy(); fixture = TestBed.createComponent(SalesComponent); element = fixture.nativeElement; fixture.detectChanges();
     http.expectOne(`${environment.apiUrl}/fiscal/ambiente`).flush({ environment: 'producao', emissaoDisponivel: false });

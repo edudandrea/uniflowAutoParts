@@ -624,6 +624,10 @@ namespace UniflowAutoParts.Api.Migrations
                     b.Property<string>("LogoUrl")
                         .HasColumnType("text");
 
+                    b.Property<decimal?>("MargemPrecoEstoque")
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)");
+
                     b.Property<string>("MotivoBloqueio")
                         .HasColumnType("text");
 
@@ -652,7 +656,10 @@ namespace UniflowAutoParts.Api.Migrations
                     b.HasIndex("HubIssuer", "HubTenantId")
                         .IsUnique();
 
-                    b.ToTable("Empresas");
+                    b.ToTable("Empresas", t =>
+                        {
+                            t.HasCheckConstraint("CK_Empresas_MargemPrecoEstoque", "\"MargemPrecoEstoque\" IS NULL OR \"MargemPrecoEstoque\" BETWEEN 0 AND 99999.9999");
+                        });
                 });
 
             modelBuilder.Entity("back.Models.Endereco", b =>

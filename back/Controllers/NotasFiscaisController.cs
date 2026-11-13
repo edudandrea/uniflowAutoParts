@@ -65,9 +65,24 @@ public class NotasFiscaisController(AppDbContext db, SefazEventosService sefaz, 
             .Skip((pagina - 1) * 10).Take(10)
             .Select(n => new
             {
-                n.Id, n.Numero, n.Serie, n.Emissao, n.Cliente, n.DocumentoCliente, n.Tipo,
-                n.Situacao, n.Valor, n.ChaveAcesso, n.Ambiente, n.AutorizadaEm, TemPdf = n.Pdf != null,
-                n.CodigoAutorizacao, n.MotivoAutorizacao, n.Protocolo, TemXmlEnvio = n.XmlEnvioNfe != "", TemRecibo = n.Recibo != "",
+                n.Id,
+                n.Numero,
+                n.Serie,
+                n.Emissao,
+                n.Cliente,
+                n.DocumentoCliente,
+                n.Tipo,
+                n.Situacao,
+                n.Valor,
+                n.ChaveAcesso,
+                n.Ambiente,
+                n.AutorizadaEm,
+                TemPdf = n.Pdf != null || n.Tipo == "NFe" && (n.Situacao == "Autorizada" || n.Situacao == "Cancelada") && n.Xml != "",
+                n.CodigoAutorizacao,
+                n.MotivoAutorizacao,
+                n.Protocolo,
+                TemXmlEnvio = n.XmlEnvioNfe != "",
+                TemRecibo = n.Recibo != "",
                 Pendente = n.Eventos.Any(e => e.Situacao == "Pendente" || e.Situacao == "Indeterminado"),
                 Correcoes = n.Eventos.Count(e => e.Tipo == "110110" && e.Situacao == "Confirmado")
             }).ToListAsync(cancellationToken);
@@ -119,16 +134,39 @@ public class NotasFiscaisController(AppDbContext db, SefazEventosService sefaz, 
     }
 
     [HttpGet("{id:long}/{formato}")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> Baixar(long id, string formato, [FromQuery] int empresaId, CancellationToken token)
     {
         if (formato is not ("pdf" or "xml")) return NotFound();
         var nota = await db.NotasFiscais.AsNoTracking().Where(n => n.Id == id && n.EmpresaId == empresaId)
-            .Select(n => new { n.Numero, n.Serie, n.Xml, n.Pdf, n.XmlEnvioNfe, n.Situacao }).FirstOrDefaultAsync(token);
+            .Select(n => new NotaFiscal
+            {
+                Numero = n.Numero,
+                Serie = n.Serie,
+                Xml = n.Xml,
+                Pdf = n.Pdf,
+                XmlEnvioNfe = n.XmlEnvioNfe,
+                Situacao = n.Situacao,
+                EmpresaId = n.EmpresaId,
+                ChaveAcesso = n.ChaveAcesso,
+                Ambiente = n.Ambiente,
+                Protocolo = n.Protocolo,
+                Tipo = n.Tipo
+            }).FirstOrDefaultAsync(token);
         if (nota is null) return NotFound("Nota fiscal nao encontrada.");
         if (nota.XmlEnvioNfe.Length > 0 && nota.Situacao is not ("Autorizada" or "Cancelada")) return Conflict("O XML ainda nao possui protocolo de autorizacao da SEFAZ.");
         var nome = $"nota-{nota.Numero}-{nota.Serie}";
         if (formato == "xml") return File(Encoding.UTF8.GetBytes(nota.Xml), "application/xml", nome + ".xml");
-        return nota.Pdf is null ? NotFound("O PDF desta nota ainda nao foi anexado.") : File(nota.Pdf, "application/pdf", nome + ".pdf");
+        if (nota.Pdf is not null && nota.Situacao != "Cancelada") return File(nota.Pdf, "application/pdf", nome + ".pdf");
+        if (nota.Tipo != "NFe") return NotFound("O PDF desta nota ainda nao foi anexado.");
+        if (nota.Situacao is not ("Autorizada" or "Cancelada")) return Conflict("Aguarde a autorizacao da SEFAZ para baixar o DANFE.");
+        try
+        {
+            token.ThrowIfCancellationRequested();
+            return File(NfeDanfeService.Gerar(nota), "application/pdf", nome + ".pdf");
+        }
+        catch (Exception error) when (error is ArgumentException or XmlException or FormatException)
+        { return Problem(statusCode: 422, detail: "O XML autorizado salvo esta incompleto ou divergente. Nao foi possivel gerar o DANFE desta nota."); }
     }
 
     [HttpPost("{id:long}/cancelar")]

@@ -1,3 +1,4 @@
+import { AlertService } from '../../core/alert.service';
 import { SessionService } from '../../core/session.service';
 import { sessionStub } from '../../../testing/session.fixture';
 import { provideHttpClient } from '@angular/common/http';
@@ -24,12 +25,13 @@ describe('InventoryComponent API integration', () => {
     TestBed.overrideComponent(AppIconComponent, { set: { template: '', imports: [] } });
     await TestBed.configureTestingModule({
       imports: [InventoryComponent],
-      providers: [{ provide: SessionService, useFactory: sessionStub }, provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+      providers: [{ provide: SessionService, useFactory: sessionStub }, provideHttpClient(), provideHttpClientTesting(), { provide: AlertService, useValue: { notify: vi.fn(), confirm: vi.fn().mockResolvedValue(true) } }, provideRouter([])],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(InventoryComponent);
     element = fixture.nativeElement;
     fixture.detectChanges();
+    http.expectOne(req => req.url.endsWith('/estoque/margem')).flush({ margemPreco: null });
   });
 
   afterEach(() => {
@@ -63,39 +65,43 @@ describe('InventoryComponent API integration', () => {
   const entriesUrl = `${environment.apiUrl}/estoque/entradas`;
   const resumo = { ...nota, importadoEm: '2026-11-10T12:00:00Z' };
 
-  it('saves the price margin and displays the cost and the computed sale price separately', async () => {
+  it('applies a single global margin regardless of visible filters and persists it after reload', async () => {
     request().flush([{ ...product, custo: 100, valor: 0, margemPreco: null }]);
     fixture.detectChanges(); await fixture.whenStable();
-    expect(element.textContent).toContain('Preço de custo (R$)');
-    expect(element.textContent).toContain('Preço de venda (R$)');
-    const margin = element.querySelector<HTMLInputElement>('.margin-editor input')!;
-    margin.value = '30'; margin.dispatchEvent(new Event('input')); fixture.detectChanges();
-    element.querySelector<HTMLButtonElement>('.margin-editor button')!.click();
-    const save = http.expectOne(req => req.url === `${environment.apiUrl}/estoque/17/margem`);
-    expect(save.request.method).toBe('PUT');
-    expect(save.request.params.get('empresaId')).toBe('1');
-    expect(save.request.body).toEqual({ margemPreco: 30 });
-    save.flush({ id: 17, custo: 100, margemPreco: 30, precoVenda: 130 });
-    fixture.detectChanges();
-    expect(element.querySelector('.price-cell')!.textContent).toContain('100,00');
+    expect(element.querySelector('.margin-editor')).toBeNull();
+    expect(element.querySelectorAll('#global-margin')).toHaveLength(1);
+    const search=element.querySelector<HTMLInputElement>('.search-control input')!;
+    search.value='Filtro sem resultados'; search.dispatchEvent(new Event('input')); fixture.detectChanges();
+    const margin=element.querySelector<HTMLInputElement>('#global-margin')!;
+    margin.value='30'; margin.dispatchEvent(new Event('input')); fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('.global-pricing .primary-action')!.click();
+    await fixture.whenStable();
+    const save=http.expectOne(req=>req.url.endsWith('/estoque/margem')&&req.method==='PUT');
+    expect(save.request.params.get('empresaId')).toBe('1'); expect(save.request.body).toEqual({ margemPreco: 30 });
+    save.flush({ margemPreco: 30, produtosAtualizados: 8 });
+    request().flush([{ ...product, custo: 100, valor: 130, margemPreco: 30 }]); fixture.detectChanges();
+    expect(element.querySelector('.pricing-feedback')!.textContent).toContain('8 produto(s)');
+    expect(TestBed.inject(AlertService).notify).toHaveBeenCalledWith(expect.stringContaining('8 produto(s)'), 'success');
+    fixture.destroy(); fixture=TestBed.createComponent(InventoryComponent); element=fixture.nativeElement; fixture.detectChanges();
+    http.expectOne(req=>req.url.endsWith('/estoque/margem')).flush({ margemPreco: 30 });
+    request().flush([{ ...product, custo: 100, valor: 130, margemPreco: 30 }]); fixture.detectChanges(); await fixture.whenStable();
+    expect(element.querySelector<HTMLInputElement>('#global-margin')!.value).toBe('30');
     expect(element.querySelector('.sale-price')!.textContent).toContain('130,00');
-    fixture.destroy();
-    fixture = TestBed.createComponent(InventoryComponent); element = fixture.nativeElement; fixture.detectChanges();
-    request().flush([{ ...product, custo: 100, valor: 130, margemPreco: 30 }]);
-    fixture.detectChanges(); await fixture.whenStable();
-    expect(element.querySelector<HTMLInputElement>('.margin-editor input')!.value).toBe('30');
   });
-
-  it('keeps the saved sale price and margin input when saving the margin fails', async () => {
+  it('preserves prices and the entered margin when applying the global margin fails', async () => {
     request().flush([product]); fixture.detectChanges(); await fixture.whenStable();
-    const margin = element.querySelector<HTMLInputElement>('.margin-editor input')!;
-    margin.value = '40'; margin.dispatchEvent(new Event('input')); fixture.detectChanges();
-    element.querySelector<HTMLButtonElement>('.margin-editor button')!.click();
-    http.expectOne(req => req.url.endsWith('/17/margem')).flush({}, { status: 500, statusText: 'Error' });
-    fixture.detectChanges();
-    expect(element.querySelector('.sale-price')!.textContent).toContain('20,00');
-    expect(margin.value).toBe('40');
-    expect(element.querySelector('.pricing-feedback')!.textContent).toContain('Não foi possível salvar');
+    const margin=element.querySelector<HTMLInputElement>('#global-margin')!; margin.value='40'; margin.dispatchEvent(new Event('input')); fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('.global-pricing .primary-action')!.click(); await fixture.whenStable();
+    http.expectOne(req=>req.url.endsWith('/estoque/margem')&&req.method==='PUT').flush({}, { status:500, statusText:'Error' }); fixture.detectChanges();
+    expect(element.querySelector('.sale-price')!.textContent).toContain('20,00'); expect(margin.value).toBe('40');
+    expect(TestBed.inject(AlertService).notify).toHaveBeenCalledWith(expect.stringContaining('Não foi possível confirmar'), 'error');
+  });
+  it('does not update any price when the global confirmation is dismissed', async () => {
+    request().flush([product]); fixture.detectChanges();
+    vi.mocked(TestBed.inject(AlertService).confirm).mockResolvedValueOnce(false);
+    const margin=element.querySelector<HTMLInputElement>('#global-margin')!; margin.value='30'; margin.dispatchEvent(new Event('input')); fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('.global-pricing .primary-action')!.click(); await fixture.whenStable();
+    http.expectNone(req=>req.method==='PUT'); expect(element.querySelector('.sale-price')!.textContent).toContain('20,00');
   });
   it('reopens an imported invoice, saves received quantities and resumes after closing', async () => {
     request().flush([product]); fixture.detectChanges();
