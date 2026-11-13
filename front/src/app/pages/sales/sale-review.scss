@@ -1,0 +1,57 @@
+.sale-review {
+  width: min(1120px, calc(100vw - 32px)); max-width: none; max-height: min(940px, calc(100dvh - 32px)); padding: 0; border: 1px solid #dce6ef; border-radius: 16px; color: #1c3555; background: #f9fbfe; box-shadow: 0 28px 100px #102c4640;
+  &[open] { display: flex; flex-direction: column; }
+  &::backdrop { background: #152e4d80; backdrop-filter: blur(4px); }
+  h2 { font-size: 22px; letter-spacing: -.5px; }
+  h3 { display: flex; align-items: center; gap: 8px; margin: 0; color: #152e4b; font-size: 14px; font-weight: 750; }
+  p { margin: 0; font-size: 12px; line-height: 1.55; }
+  button { min-height: 34px; font-size: 12px; }
+  input, select { min-width: 0; min-height: 34px; padding: 0 8px; font-size: 12px; background: #fbfcff; }
+  label { display: flex; flex-wrap: wrap; align-content: start; gap: 4px; font-size: 11px; color: #3e5572; input, select { flex-basis: 100%; } b { color: #e45656; } }
+  fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+  dl { font-size: 12px; > div { gap: 12px; margin: 0; padding: 4px 0; } dt { color: #61758e; } dd { white-space: normal; font-weight: 500; } }
+  .grand-total { margin: 8px 0 0; padding: 9px 10px; font-size: 13px; background: #d9f5e3; strong { font-size: 20px; } }
+  .notice { margin: 14px 0 0; font-size: 12px; }
+  .row-index { height: 21px; min-width: 22px; font-size: 11px; }
+}
+.review-header { display: flex; align-items: center; gap: 20px; flex-shrink: 0; padding: 18px 22px; border-bottom: 1px solid #e7eef5; background: linear-gradient(110deg, #fff, #f5f9ff); }
+.review-logo { width: 130px; height: 42px; object-fit: contain; padding-right: 18px; border-right: 1px solid #b9e0d0; }
+.review-title { flex: 1; min-width: 0; p { color: #6d819b; margin-top: 4px; } }
+.review-close { width: 32px; padding: 0; align-self: flex-start; }
+.review-navigation { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 13px 20px 5px; flex-shrink: 0; background: #f9fbfe; button { border: 0; border-radius: 7px; color: #647690; background: #f0f4f9; font-weight: 500; &.active { color: #08733e; background: #dff7e9; box-shadow: inset 0 -2px #0ab56b; } } }
+.review-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 14px 20px 18px; scrollbar-width: thin; }
+.review-top { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.review-card { min-width: 0; border: 1px solid #dfe8f2; border-radius: 10px; padding: 14px; background: linear-gradient(120deg, #fff, #fafcff); box-shadow: 0 2px 5px #17355103; }
+.review-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.review-section-icon { display: inline-grid; place-items: center; width: 27px; height: 27px; flex-shrink: 0; border-radius: 7px; background: #e0fae9; color: #03a756; }
+.review-edit { min-height: 25px !important; padding: 0 7px; font-size: 10px !important; }
+.review-customer-name { display: block; font-size: 14px; margin: 4px 0 6px; }
+.customer-review p { display: flex; align-items: center; gap: 8px; margin-top: 6px; color: #5b718d; overflow-wrap: anywhere; }
+.review-tax-badge { display: inline-block; padding: 3px 6px; margin-bottom: 3px; border-radius: 4px; color: #078749; background: #e2f8e9; font-size: 10px; font-weight: 650; }
+.operation-review dl > div { justify-content: start; border-bottom: 1px solid #edf2f8; dt { flex: 0 0 82px; } }
+.review-environment { display: inline-block; margin-top: 8px; font-size: 10px; color: #4d6e89; }
+.review-items { margin-bottom: 14px; padding-bottom: 5px; .review-card-heading { margin-bottom: 8px; } table { font-size: 12px; } th { padding: 9px 7px; font-size: 10px; } td { padding: 11px 7px; } th:nth-child(n+3), td:nth-child(n+3) { text-align: right; white-space: nowrap; } }
+.review-count { color: #72869c; font-weight: 500; }
+.review-product { display: flex; align-items: center; gap: 9px; strong { display: block; font-size: 12px; } small { display: block; color: #71829a; font-size: 10px; margin-top: 3px; } }
+.review-product-icon { display: grid; place-items: center; width: 36px; height: 40px; border-radius: 6px; background: #eef6f3; color: #4e8774; flex-shrink: 0; }
+.review-detail-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 14px; }
+.review-detail-main, .review-detail-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.fiscal-item-fields { display: grid; grid-template-columns: 1.4fr 1.2fr .8fr; gap: 10px; margin-top: 12px; &:first-child { margin-top: 0; } > strong { grid-column: 1 / -1; font-size: 11px; color: #647a92; } }
+.destination-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.review-reload { min-height: 24px !important; padding: 0; border: 0; background: transparent; color: #07815b; font-size: 10px !important; text-decoration: underline; text-underline-offset: 2px; }
+.review-address-source { display: flex; align-items: start; gap: 5px; margin: -3px 0 12px !important; color: #6c8198; font-size: 10px !important; }
+.review-address-warning { margin: 0 0 12px !important; padding: 8px; background: #fff8e7; border-radius: 5px; color: #8b651b; font-size: 11px !important; }
+.review-tax-help { display: flex; align-items: start; gap: 8px; padding: 10px; margin-top: 10px !important; border: 1px solid #dae9f9; border-radius: 7px; background: #f4f9ff; color: #506987; font-size: 11px !important; app-icon { color: #398ce1; } }
+.review-summary { background: linear-gradient(140deg, #f3fbf6, #eaf8f2); }
+.review-payments { margin-top: 12px; padding-top: 10px; border-top: 1px solid #d8eade; color: #658271; font-size: 11px; > div { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; color: #355f4b; } }
+.review-notes { white-space: pre-wrap; margin-top: 10px !important; }
+.review-detail-grid + .review-card { margin-top: 14px; }
+.review-xml-note { display: flex; gap: 7px; align-items: start; margin-top: 18px !important; color: #7588a2; font-size: 10px !important; }
+.review-footer { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-top: 1px solid #e1eaf2; background: #fff; flex-shrink: 0; box-shadow: 0 -5px 15px #1b365006; .invoice-button { min-height: 40px; background: linear-gradient(110deg, #06b565, #008b48); border-color: #009e54; color: #fff; padding: 0 16px; font-size: 12px; &:hover { background: #008a48; } } }
+.review-settings { display: inline-flex; align-items: center; justify-content: center; gap: 4px; margin-left: auto; color: #07835b; font-size: 10px; text-underline-offset: 3px; }
+.review-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.review-top, .review-fiscal-data, .review-destination, .review-summary { scroll-margin: 8px; &:focus { outline: none; } &:focus-visible { outline: 2px solid #49b68d; outline-offset: 3px; } }
+@media (max-width: 760px) { .review-logo { width: 100px; padding-right: 12px; }.review-header { gap: 12px; padding: 14px; }.sale-review h2 { font-size: 18px; }.review-navigation { padding: 10px 12px 3px; button { gap: 4px; font-size: 10px; } }.review-body { padding: 12px; }.review-detail-grid { grid-template-columns: 1fr; }.review-footer { padding: 12px; flex-wrap: wrap; }.review-settings { order: 4; flex-basis: 100%; margin: 0; }.review-footer .invoice-button { margin-left: auto; }.review-footer .review-download { margin-left: auto; } }
+@media (max-width: 480px) { .sale-review { width: calc(100vw - 12px); max-height: calc(100dvh - 12px); border-radius: 12px; }.review-logo { display: none; }.review-top { grid-template-columns: 1fr; }.review-navigation button { flex-direction: column; padding: 7px 2px; min-height: 49px; }.review-card { padding: 12px; }.review-items table { min-width: 580px; }.destination-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }.address-street { grid-column: 1 / -1; }.review-footer .review-download { flex: 1; }.review-footer .invoice-button { width: 100%; margin: 0; }.review-card-heading h3 { font-size: 12px; }.fiscal-item-fields { gap: 7px; } }
+
+.emission-result { margin-top: 14px; padding: 14px; border: 1px solid #bde4d2; border-radius: 8px; background: #edf9f3; overflow-wrap: anywhere; h3 { margin-bottom: 8px; } a { display: block; color: #08714d; margin: 8px 0; font-size: 12px; } button { margin: 4px; } }

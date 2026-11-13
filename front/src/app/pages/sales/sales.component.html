@@ -67,57 +67,84 @@
   </fieldset>
   <footer class="sale-toolbar"><a class="button back-button" routerLink="/app/dashboard"><app-icon name="arrow-left" [size]="19" />Voltar</a><span class="toolbar-total">Total da venda<strong>{{ currency(total()) }}</strong></span><div class="toolbar-actions"><button type="button" (click)="preview()"><app-icon name="eye" [size]="17" />Pré-visualizar</button><button class="finish-button" type="button" (click)="tipo === 'Venda' ? finish() : saveDraft()"><app-icon [name]="tipo === 'Venda' ? 'badge-check' : 'save'" [size]="18" />{{ tipo === 'Venda' ? 'Preparar venda' : 'Salvar ' + tipo.toLowerCase() }}<app-icon name="arrow-right" [size]="15" /></button></div></footer>
 </section>
-<dialog #reviewDialog class="sale-review" (cancel)="$event.preventDefault(); closeReview()" aria-labelledby="sale-review-title">
-  <header class="review-header"><div><h2 id="sale-review-title">Revisar venda</h2><p>Confira os dados antes de solicitar a nota fiscal.</p></div><button type="button" aria-label="Fechar revisão" (click)="closeReview()"><app-icon name="x" /></button></header>
+<dialog #reviewDialog class="sale-review" (cancel)="$event.preventDefault(); closeReview()" aria-labelledby="sale-review-title" aria-describedby="sale-review-description">
+  <header class="review-header">
+    <img src="/logo-uniflow-autoparts.png" alt="UniFlow AutoParts" class="review-logo" />
+    <div class="review-title"><h2 id="sale-review-title">Revisar e emitir NF-e</h2><p id="sale-review-description">Confira os dados da venda e da emissão antes de enviar para a SEFAZ.</p></div>
+    <button class="review-close" type="button" aria-label="Fechar revisão" [disabled]="emissionBusy()" (click)="closeReview()"><app-icon name="x" [size]="18" /></button>
+  </header>
+  <nav class="review-navigation" aria-label="Seções da revisão">
+    @for (step of reviewSteps; track step.id; let index = $index) {
+      <button type="button" [class.active]="reviewStep() === index" [attr.aria-current]="reviewStep() === index ? 'location' : null" (click)="goToReviewSection(index)"><app-icon [name]="step.icon" [size]="17" /><span>{{ index + 1 }}. {{ step.label }}</span></button>
+    }
+  </nav>
   <div class="review-body">
-    <section><h3>Cliente</h3><strong>{{ cliente()?.nomeRazaoSocial || 'Cliente não selecionado' }}</strong><p>{{ cliente()?.cpfCnpj }} · {{ cliente()?.email || 'E-mail não informado' }}</p></section>
-    @if (vehicleName) { <section><h3>Veículo</h3><strong>{{ vehicleName }}</strong><p>{{ vehiclePlate || 'Sem placa informada' }}</p></section> }
-    <div class="table-wrap"><table><caption>Itens da venda</caption><thead><tr><th>Produto</th><th>Quantidade</th><th>Valor unitário</th><th>Desconto</th><th>Total</th></tr></thead><tbody>
-      @for (item of itens(); track item.produto.id) { <tr><td>{{ item.produto.descricao }}</td><td>{{ item.quantidade }}</td><td>{{ currency(item.preco) }}</td><td>{{ item.desconto }}%</td><td>{{ currency(itemTotal(item)) }}</td></tr> }
-    </tbody></table></div>
-    <section class="review-fiscal-data"><h3>Dados fiscais dos itens</h3><p>Confira a origem, o NCM e a unidade de cada produto antes de transmitir.</p>
-      <fieldset class="sale-fields" [disabled]="emissionAttempted() || emissionBusy()">
-        @for (item of itens(); track item.produto.id) {
-          <div class="fiscal-item-fields"><strong>{{ item.produto.descricao }}</strong><label>Origem<select [ngModel]="item.origem ?? item.produto.origemMercadoria" (ngModelChange)="updateFiscalItem(item.produto.id, 'origem', $event)"><option value="">Selecione</option><option value="0">0 · Nacional</option><option value="1">1 · Estrangeira, importação direta</option><option value="2">2 · Estrangeira, mercado interno</option><option value="3">3 · Nacional, conteúdo importado > 40%</option><option value="4">4 · Nacional, processo produtivo básico</option><option value="5">5 · Nacional, conteúdo importado até 40%</option><option value="6">6 · Importação direta, sem similar nacional</option><option value="7">7 · Mercado interno, sem similar nacional</option><option value="8">8 · Nacional, conteúdo importado > 70%</option></select></label><label>NCM<input [ngModel]="item.ncm ?? (item.produto.ncm ? item.produto.ncm.toString().padStart(8, '0') : '')" (ngModelChange)="updateFiscalItem(item.produto.id, 'ncm', $event)" maxlength="8" /></label><label>Unidade<input [ngModel]="item.unidade ?? item.produto.unidadeComercial ?? 'UN'" (ngModelChange)="updateFiscalItem(item.produto.id, 'unidade', $event)" maxlength="6" /></label></div>
-        }
-      </fieldset>
-    </section>
-    <section class="review-fiscal-data"><h3>Endereço fiscal do destinatário</h3>
-      @if (destination; as d) {
-        <fieldset class="destination-fields sale-fields" [disabled]="emissionAttempted() || emissionBusy()">
-          <label>Logradouro<input [(ngModel)]="d.logradouro" maxlength="60" /></label><label>Número<input [(ngModel)]="d.numero" maxlength="60" /></label><label>Complemento<input [(ngModel)]="d.complemento" maxlength="60" /></label><label>Bairro<input [(ngModel)]="d.bairro" maxlength="60" /></label><label>Município<input [(ngModel)]="d.municipio" maxlength="60" /></label><label>Código IBGE<input [(ngModel)]="d.codigoMunicipio" maxlength="7" /></label><label>UF<input [(ngModel)]="d.uf" maxlength="2" /></label><label>CEP<input [(ngModel)]="d.cep" maxlength="9" /></label><label>Indicador de IE<select [(ngModel)]="d.indicadorIe"><option [ngValue]="1">Contribuinte</option><option [ngValue]="2">Contribuinte isento</option><option [ngValue]="9">Não contribuinte</option></select></label><label>Inscrição estadual<input [(ngModel)]="d.inscricaoEstadual" maxlength="14" /></label><label>Consumidor final<select [(ngModel)]="d.consumidorFinal"><option [ngValue]="true">Sim</option><option [ngValue]="false">Não</option></select></label>
-        </fieldset>
-      } @else if (emissionAttempted()) { <p>Os dados enviados permanecem registrados no XML e na solicitação fiscal.</p> }
-      @else { <button type="button" [disabled]="destinationBusy() || !cliente()" (click)="loadDestination()">{{ destinationBusy() ? 'Carregando endereço...' : 'Carregar dados do destinatário' }}</button> }
-    </section>
-    <section class="review-fiscal-data"><h3>Tributação desta venda</h3>
-      <fieldset class="sale-fields" [disabled]="emissionAttempted() || emissionBusy()">
-        <label>CSOSN do ICMS<select aria-label="CSOSN desta venda" [(ngModel)]="csosn">
-          <option value="">Usar configuração da empresa</option>
-          <option value="101">101 · Tributada com permissão de crédito</option>
-          <option value="102">102 · Tributada sem permissão de crédito</option>
-          <option value="103">103 · Isenção por faixa de receita bruta</option>
-          <option value="300">300 · Imune</option>
-          <option value="400">400 · Não tributada pelo Simples Nacional</option>
-        </select></label>
-      </fieldset>
-      <p>Para pessoa física ou jurídica não contribuinte, revise o indicador de IE e consumidor final. O CSOSN 101 exige contribuinte com direito a crédito. Use 102 quando a operação for tributada sem permissão de crédito, conforme a orientação contábil. Esta escolha vale apenas para esta nota.</p>
-    </section>
-    <div class="review-columns">
-      <section><h3>Dados da operação</h3><dl><div><dt>Vendedor</dt><dd>{{ vendedor || 'Não informado' }}</dd></div><div><dt>Documento</dt><dd>{{ modelo === '55' ? 'NF-e' : 'NFC-e' }} · Série {{ serie }}</dd></div><div><dt>CFOP</dt><dd>{{ cfop }}</dd></div></dl><p>{{ natureza }}</p><p class="review-environment">RS · {{ environmentLabel() }}</p></section>
-      <section><h3>Valores e pagamentos</h3><dl><div><dt>Subtotal</dt><dd>{{ currency(subtotal()) }}</dd></div><div><dt>Descontos</dt><dd>{{ currency(itemDiscount() + (desconto || 0)) }}</dd></div><div><dt>Frete</dt><dd>{{ currency(frete || 0) }}</dd></div><div><dt>Outras despesas</dt><dd>{{ currency(despesas || 0) }}</dd></div>@for (payment of pagamentos(); track payment.id) {<div><dt>{{ payment.forma }}</dt><dd>{{ currency(payment.valor) }}</dd></div>}</dl></section>
+    <div class="review-top" id="review-sale" tabindex="-1">
+      <section class="review-card customer-review"><div class="review-card-heading"><h3><span class="review-section-icon"><app-icon name="user" [size]="17" /></span>Cliente</h3><button class="review-edit" type="button" [disabled]="emissionAttempted() || emissionBusy()" (click)="editReviewCustomer()"><app-icon name="pencil" [size]="12" />Editar</button></div>
+        <strong class="review-customer-name">{{ cliente()?.nomeRazaoSocial || 'Cliente não selecionado' }}</strong>
+        @if (destination; as d) { <span class="review-tax-badge">{{ d.indicadorIe === 1 ? 'Contribuinte do ICMS' : d.indicadorIe === 2 ? 'Contribuinte isento' : 'Não contribuinte' }}</span> }
+        <p><app-icon name="building-2" [size]="14" />{{ cliente()?.cpfCnpj || 'CPF/CNPJ não informado' }}</p>
+        <p><app-icon name="phone" [size]="14" />{{ cliente()?.telefone || cliente()?.celular || 'Telefone não informado' }}</p>
+        <p><app-icon name="mail" [size]="14" />{{ cliente()?.email || 'E-mail não informado' }}</p>
+        @if (vehicleName) { <p><app-icon name="car-front" [size]="14" />{{ vehicleName }} · {{ vehiclePlate || 'Sem placa' }}</p> }
+      </section>
+      <section class="review-card operation-review"><div class="review-card-heading"><h3><span class="review-section-icon"><app-icon name="file-text" [size]="17" /></span>Dados da operação</h3><button class="review-edit" type="button" [disabled]="emissionAttempted() || emissionBusy()" (click)="editReviewOperation()"><app-icon name="pencil" [size]="12" />Editar</button></div>
+        <dl><div><dt>Documento</dt><dd>{{ modelo === '55' ? 'NF-e (modelo 55)' : 'NFC-e (modelo 65)' }}</dd></div><div><dt>Série</dt><dd>{{ serie }}</dd></div><div><dt>CFOP</dt><dd>{{ cfop }}</dd></div><div><dt>Natureza</dt><dd>{{ natureza }}</dd></div><div><dt>Vendedor</dt><dd>{{ vendedor || 'Não informado' }}</dd></div></dl>
+        <span class="review-environment">RS · {{ environmentLabel() }}</span>
+      </section>
     </div>
-    @if (observacoes) { <section><h3>Observações</h3><p class="review-notes">{{ observacoes }}</p></section> }
-    <div class="grand-total"><span>Total da venda</span><strong>{{ currency(total()) }}</strong></div>
+    <section class="review-card review-items"><div class="review-card-heading"><h3><span class="review-section-icon"><app-icon name="shopping-cart" [size]="17" /></span>Itens da venda <span class="review-count">({{ itens().length }})</span></h3></div>
+      <div class="table-wrap"><table><caption class="review-sr-only">Itens da venda</caption><thead><tr><th scope="col">#</th><th scope="col">Produto</th><th scope="col">Qtde.</th><th scope="col">Valor unit. (R$)</th><th scope="col">Desc. (%)</th><th scope="col">Total (R$)</th></tr></thead><tbody>
+        @for (item of itens(); track item.produto.id; let index = $index) { <tr><td><span class="row-index">{{ index + 1 }}</span></td><td><div class="review-product"><span class="review-product-icon"><app-icon name="package" [size]="24" /></span><div><strong>{{ item.produto.descricao }}</strong><small>NCM: {{ item.ncm ?? item.produto.ncm }} · {{ item.unidade ?? item.produto.unidadeComercial ?? 'UN' }}</small></div></div></td><td>{{ item.quantidade }}</td><td>{{ currency(item.preco) }}</td><td>{{ item.desconto }}</td><td><strong>{{ currency(itemTotal(item)) }}</strong></td></tr> }
+      </tbody></table></div>
+    </section>
+    <div class="review-detail-grid">
+      <div class="review-detail-main">
+        <section class="review-card review-fiscal-data" id="review-tax" tabindex="-1"><div class="review-card-heading"><h3><span class="review-section-icon"><app-icon name="tags" [size]="17" /></span>Dados fiscais dos itens</h3></div>
+          <fieldset class="sale-fields" [disabled]="emissionAttempted() || emissionBusy()"><legend class="review-sr-only">Origem, NCM e unidade dos produtos</legend>
+            @for (item of itens(); track item.produto.id) {
+              <div class="fiscal-item-fields">@if (itens().length > 1) { <strong>{{ item.produto.descricao }}</strong> }
+                <label>Origem <b>*</b><select [ngModel]="item.origem ?? item.produto.origemMercadoria" (ngModelChange)="updateFiscalItem(item.produto.id, 'origem', $event)"><option value="">Selecione</option><option value="0">0 · Nacional</option><option value="1">1 · Estrangeira, importação direta</option><option value="2">2 · Estrangeira, mercado interno</option><option value="3">3 · Nacional, conteúdo importado &gt; 40%</option><option value="4">4 · Nacional, processo produtivo básico</option><option value="5">5 · Nacional, conteúdo importado até 40%</option><option value="6">6 · Importação direta, sem similar nacional</option><option value="7">7 · Mercado interno, sem similar nacional</option><option value="8">8 · Nacional, conteúdo importado &gt; 70%</option></select></label>
+                <label>NCM <b>*</b><input aria-label="NCM do produto" [ngModel]="item.ncm ?? (item.produto.ncm ? item.produto.ncm.toString().padStart(8, '0') : '')" (ngModelChange)="updateFiscalItem(item.produto.id, 'ncm', $event)" maxlength="8" inputmode="numeric" /></label><label>Unidade <b>*</b><input [ngModel]="item.unidade ?? item.produto.unidadeComercial ?? 'UN'" (ngModelChange)="updateFiscalItem(item.produto.id, 'unidade', $event)" maxlength="6" /></label>
+              </div>
+            }
+          </fieldset>
+        </section>
+        <section class="review-card review-destination" id="review-destination" tabindex="-1" [attr.aria-busy]="destinationBusy()"><div class="review-card-heading"><h3><span class="review-section-icon"><app-icon name="map-pin" [size]="17" /></span>Endereço fiscal do destinatário</h3><button class="review-reload" type="button" [disabled]="destinationBusy() || !cliente() || emissionAttempted() || emissionBusy()" (click)="loadDestination(true)">Recarregar cadastro</button></div>
+          @if (destinationError() && destination) { <p class="review-address-warning" role="alert">{{ destinationError() }}</p> }
+          @if (destinationBusy()) { <p class="review-address-source" role="status">Preenchendo com o endereço do cadastro do cliente...</p> }
+          @else if (destination; as d) {
+            <p class="review-address-source"><app-icon name="check" [size]="13" />Preenchido com o cadastro do cliente. Ajustes aqui valem apenas para esta nota.</p>
+            @if (!d.logradouro || !d.numero || !d.bairro || !d.cep || !d.codigoMunicipio || d.codigoMunicipio === '0000000') { <p class="review-address-warning">O cadastro está incompleto. Complete os campos obrigatórios antes de emitir.</p> }
+            <fieldset class="destination-fields sale-fields" [disabled]="emissionAttempted() || emissionBusy()"><legend class="review-sr-only">Endereço e condição fiscal do destinatário</legend>
+              <label class="address-street">Logradouro <b>*</b><input aria-label="Logradouro do destinatário" [(ngModel)]="d.logradouro" maxlength="60" autocomplete="off" /></label><label>Número <b>*</b><input aria-label="Número do destinatário" [(ngModel)]="d.numero" maxlength="60" /></label><label>Complemento<input [(ngModel)]="d.complemento" maxlength="60" /></label><label>Bairro <b>*</b><input [(ngModel)]="d.bairro" maxlength="60" /></label><label>Município <b>*</b><input [(ngModel)]="d.municipio" maxlength="60" /></label><label>Código IBGE <b>*</b><input aria-label="Código IBGE do destinatário" [(ngModel)]="d.codigoMunicipio" maxlength="7" inputmode="numeric" /></label><label>UF <b>*</b><input [(ngModel)]="d.uf" maxlength="2" /></label><label>CEP <b>*</b><input aria-label="CEP do destinatário" [(ngModel)]="d.cep" maxlength="9" inputmode="numeric" /></label><label>Indicador de IE<select [(ngModel)]="d.indicadorIe"><option [ngValue]="1">Contribuinte do ICMS</option><option [ngValue]="2">Contribuinte isento</option><option [ngValue]="9">Não contribuinte</option></select></label><label>Inscrição estadual<input [(ngModel)]="d.inscricaoEstadual" maxlength="14" /></label><label>Consumidor final<select [(ngModel)]="d.consumidorFinal"><option [ngValue]="true">Sim</option><option [ngValue]="false">Não</option></select></label>
+            </fieldset>
+          } @else if (emissionAttempted()) { <p class="review-address-source">Os dados enviados permanecem registrados na solicitação fiscal.</p> }
+          @else { <p class="review-address-source">{{ destinationError() || 'Selecione um cliente para carregar o endereço do cadastro.' }}</p><button type="button" [disabled]="!cliente()" (click)="loadDestination()">Carregar dados do destinatário</button> }
+        </section>
+      </div>
+      <aside class="review-detail-side" aria-label="Tributação e valores">
+        <section class="review-card review-tax"><div class="review-card-heading"><h3><span class="review-section-icon"><app-icon name="boxes" [size]="17" /></span>Tributação do ICMS</h3></div>
+          <fieldset class="sale-fields" [disabled]="emissionAttempted() || emissionBusy()"><legend class="review-sr-only">Tributação desta venda</legend><label>CSOSN <b>*</b><select aria-label="CSOSN desta venda" [(ngModel)]="csosn"><option value="">Usar configuração da empresa</option><option value="101">101 · Tributada com permissão de crédito</option><option value="102">102 · Tributada sem permissão de crédito</option><option value="103">103 · Isenção por faixa de receita bruta</option><option value="300">300 · Imune</option><option value="400">400 · Não tributada pelo Simples Nacional</option></select></label></fieldset>
+          <p class="review-tax-help"><app-icon name="info" [size]="17" /><span>Para pessoa física ou jurídica não contribuinte, utilize o CSOSN aplicável à operação. O 102 atende operações tributadas sem crédito; o 101 exige contribuinte com direito a crédito. Confirme a orientação contábil.</span></p>
+        </section>
+        <section class="review-card review-summary" id="review-summary" tabindex="-1"><div class="review-card-heading"><h3><span class="review-section-icon"><app-icon name="receipt-text" [size]="17" /></span>Resumo financeiro</h3></div>
+          <dl><div><dt>Subtotal ({{ itens().length }} {{ itens().length === 1 ? 'item' : 'itens' }})</dt><dd>{{ currency(subtotal()) }}</dd></div><div><dt>Descontos</dt><dd>{{ currency(itemDiscount() + (desconto || 0)) }}</dd></div><div><dt>Frete</dt><dd>{{ currency(frete || 0) }}</dd></div><div><dt>Outras despesas</dt><dd>{{ currency(despesas || 0) }}</dd></div></dl>
+          <div class="grand-total"><span>Total da venda</span><strong>{{ currency(total()) }}</strong></div>
+          <div class="review-payments"><span>Pagamento</span>@for (payment of pagamentos(); track payment.id) { <div><span>{{ payment.forma }}</span><strong>{{ currency(payment.valor) }}</strong></div> }</div>
+        </section>
+      </aside>
+    </div>
+    @if (observacoes) { <section class="review-card"><h3>Observações</h3><p class="review-notes">{{ observacoes }}</p></section> }
     @if (emittedNote(); as nota) {
-      <section class="emission-result"><h3>NF-e {{ nota.numero }} · Série {{ nota.serie }} · {{ nota.situacao }}</h3><p>Chave: {{ nota.chaveAcesso }}</p><p>SEFAZ {{ nota.codigo }}: {{ nota.motivo }}</p>@if (nota.protocolo) { <p>Protocolo: <strong>{{ nota.protocolo }}</strong></p> }<a routerLink="/app/notas">Abrir notas fiscais, cancelamento e carta de correção</a>
-      @if (nota.situacao === 'Processando') { <button type="button" [disabled]="emissionBusy()" (click)="consultEmission()">Consultar autorização</button> }
-      @if (nota.podeReenviar) { <button type="button" [disabled]="emissionBusy()" (click)="consultEmission(true)">Reenviar o mesmo XML</button> }
-      @if (nota.situacao === 'Rejeitada') { <button type="button" [disabled]="emissionBusy()" (click)="reviseRejected()">Revisar dados para nova tentativa</button> }
+      <section class="emission-result" aria-live="polite"><h3>NF-e {{ nota.numero }} · Série {{ nota.serie }} · {{ nota.situacao }}</h3><p>Chave: {{ nota.chaveAcesso }}</p><p>SEFAZ {{ nota.codigo }}: {{ nota.motivo }}</p>@if (nota.protocolo) { <p>Protocolo: <strong>{{ nota.protocolo }}</strong></p> }<a routerLink="/app/notas">Abrir notas fiscais, cancelamento e carta de correção</a>
+        @if (nota.situacao === 'Processando') { <button type="button" [disabled]="emissionBusy()" (click)="consultEmission()">Consultar autorização</button> }
+        @if (nota.podeReenviar) { <button type="button" [disabled]="emissionBusy()" (click)="consultEmission(true)">Reenviar o mesmo XML</button> }
+        @if (nota.situacao === 'Rejeitada') { <button type="button" [disabled]="emissionBusy()" (click)="reviseRejected()">Revisar dados para nova tentativa</button> }
       </section>
     }
-    @if (fiscalMessage()) { <div class="notice error" role="alert">{{ fiscalMessage() }}</div> }
-    <p>O XML protocolado estará disponível após a autorização da SEFAZ. Este fluxo não gera o DANFE em PDF automaticamente.</p>
+    @if (fiscalMessage()) { <div class="notice" [class.error]="!emittedNote() || emittedNote()?.situacao === 'Rejeitada'" role="status">{{ fiscalMessage() }}</div> }
+    <p class="review-xml-note"><app-icon name="info" [size]="15" />O XML protocolado estará disponível após a autorização da SEFAZ. Este fluxo não gera o DANFE em PDF automaticamente.</p>
   </div>
-  <footer class="review-footer"><button type="button" [disabled]="emissionBusy()" (click)="closeReview()">Voltar à venda</button><a routerLink="/app/configuracoes/certificado-digital" (click)="closeReview()">Configurar emitente e certificado</a><button type="button" [disabled]="!emittedNote() || emittedNote()?.situacao === 'Processando' || emittedNote()?.situacao === 'Rejeitada'" (click)="downloadAuthorizedXml()">Baixar XML autorizado</button><button class="invoice-button" type="button" [disabled]="emissionBusy() || !!emittedNote()" (click)="requestInvoice()"><app-icon name="send" />{{ emissionBusy() ? 'Aguarde...' : emissionAttempted() ? 'Recuperar tentativa' : fiscalEnvironment() === 'producao' ? 'Emitir NF-e em produção' : 'Emitir NF-e em homologação' }}</button></footer>
+  <footer class="review-footer"><button type="button" [disabled]="emissionBusy()" (click)="closeReview()"><app-icon name="arrow-left" [size]="16" />Voltar</button><a class="review-settings" routerLink="/app/configuracoes/certificado-digital" (click)="closeReview()"><app-icon name="settings" [size]="14" />Configurar emitente e certificado</a><button class="review-download" type="button" [disabled]="!emittedNote() || emittedNote()?.situacao === 'Processando' || emittedNote()?.situacao === 'Rejeitada'" (click)="downloadAuthorizedXml()"><app-icon name="download" [size]="16" />Baixar XML autorizado</button><button class="invoice-button" type="button" [disabled]="emissionBusy() || destinationBusy() || !!emittedNote() || (!destination && !emissionAttempted())" (click)="requestInvoice()"><app-icon name="send" [size]="17" />{{ emissionBusy() ? 'Aguarde...' : emissionAttempted() ? 'Recuperar tentativa' : fiscalEnvironment() === 'producao' ? 'Emitir NF-e em produção' : 'Emitir NF-e em homologação' }}</button></footer>
 </dialog>

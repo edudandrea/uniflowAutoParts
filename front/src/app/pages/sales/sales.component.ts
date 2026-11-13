@@ -14,14 +14,14 @@ interface SaleDraft {
   cliente: ClienteResumoResponse | null; itens: SaleItem[]; pagamentos: Payment[];
   tipo: string; vendedor: string; emitir: boolean; modelo: string; finalidade: string;
   natureza: string; cfop: string; serie: string; desconto: number; frete: number;
-  despesas: number; observacoes: string; csosn?: string;
+  despesas: number; observacoes: string; csosn?: string; destinatario?: DestinatarioFiscalData; destinatarioClienteId?: number;
   vehicleName?: string; vehiclePlate?: string; modalidadeFrete?: number; indicadorPresenca?: number;
   emissionRequestId?: string; emissionPayload?: EmitirNfePayload | null; emittedNote?: EmissaoNfeResponse | null; emissionAttempted?: boolean;
 }
 
 @Component({
   selector: 'app-sales', imports: [FormsModule, RouterLink, AppIconComponent],
-  templateUrl: './sales.component.html', styleUrl: './sales.component.scss',
+  templateUrl: './sales.component.html', styleUrls: ['./sales.component.scss', './sale-review.scss'],
 })
 export class SalesComponent {
   private readonly api = inject(ApiService);
@@ -36,6 +36,15 @@ export class SalesComponent {
   protected readonly emissionBusy = signal(false);
   protected readonly emissionAttempted = signal(false);
   protected readonly emittedNote = signal<EmissaoNfeResponse | null>(null);
+  protected readonly reviewStep = signal(0);
+  protected readonly reviewSteps = [
+    { id: 'review-sale', label: 'Dados da venda', icon: 'file-text' },
+    { id: 'review-tax', label: 'Dados fiscais', icon: 'tags' },
+    { id: 'review-destination', label: 'Destinatário', icon: 'user' },
+    { id: 'review-summary', label: 'Resumo', icon: 'receipt-text' },
+  ];
+  protected readonly destinationError = signal('');
+  private destinationLoadingId: number | null = null;
   protected csosn = '';
   protected destination: DestinatarioFiscalData | null = null;
   protected readonly destinationBusy = signal(false);
@@ -44,7 +53,7 @@ export class SalesComponent {
   private emissionPayload: EmitirNfePayload | null = null;
 
   protected requestInvoice(): void {
-    if (this.emissionBusy() || this.emittedNote()) return;
+    if (this.emissionBusy() || this.emittedNote() || this.destinationBusy()) return;
     if (!this.emitir || this.tipo !== 'Venda' || this.modelo !== '55') { this.fiscalMessage.set('Selecione Venda e NF-e modelo 55 para emitir.'); return; }
     if (!this.cliente() || !this.itens().length || this.balance() !== 0) { this.fiscalMessage.set('Revise cliente, itens e pagamentos antes de emitir.'); return; }
     if (!this.destination && !this.emissionPayload) { this.fiscalMessage.set('Carregue e revise o endereço fiscal do destinatário antes de emitir.'); return; }
@@ -95,12 +104,37 @@ export class SalesComponent {
     if (this.emittedNote()?.situacao !== 'Rejeitada') return;
     this.emissionAttempted.set(false); this.emissionPayload = null; this.emittedNote.set(null); this.emissionRequestId = crypto.randomUUID(); this.fiscalMessage.set('Corrija os dados fiscais antes de iniciar uma nova tentativa.'); this.saveDraft();
   }
-  protected loadDestination(): void {
-    const customer = this.cliente(); if (!customer || this.destinationBusy() || this.emissionAttempted() || this.destinationId === customer.id) return;
-    this.destinationBusy.set(true);
-    this.api.carregarDestinatarioFiscal(customer.id).subscribe({ next: data => { this.destination = data; this.destinationId = customer.id; this.destinationBusy.set(false); },
-      error: () => { this.destinationBusy.set(false); this.fiscalMessage.set('Não foi possível carregar os dados fiscais do destinatário. Tente novamente.'); } });
-  }  protected updateFiscalItem(id: number, field: 'origem' | 'ncm' | 'unidade', value: string): void {
+  protected goToReviewSection(index: number): void {
+    const section = this.reviewDialog()?.nativeElement.querySelector<HTMLElement>('#' + this.reviewSteps[index]?.id);
+    if (!section) return;
+    this.reviewStep.set(index); section.scrollIntoView({ block: 'start', behavior: 'instant' }); section.focus({ preventScroll: true });
+  }
+  protected editReviewCustomer(): void {
+    this.closeReview(); this.editingCustomer = true;
+    setTimeout(() => document.querySelector<HTMLInputElement>('[aria-label="Buscar cliente"]')?.focus());
+  }
+  protected editReviewOperation(): void {
+    this.closeReview(); this.showOptions = true;
+    setTimeout(() => document.querySelector<HTMLElement>('.fiscal-fields input')?.focus());
+  }
+  protected loadDestination(force = false): void {
+    const customer = this.cliente();
+    if (!customer || this.emissionAttempted() || this.destinationLoadingId === customer.id || (!force && this.destinationId === customer.id)) return;
+    this.destinationLoadingId = customer.id; this.destinationBusy.set(true); this.destinationError.set('');
+    this.api.carregarDestinatarioFiscal(customer.id).subscribe({
+      next: data => {
+        if (this.cliente()?.id !== customer.id || this.destinationLoadingId !== customer.id) return;
+        this.destination = { ...data }; this.destinationId = customer.id;
+        this.destinationLoadingId = null; this.destinationBusy.set(false);
+      },
+      error: () => {
+        if (this.cliente()?.id !== customer.id || this.destinationLoadingId !== customer.id) return;
+        this.destinationLoadingId = null; this.destinationBusy.set(false);
+        this.destinationError.set('Não foi possível carregar o endereço do cadastro. Tente novamente.');
+      },
+    });
+  }
+  protected updateFiscalItem(id: number, field: 'origem' | 'ncm' | 'unidade', value: string): void {
     if (this.emissionAttempted()) return;
     this.itens.update(items => items.map(i => i.produto.id === id ? { ...i, [field]: value } : i));
   }
@@ -187,7 +221,7 @@ export class SalesComponent {
       error: () => { this.loading.set(false); this.loadError.set('Não foi possível carregar clientes e produtos. Verifique se o backend está disponível e tente novamente.'); },
     });
   }
-  protected selectCustomer(c: ClienteResumoResponse): void { this.csosn = ''; this.cliente.set(c); this.customerSearch.set(''); this.editingCustomer = false; this.destination = null; this.destinationId = null; }
+  protected selectCustomer(c: ClienteResumoResponse): void { this.csosn = ''; this.cliente.set(c); this.customerSearch.set(''); this.editingCustomer = false; this.destination = null; this.destinationId = null; this.destinationLoadingId = null; this.destinationBusy.set(false); this.destinationError.set(''); }
   protected focusProductSearch(): void { this.productSearchInput()?.nativeElement.focus(); }
 
   @HostListener('document:keydown', ['$event'])
@@ -202,7 +236,7 @@ export class SalesComponent {
   protected preview(): void {
     if (!this.itens().length) { this.message.set('Adicione pelo menos um produto para pré-visualizar a venda.'); return; }
     this.fiscalMessage.set('');
-    this.loadDestination(); this.reviewDialog()?.nativeElement.showModal();
+    this.reviewStep.set(0); this.loadDestination(); this.reviewDialog()?.nativeElement.showModal();
   }
   protected addProduct(produto: Produto): void {
     this.itens.update(items => {
@@ -244,7 +278,7 @@ export class SalesComponent {
   protected currency(value: number): string { return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
   private round(value: number): number { return Math.round((value + Number.EPSILON) * 100) / 100; }
   private draft(): SaleDraft {
-    return { cliente: this.cliente(), itens: this.itens(), pagamentos: this.pagamentos(), tipo: this.tipo, vendedor: this.vendedor, emitir: this.emitir, modelo: this.modelo, finalidade: this.finalidade, natureza: this.natureza, cfop: this.cfop, serie: this.serie, desconto: this.desconto, frete: this.frete, despesas: this.despesas, observacoes: this.observacoes, csosn: this.csosn, vehicleName: this.vehicleName, vehiclePlate: this.vehiclePlate, modalidadeFrete: this.modalidadeFrete, indicadorPresenca: this.indicadorPresenca, emissionRequestId: this.emissionRequestId, emissionPayload: this.emissionPayload, emittedNote: this.emittedNote(), emissionAttempted: this.emissionAttempted() };
+    return { cliente: this.cliente(), itens: this.itens(), pagamentos: this.pagamentos(), tipo: this.tipo, vendedor: this.vendedor, emitir: this.emitir, modelo: this.modelo, finalidade: this.finalidade, natureza: this.natureza, cfop: this.cfop, serie: this.serie, desconto: this.desconto, frete: this.frete, despesas: this.despesas, observacoes: this.observacoes, csosn: this.csosn, destinatario: this.destination ?? undefined, destinatarioClienteId: this.destinationId ?? undefined, vehicleName: this.vehicleName, vehiclePlate: this.vehiclePlate, modalidadeFrete: this.modalidadeFrete, indicadorPresenca: this.indicadorPresenca, emissionRequestId: this.emissionRequestId, emissionPayload: this.emissionPayload, emittedNote: this.emittedNote(), emissionAttempted: this.emissionAttempted() };
   }
   protected saveDraft(): boolean {
     try { localStorage.setItem(this.draftKey, JSON.stringify(this.draft())); this.message.set('Rascunho salvo neste navegador. Você pode continuar depois.'); return true; }
@@ -263,6 +297,8 @@ export class SalesComponent {
       this.frete = draft.frete; this.despesas = draft.despesas; this.observacoes = draft.observacoes;
       this.modalidadeFrete = draft.modalidadeFrete ?? 9; this.indicadorPresenca = draft.indicadorPresenca ?? 1;
       this.emissionRequestId = draft.emissionRequestId ?? crypto.randomUUID(); this.emissionPayload = draft.emissionPayload ?? null; this.emittedNote.set(draft.emittedNote ?? null); this.emissionAttempted.set(draft.emissionAttempted ?? false);
+      this.destination = this.emissionPayload?.destinatario ?? (draft.destinatarioClienteId === draft.cliente?.id ? draft.destinatario ?? null : null);
+      this.destinationId = this.destination ? draft.cliente?.id ?? null : null;
       this.vehicleName = draft.vehicleName ?? ''; this.vehiclePlate = draft.vehiclePlate ?? '';
       this.message.set('Seu último rascunho foi recuperado.');
     } catch { this.message.set('Não foi possível recuperar o rascunho salvo.'); }
@@ -272,7 +308,7 @@ export class SalesComponent {
     if ((this.itens().length || this.cliente()) && !window.confirm('Limpar a venda e excluir o rascunho salvo?')) return;
     this.emissionAttempted.set(false); this.emissionPayload = null; this.emittedNote.set(null); this.emissionRequestId = crypto.randomUUID(); this.fiscalMessage.set('');
     this.cliente.set(null); this.itens.set([]); this.pagamentos.set([{ id: 1, forma: 'Pix', valor: 0 }]);
-    this.csosn = ''; this.destination = null; this.destinationId = null;
+    this.csosn = ''; this.destination = null; this.destinationId = null; this.destinationLoadingId = null; this.destinationBusy.set(false); this.destinationError.set('');
     this.desconto = 0; this.frete = 0; this.despesas = 0; this.observacoes = ''; this.vendedor = '';
     this.vehicleName = ''; this.vehiclePlate = ''; this.editingVehicle = false; this.editingCustomer = false;
     this.customerSearch.set(''); this.productSearch.set(''); this.message.set('');
@@ -287,7 +323,7 @@ export class SalesComponent {
     if (this.saveDraft()) {
       this.message.set('');
       this.fiscalMessage.set('');
-      this.loadDestination(); this.reviewDialog()?.nativeElement.showModal();
+      this.reviewStep.set(0); this.loadDestination(); this.reviewDialog()?.nativeElement.showModal();
     }
   }
 }

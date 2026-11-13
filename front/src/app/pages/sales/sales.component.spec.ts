@@ -70,6 +70,47 @@ import { SalesComponent } from './sales.component';
     http.expectOne(`${environment.apiUrl}/fiscal/destinatario/7`).flush(destination); fixture.detectChanges(); await fixture.whenStable();
   }
 
+  it('automatically fills the recipient address from the customer registry and sends the reviewed values', async () => {
+    await prepareEmission();
+    expect(element.querySelector<HTMLInputElement>('[aria-label="Logradouro do destinatário"]')!.value).toBe(destination.logradouro);
+    expect(element.querySelector<HTMLInputElement>('[aria-label="CEP do destinatário"]')!.value).toBe(destination.cep);
+    expect(element.querySelector<HTMLInputElement>('[aria-label="Código IBGE do destinatário"]')!.value).toBe(destination.codigoMunicipio);
+    expect(element.querySelector('.review-address-source')!.textContent).toContain('cadastro do cliente');
+    await input('[aria-label="Número do destinatário"]', '27');
+    element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
+    const request = http.expectOne(`${environment.apiUrl}/notas-fiscais/emitir`);
+    expect(request.request.body.destinatario).toEqual({ ...destination, numero: '27' });
+    request.flush(authorized); fixture.detectChanges();
+  });
+
+  it('reloads the address from the customer registry and disables emission during loading', async () => {
+    await prepareEmission();
+    element.querySelector<HTMLButtonElement>('.review-reload')!.click(); fixture.detectChanges();
+    expect(element.querySelector<HTMLButtonElement>('.invoice-button')!.disabled).toBe(true);
+    http.expectOne(`${environment.apiUrl}/fiscal/destinatario/7`).flush({ ...destination, logradouro: 'Rua atualizada no cadastro', numero: '99' });
+    fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    expect(element.querySelector<HTMLInputElement>('[aria-label="Logradouro do destinatário"]')!.value).toBe('Rua atualizada no cadastro');
+    expect(element.querySelector<HTMLButtonElement>('.invoice-button')!.disabled).toBe(false);
+  });
+
+  it('keeps reviewed address edits when restoring a saved draft', async () => {
+    await prepareEmission(); await input('[aria-label="Número do destinatário"]', '28');
+    [...element.querySelectorAll<HTMLButtonElement>('.actions button')].find(b => b.textContent?.includes('Salvar rascunho'))!.click();
+    fixture.destroy(); fixture = TestBed.createComponent(SalesComponent); element = fixture.nativeElement; fixture.detectChanges(); catalog([product], 'producao');
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(element.querySelector<HTMLInputElement>('[aria-label="Número do destinatário"]')!.value).toBe('28');
+  });
+
+  it('navigates to each review section with an accessible current location', async () => {
+    await prepareEmission();
+    const section = element.querySelector<HTMLElement>('#review-destination')!;
+    section.scrollIntoView = vi.fn();
+    const button = element.querySelectorAll<HTMLButtonElement>('.review-navigation button')[2];
+    button.click(); fixture.detectChanges();
+    expect(section.scrollIntoView).toHaveBeenCalled(); expect(button.getAttribute('aria-current')).toBe('location');
+    expect(element.querySelectorAll('.review-navigation [aria-current="location"]').length).toBe(1);
+  });
+
   it('transmits the reviewed sale and shows authorization only after receiving the protocol', async () => {
     await prepareEmission();
     expect(element.querySelector('.emission-result')).toBeNull();

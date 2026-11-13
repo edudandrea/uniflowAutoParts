@@ -61,6 +61,7 @@ await StockPostgresChecks.RunAsync();
 await NfeImportChecks.RunAsync();
 await NfeProductChecks.RunAsync();
 await NfeEmissionChecks.RunAsync();
+await CustomerFiscalAddressChecks.RunAsync();
 TenantContext Tenant(int id) => new(new HttpContextAccessor { HttpContext = new DefaultHttpContext { User = ChecksAuthentication.Principal(id) } });
 
 var directoryOptions = new DbContextOptionsBuilder<HubDirectoryDbContext>().UseInMemoryDatabase("tenant-checks", root).Options;
