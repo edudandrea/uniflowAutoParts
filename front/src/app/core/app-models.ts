@@ -14,6 +14,7 @@ export interface NotaFiscal {
   podeCancelar: boolean;
   podeCorrigir: boolean;
   bloqueioEventos: string | null;
+  podeReenviar?: boolean; codigoAutorizacao?: string; motivoAutorizacao?: string; protocolo?: string;
 }
 
 export interface NotaFiscalResumo {
@@ -109,6 +110,8 @@ export interface CriarClientePayload {
     permiteFiado: boolean;
   };
 }
+
+export interface ClienteDetalheResponse { id: number; dados: Omit<CriarClientePayload, "dadosComerciais"> & { dadosComerciais: CriarClientePayload["dadosComerciais"] | null }; criadoEm: string }
 
 export interface ClienteResumoResponse {
   id: number;

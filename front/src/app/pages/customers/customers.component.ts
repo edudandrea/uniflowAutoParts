@@ -1,449 +1,157 @@
 import { SessionService } from '../../core/session.service';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-
-import { CadastroEndereco, ClienteResumoResponse } from '../../core/app-models';
+import { CadastroEndereco, ClienteResumoResponse, ClienteDetalheResponse, CriarClientePayload } from '../../core/app-models';
 import { ApiService } from '../../core/api.service';
 import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
-interface CustomerMetric {
-  icon: string;
-  label: string;
-  value: string;
-  delta: string;
-  tone: 'success' | 'danger';
-}
-
-interface Customer {
-  id: string;
-  nome: string;
-  subtitulo: string;
-  tipo: 'PJ' | 'PF';
-  documento: string;
-  telefone: string;
-  email: string;
-  site: string;
-  cidade: string;
-  uf: string;
-  ultimaCompra: string;
-  totalComprado: number;
-  status: 'Ativo' | 'Inativo';
-  inscricaoEstadual: string;
-  inscricaoMunicipal: string;
-  razaoSocial: string;
-  nomeFantasia: string;
-  logradouro: string;
-  bairro: string;
-  cep: string;
-  observacoes: string;
-  relacionamento: 'Cliente' | 'Fornecedor' | 'Ambos';
-}
-
-@Component({
-  selector: 'app-customers',
-  imports: [ReactiveFormsModule, AppIconComponent],
-  templateUrl: './customers.component.html',
-  styleUrl: './customers.component.scss',
-})
+@Component({ selector: 'app-customers', imports: [ReactiveFormsModule, AppIconComponent], templateUrl: './customers.component.html', styleUrl: './customers.component.scss' })
 export class CustomersComponent {
   private readonly api = inject(ApiService);
   private readonly session = inject(SessionService);
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
   private get empresaId(): number { return this.session.empresaId; }
-
-  protected readonly showCustomerModal = signal(false);
+  private readonly customerDialog = viewChild<ElementRef<HTMLDialogElement>>('customerDialog');
+  private readonly detailDialog = viewChild<ElementRef<HTMLDialogElement>>('detailDialog');
+  private returnFocus: HTMLElement | null = null;
+  private editSource: ClienteDetalheResponse | null = null;
   protected readonly selectedCustomerId = signal('');
-  protected readonly activePageTab = signal<'Pesquisa' | 'Detalhes'>('Pesquisa');
+  protected readonly editingCustomerId = signal<number | null>(null);
+  protected readonly customerDetails = signal<ClienteDetalheResponse | null>(null);
+  protected readonly detailBusy = signal(false);
+  protected readonly detailError = signal('');
+  protected readonly loadingCustomers = signal(true);
+  protected readonly listError = signal('');
+  protected readonly pageMessage = signal('');
   protected readonly customerSearch = signal('');
   protected readonly activeCustomerModalTab = signal('Dados gerais');
   protected readonly savingCustomer = signal(false);
   protected readonly customerMessage = signal('');
-  protected readonly customerModalTabs = ['Dados gerais', 'Enderecos', 'Contatos', 'Dados comerciais', 'Observacoes'];
   protected readonly enderecos = signal<CadastroEndereco[]>([]);
-
-  protected readonly customers = signal<Customer[]>([]);
-
+  protected readonly customerRecords = signal<ClienteResumoResponse[]>([]);
+  protected readonly customers = computed(() => this.customerRecords().map(c => ({
+    id: String(c.id), nome: c.nomeFantasia || c.nomeRazaoSocial, subtitulo: c.tipoPessoa === 2 ? 'Pessoa jurídica' : 'Pessoa física',
+    documento: c.cpfCnpj, telefone: c.celular || c.telefone || 'Telefone não informado', email: c.email || 'E-mail não informado', status: c.ativo ? 'Ativo' : 'Inativo',
+  })));
   protected readonly filteredCustomers = computed(() => {
-    const term = this.customerSearch().trim().toLowerCase();
-    const customers = this.customers();
-
-    if (!term) {
-      return customers;
-    }
-
-    return customers.filter((customer) => {
-      return (
-        customer.nome.toLowerCase().includes(term) ||
-        customer.subtitulo.toLowerCase().includes(term) ||
-        customer.documento.toLowerCase().includes(term) ||
-        customer.telefone.toLowerCase().includes(term) ||
-        customer.email.toLowerCase().includes(term) ||
-        customer.cidade.toLowerCase().includes(term)
-      );
-    });
+    const term = this.customerSearch().trim().toLocaleLowerCase('pt-BR');
+    return this.customers().filter(c => !term || [c.nome, c.subtitulo, c.documento, c.telefone, c.email].some(v => v.toLocaleLowerCase('pt-BR').includes(term)));
   });
-
-  protected readonly selectedCustomer = computed(() => {
-    return this.customers().find((customer) => customer.id === this.selectedCustomerId()) ?? null;
-  });
-
-  protected readonly enderecosFiltrados = computed(() => {
-    const termo = this.customerForm.controls.enderecoBusca.value.trim().toLowerCase();
-    if (!termo) {
-      return this.enderecos().filter((endereco) => endereco.ativo);
-    }
-
-    const cep = termo.replace(/\D/g, '');
-    return this.enderecos().filter((endereco) => {
-      return (
-        endereco.ativo &&
-        (endereco.nome.toLowerCase().includes(termo) ||
-          endereco.logradouro.toLowerCase().includes(termo) ||
-          endereco.bairro.toLowerCase().includes(termo) ||
-          endereco.municipio.toLowerCase().includes(termo) ||
-          (cep && endereco.cep.includes(cep)))
-      );
-    });
-  });
-
-  protected readonly enderecoSelecionado = computed(() => {
-    const id = this.customerForm.controls.enderecoId.value;
-    return this.enderecos().find((endereco) => endereco.id === id) ?? null;
-  });
-
-  protected readonly metrics = computed<CustomerMetric[]>(() => {
-    const customers = this.customers();
-    const active = customers.filter((customer) => customer.status === 'Ativo').length;
-    const inactive = customers.length - active;
-
+  protected readonly metrics = computed(() => {
+    const all = this.customerRecords(); const active = all.filter(c => c.ativo).length; const now = new Date();
+    const recent = all.filter(c => { const date = new Date(c.criadoEm); return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear(); }).length;
     return [
-      { icon: 'users', label: 'Total de clientes', value: this.formatNumber(customers.length), delta: 'base atual', tone: 'success' },
-      { icon: 'badge-check', label: 'Clientes ativos', value: this.formatNumber(active), delta: this.percentual(active, customers.length), tone: 'success' },
-      { icon: 'plus', label: 'Novos clientes (mes)', value: '0', delta: 'base atual', tone: 'success' },
-      { icon: 'x', label: 'Clientes inativos', value: String(inactive), delta: this.percentual(inactive, customers.length), tone: 'danger' },
+      { icon: 'users', label: 'Total de clientes', value: String(all.length), delta: 'Cadastros na empresa', tone: 'success' },
+      { icon: 'badge-check', label: 'Clientes ativos', value: String(active), delta: 'Disponíveis para vendas', tone: 'success' },
+      { icon: 'plus', label: 'Novos clientes (mês)', value: String(recent), delta: 'Cadastrados neste mês', tone: 'success' },
+      { icon: 'x', label: 'Clientes inativos', value: String(all.length - active), delta: 'Cadastros inativos', tone: 'danger' },
     ];
   });
-
   protected readonly customerForm = this.fb.nonNullable.group({
-    nome: ['', [Validators.required]],
-    subtitulo: [''],
-    tipo: ['PF' as 'PJ' | 'PF', [Validators.required]],
-    documento: ['', [Validators.required]],
-    nascimento: [''],
-    rg: [''],
-    orgaoEmissor: ['SSP'],
-    estadoCivil: [''],
-    profissao: [''],
-    indicadorIe: ['Nao contribuinte'],
-    telefone: [''],
-    celular: [''],
-    email: [''],
-    cnh: [''],
-    clienteDesde: [''],
-    origem: [''],
-    vendedorPadrao: [''],
-    ativo: [true],
-    cidade: [''],
-    uf: ['RS'],
-    razaoSocial: [''],
-    nomeFantasia: [''],
-    logradouro: [''],
-    bairro: [''],
-    cep: [''],
-    observacoes: [''],
-    relacionamento: ['Cliente' as 'Cliente' | 'Fornecedor' | 'Ambos'],
-    enderecoId: [null as number | null],
-    enderecoBusca: [''],
-    enderecoCep: [''],
-    enderecoLogradouro: [''],
-    enderecoNumero: [''],
-    enderecoComplemento: [''],
-    enderecoBairro: [''],
-    enderecoCidade: [''],
-    enderecoUf: ['RS'],
-    contatoNome: [''],
-    contatoCargo: [''],
-    contatoEmail: [''],
-    contatoTelefone: [''],
-    contatoCelular: [''],
-    condicaoPagamento: [''],
-    limiteCredito: [0],
-    tabelaPreco: [''],
-    bloquearVenda: [false],
-    permiteFiado: [true],
+    nome: ['', Validators.required], tipo: ['PF' as 'PF' | 'PJ', Validators.required], documento: ['', Validators.required],
+    nascimento: [''], rg: [''], orgaoEmissor: [''], estadoCivil: [''], profissao: [''], cnh: [''],
+    nomeFantasia: [''], inscricaoEstadual: [''], inscricaoMunicipal: [''], indicadorIe: ['Nao contribuinte'], consumidorFinal: [true],
+    telefone: [''], celular: [''], email: ['', Validators.email], clienteDesde: [''], origem: [''], vendedorPadrao: [''],
+    ativo: [true], observacoes: [''], relacionamento: ['Cliente' as 'Cliente' | 'Fornecedor' | 'Ambos'],
+    enderecoId: [null as number | null], enderecoBusca: [''],
+    contatoNome: [''], contatoCargo: [''], contatoEmail: ['', Validators.email], contatoTelefone: [''], contatoCelular: [''],
+    condicaoPagamento: [''], limiteCredito: [0, Validators.min(0)], tabelaPreco: [''], bloquearVenda: [false], permiteFiado: [true],
   });
+  private readonly formState = toSignal(this.customerForm.valueChanges, { initialValue: this.customerForm.getRawValue() });
+  protected readonly enderecosFiltrados = computed(() => {
+    const term = (this.formState().enderecoBusca ?? '').trim().toLocaleLowerCase('pt-BR');
+    return this.enderecos().filter(e => (e.ativo || e.id === this.formState().enderecoId) && (!term || [e.nome, e.logradouro, e.bairro, e.municipio, e.cep].some(v => v.toLocaleLowerCase('pt-BR').includes(term))));
+  });
+  protected readonly enderecoSelecionado = computed(() => this.enderecos().find(e => e.id === this.formState().enderecoId) ?? null);
+  protected readonly legacyAddress = computed(() => !this.formState().enderecoId ? this.editSource?.dados.endereco ?? null : null);
 
   constructor() {
-    this.carregarEnderecos();
+    this.api.listarEnderecos(this.empresaId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ next: data => this.enderecos.set(data), error: () => {} });
     this.carregarClientes();
   }
-
-  protected abrirNovoCliente(): void {
-    this.customerForm.reset({
-      nome: '',
-      subtitulo: '',
-      tipo: 'PF',
-      documento: '',
-      nascimento: '',
-      rg: '',
-      orgaoEmissor: 'SSP',
-      estadoCivil: '',
-      profissao: '',
-      indicadorIe: 'Nao contribuinte',
-      telefone: '',
-      celular: '',
-      email: '',
-      cnh: '',
-      clienteDesde: '',
-      origem: '',
-      vendedorPadrao: '',
-      ativo: true,
-      cidade: '',
-      uf: 'RS',
-      razaoSocial: '',
-      nomeFantasia: '',
-      logradouro: '',
-      bairro: '',
-      cep: '',
-      observacoes: '',
-      relacionamento: 'Cliente',
-      enderecoId: null,
-      enderecoBusca: '',
-      enderecoCep: '',
-      enderecoLogradouro: '',
-      enderecoNumero: '',
-      enderecoComplemento: '',
-      enderecoBairro: '',
-      enderecoCidade: '',
-      enderecoUf: 'RS',
-      contatoNome: '',
-      contatoCargo: '',
-      contatoEmail: '',
-      contatoTelefone: '',
-      contatoCelular: '',
-      condicaoPagamento: '',
-      limiteCredito: 0,
-      tabelaPreco: '',
-      bloquearVenda: false,
-      permiteFiado: true,
+  protected carregarClientes(): void {
+    this.loadingCustomers.set(true); this.listError.set('');
+    this.api.listarClientes(this.empresaId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: data => { this.customerRecords.set(data); this.loadingCustomers.set(false); },
+      error: () => { this.loadingCustomers.set(false); this.listError.set('Não foi possível carregar os clientes. Tente novamente.'); },
     });
-    this.customerMessage.set('');
-    this.activeCustomerModalTab.set('Dados gerais');
-    this.carregarEnderecos();
-    this.showCustomerModal.set(true);
   }
-
-  protected fecharNovoCliente(): void {
-    this.showCustomerModal.set(false);
-  }
-
-  protected cadastrarCliente(): void {
-    if (this.customerForm.invalid) {
-      this.customerForm.markAllAsTouched();
-      return;
-    }
-
-    const form = this.customerForm.getRawValue();
-    const id = String(Date.now());
-    const customer: Customer = {
-      id,
-      nome: form.nome,
-      subtitulo: form.subtitulo || (form.tipo === 'PJ' ? 'Cliente pessoa juridica' : 'Cliente pessoa fisica'),
-      tipo: form.tipo,
-      documento: form.documento,
-      telefone: form.telefone,
-      email: form.email,
-      site: '',
-      cidade: form.cidade,
-      uf: form.uf,
-      ultimaCompra: '-',
-      totalComprado: 0,
-      status: form.ativo ? 'Ativo' : 'Inativo',
-      inscricaoEstadual: '',
-      inscricaoMunicipal: '',
-      razaoSocial: form.razaoSocial || form.nome,
-      nomeFantasia: form.nomeFantasia || form.nome,
-      logradouro: form.logradouro,
-      bairro: form.bairro,
-      cep: form.cep,
-      observacoes: form.observacoes,
-      relacionamento: form.relacionamento,
-    };
-
-    const enderecoSelecionado = this.enderecoSelecionado();
-    if (enderecoSelecionado) {
-      customer.logradouro = `${enderecoSelecionado.logradouro}, ${enderecoSelecionado.numero}`;
-      customer.bairro = enderecoSelecionado.bairro;
-      customer.cep = this.formatCep(enderecoSelecionado.cep);
-      customer.cidade = enderecoSelecionado.municipio;
-      customer.uf = enderecoSelecionado.uf;
-    }
-
-    this.savingCustomer.set(true);
-    this.customerMessage.set('');
-
-    this.api
-      .criarCliente({
-        empresaId: this.empresaId,
-        tipoPessoa: form.tipo === 'PJ' ? 2 : 1,
-        relacionamento: form.relacionamento === 'Fornecedor' ? 2 : form.relacionamento === 'Ambos' ? 3 : 1,
-        nomeRazaoSocial: form.razaoSocial || form.nome,
-        nomeFantasia: form.nomeFantasia || null,
-        cpfCnpj: form.documento,
-        rg: form.rg || null,
-        orgaoEmissor: form.orgaoEmissor || null,
-        estadoCivil: form.estadoCivil || null,
-        dataNascimento: form.nascimento || null,
-        profissao: form.profissao || null,
-        cnh: form.cnh || null,
-        inscricaoEstadual: null,
-        inscricaoMunicipal: null,
-        indicadorIe: form.indicadorIe === 'Contribuinte ICMS' ? 1 : form.indicadorIe === 'Isento' ? 2 : 9,
-        consumidorFinal: true,
-        email: form.email || null,
-        telefone: form.telefone || null,
-        celular: form.celular || null,
-        clienteDesde: form.clienteDesde || null,
-        origem: form.origem || null,
-        vendedorPadrao: form.vendedorPadrao || null,
-        limiteCredito: form.limiteCredito || null,
-        observacao: form.observacoes || null,
-        ativo: form.ativo,
-        enderecoId: form.enderecoId,
-        endereco: null,
-        contatos: form.contatoNome
-          ? [
-              {
-                nome: form.contatoNome,
-                cargo: form.contatoCargo || null,
-                email: form.contatoEmail || null,
-                telefone: form.contatoTelefone || null,
-                celular: form.contatoCelular || null,
-                principal: true,
-              },
-            ]
-          : [],
-        dadosComerciais: {
-          condicaoPagamento: form.condicaoPagamento || null,
-          limiteCredito: form.limiteCredito || null,
-          tabelaPreco: form.tabelaPreco || null,
-          vendedorPadrao: form.vendedorPadrao || null,
-          origem: form.origem || null,
-          bloquearVenda: form.bloquearVenda,
-          permiteFiado: form.permiteFiado,
-        },
-      })
-      .subscribe({
-        next: (response) => {
-          customer.id = String(response.id);
-          this.customers.update((customers) => [customer, ...customers]);
-          this.selectedCustomerId.set(customer.id);
-          this.activePageTab.set('Detalhes');
-          this.savingCustomer.set(false);
-          this.showCustomerModal.set(false);
-        },
-        error: (error) => {
-          this.customerMessage.set(error?.error || 'Nao foi possivel cadastrar o cliente.');
-          this.savingCustomer.set(false);
-        },
-      });
-  }
-
   protected selecionarCliente(id: string): void {
-    this.selectedCustomerId.set(id);
-    this.activePageTab.set('Detalhes');
-  }
-
-  protected abrirPesquisa(): void {
-    this.activePageTab.set('Pesquisa');
-  }
-
-  protected abrirDetalhes(): void {
-    if (this.selectedCustomer()) {
-      this.activePageTab.set('Detalhes');
-    }
-  }
-
-  protected selecionarEndereco(endereco: CadastroEndereco): void {
-    this.customerForm.patchValue({ enderecoId: endereco.id, enderecoBusca: endereco.logradouro });
-  }
-
-  protected initials(name: string): string {
-    return name
-      .split(' ')
-      .slice(0, 2)
-      .map((part) => part[0])
-      .join('')
-      .toUpperCase();
-  }
-
-  protected formatCurrency(value: number): string {
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-  }
-
-  protected formatNumber(value: number): string {
-    return value.toLocaleString('pt-BR');
-  }
-
-  protected formatCep(cep: string): string {
-    const clean = cep.replace(/\D/g, '');
-    return clean.length === 8 ? `${clean.slice(0, 5)}-${clean.slice(5)}` : cep;
-  }
-
-  private percentual(valor: number, total: number): string {
-    if (!total) {
-      return '0% do total';
-    }
-
-    return `${Math.round((valor / total) * 100)}% do total`;
-  }
-
-  private carregarEnderecos(): void {
-    this.api.listarEnderecos(this.empresaId).subscribe({
-      next: (enderecos) => {
-        this.enderecos.set(enderecos);
-      },
+    this.returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.selectedCustomerId.set(id); this.customerDetails.set(null); this.detailError.set(''); this.detailBusy.set(true);
+    this.detailDialog()?.nativeElement.showModal();
+    this.api.obterCliente(this.empresaId, Number(id)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: data => { if (this.selectedCustomerId() === id) { this.customerDetails.set(data); this.detailBusy.set(false); } },
+      error: error => { if (this.selectedCustomerId() === id) { this.detailError.set(this.errorMessage(error, 'Não foi possível carregar o cadastro do cliente.')); this.detailBusy.set(false); } },
     });
   }
-
-  private carregarClientes(): void {
-    this.api.listarClientes(this.empresaId).subscribe({
-      next: (clientes) => {
-        const mapped = clientes.map((cliente) => this.mapCliente(cliente));
-        this.customers.set(mapped);
-
-        if (!this.selectedCustomerId() && mapped.length) {
-          this.selectedCustomerId.set(mapped[0].id);
-        }
-      },
-    });
+  protected fecharDetalhes(): void { this.detailDialog()?.nativeElement.close(); this.returnFocus?.focus(); }
+  protected abrirNovoCliente(): void {
+    this.returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.editSource = null; this.editingCustomerId.set(null); this.customerForm.reset(); this.customerMessage.set('');
+    this.activeCustomerModalTab.set('Dados gerais'); this.customerDialog()?.nativeElement.showModal();
   }
-
-  private mapCliente(cliente: ClienteResumoResponse): Customer {
-    const tipo = cliente.tipoPessoa === 2 ? 'PJ' : 'PF';
-    return {
-      id: String(cliente.id),
-      nome: cliente.nomeFantasia || cliente.nomeRazaoSocial,
-      subtitulo: tipo === 'PJ' ? 'Cliente CNPJ' : 'Cliente CPF',
-      tipo,
-      documento: cliente.cpfCnpj,
-      telefone: cliente.celular || cliente.telefone || '-',
-      email: cliente.email || '-',
-      site: '',
-      cidade: '-',
-      uf: '',
-      ultimaCompra: '-',
-      totalComprado: 0,
-      status: cliente.ativo ? 'Ativo' : 'Inativo',
-      inscricaoEstadual: '',
-      inscricaoMunicipal: '',
-      razaoSocial: cliente.nomeRazaoSocial,
-      nomeFantasia: cliente.nomeFantasia || cliente.nomeRazaoSocial,
-      logradouro: '-',
-      bairro: '-',
-      cep: '-',
-      observacoes: '',
-      relacionamento: cliente.relacionamento === 2 ? 'Fornecedor' : cliente.relacionamento === 3 ? 'Ambos' : 'Cliente',
+  protected editarCliente(): void {
+    const detail = this.customerDetails(); if (!detail || this.detailBusy()) return;
+    this.editSource = structuredClone(detail); this.editingCustomerId.set(detail.id);
+    const d = detail.dados; const contact = d.contatos?.[0]; const commercial = d.dadosComerciais;
+    this.customerForm.reset();
+    this.customerForm.patchValue({
+      nome: d.nomeRazaoSocial, tipo: d.tipoPessoa === 2 ? 'PJ' : 'PF', documento: d.cpfCnpj,
+      nascimento: d.dataNascimento || '', rg: d.rg || '', orgaoEmissor: d.orgaoEmissor || '', estadoCivil: d.estadoCivil || '', profissao: d.profissao || '', cnh: d.cnh || '',
+      nomeFantasia: d.nomeFantasia || '', inscricaoEstadual: d.inscricaoEstadual || '', inscricaoMunicipal: d.inscricaoMunicipal || '',
+      indicadorIe: d.indicadorIe === 1 ? 'Contribuinte ICMS' : d.indicadorIe === 2 ? 'Isento' : 'Nao contribuinte', consumidorFinal: d.consumidorFinal,
+      telefone: d.telefone || '', celular: d.celular || '', email: d.email || '', clienteDesde: d.clienteDesde || '', origem: d.origem || '', vendedorPadrao: d.vendedorPadrao || '',
+      ativo: d.ativo, observacoes: d.observacao || '', relacionamento: d.relacionamento === 2 ? 'Fornecedor' : d.relacionamento === 3 ? 'Ambos' : 'Cliente',
+      enderecoId: d.enderecoId, enderecoBusca: '', contatoNome: contact?.nome || '', contatoCargo: contact?.cargo || '', contatoEmail: contact?.email || '', contatoTelefone: contact?.telefone || '', contatoCelular: contact?.celular || '',
+      condicaoPagamento: commercial?.condicaoPagamento || '', limiteCredito: commercial?.limiteCredito ?? d.limiteCredito ?? 0, tabelaPreco: commercial?.tabelaPreco || '', bloquearVenda: commercial?.bloquearVenda ?? false, permiteFiado: commercial?.permiteFiado ?? true,
+    });
+    this.customerMessage.set(''); this.activeCustomerModalTab.set('Dados gerais'); this.detailDialog()?.nativeElement.close(); this.customerDialog()?.nativeElement.showModal();
+  }
+  protected fecharNovoCliente(): void {
+    if (this.savingCustomer()) return;
+    this.customerDialog()?.nativeElement.close();
+    if (this.editingCustomerId() !== null && this.customerDetails()) this.detailDialog()?.nativeElement.showModal();
+    else this.returnFocus?.focus();
+  }
+  protected cadastrarCliente(): void {
+    if (this.savingCustomer()) return;
+    if (this.customerForm.invalid) { this.customerForm.markAllAsTouched(); this.customerMessage.set('Revise os campos obrigatórios e os e-mails antes de salvar.'); return; }
+    const f = this.customerForm.getRawValue(); const digits = f.documento.replace(/\D/g, '');
+    if (digits.length !== (f.tipo === 'PJ' ? 14 : 11)) { this.customerMessage.set('Informe CPF com 11 dígitos ou CNPJ com 14 dígitos conforme o tipo de pessoa.'); this.activeCustomerModalTab.set('Dados gerais'); return; }
+    if (f.indicadorIe === 'Contribuinte ICMS' && !f.inscricaoEstadual.trim()) { this.customerMessage.set('Informe a Inscrição Estadual do cliente contribuinte.'); this.activeCustomerModalTab.set('Dados gerais'); return; }
+    const contacts = [...(this.editSource?.dados.contatos ?? [])];
+    if (f.contatoNome.trim()) {
+      const primary = { nome: f.contatoNome, cargo: f.contatoCargo || null, email: f.contatoEmail || null, telefone: f.contatoTelefone || null, celular: f.contatoCelular || null, principal: contacts[0]?.principal ?? true };
+      if (contacts.length) contacts[0] = primary; else contacts.push(primary);
+    } else if (contacts.length) contacts.shift();
+    const payload: CriarClientePayload = {
+      empresaId: this.empresaId, tipoPessoa: f.tipo === 'PJ' ? 2 : 1, relacionamento: f.relacionamento === 'Fornecedor' ? 2 : f.relacionamento === 'Ambos' ? 3 : 1,
+      nomeRazaoSocial: f.nome, nomeFantasia: f.nomeFantasia || null, cpfCnpj: digits, rg: f.rg || null, orgaoEmissor: f.orgaoEmissor || null, estadoCivil: f.estadoCivil || null,
+      dataNascimento: f.nascimento || null, profissao: f.profissao || null, cnh: f.cnh || null, inscricaoEstadual: f.inscricaoEstadual || null, inscricaoMunicipal: f.inscricaoMunicipal || null,
+      indicadorIe: f.indicadorIe === 'Contribuinte ICMS' ? 1 : f.indicadorIe === 'Isento' ? 2 : 9, consumidorFinal: f.consumidorFinal,
+      email: f.email || null, telefone: f.telefone || null, celular: f.celular || null, clienteDesde: f.clienteDesde || null, origem: f.origem || null, vendedorPadrao: f.vendedorPadrao || null,
+      limiteCredito: f.limiteCredito, observacao: f.observacoes || null, ativo: f.ativo, enderecoId: f.enderecoId, endereco: this.editSource?.dados.endereco ?? null, contatos: contacts,
+      dadosComerciais: { condicaoPagamento: f.condicaoPagamento || null, limiteCredito: f.limiteCredito, tabelaPreco: f.tabelaPreco || null, vendedorPadrao: f.vendedorPadrao || null, origem: f.origem || null, bloquearVenda: f.bloquearVenda, permiteFiado: f.permiteFiado },
     };
+    this.savingCustomer.set(true); this.customerMessage.set('');
+    const editing = this.editingCustomerId();
+    const request = editing === null ? this.api.criarCliente(payload) : this.api.atualizarCliente(editing, payload);
+    request.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: saved => {
+        this.customerRecords.update(all => all.some(c => c.id === saved.id) ? all.map(c => c.id === saved.id ? saved : c) : [saved, ...all]);
+        this.savingCustomer.set(false); this.customerDialog()?.nativeElement.close(); this.pageMessage.set(editing === null ? 'Cliente cadastrado.' : 'Cadastro do cliente atualizado.');
+        this.selecionarCliente(String(saved.id));
+      },
+      error: error => { this.savingCustomer.set(false); this.customerMessage.set(this.errorMessage(error, 'Não foi possível salvar o cadastro.')); },
+    });
   }
+  protected selecionarEndereco(endereco: CadastroEndereco): void { this.customerForm.patchValue({ enderecoId: endereco.id, enderecoBusca: '' }); }
+  protected initials(name: string): string { return name.split(' ').filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase(); }
+  protected formatCurrency(value: number): string { return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+  protected formatCep(cep: string): string { return cep.replace(/^(\d{5})(\d{3})$/, '$1-$2'); }
+  protected formatDate(date: string | null | undefined): string { if (!date) return 'Não informado'; const value = new Date(date.length === 10 ? date + 'T12:00:00' : date); return Number.isNaN(value.getTime()) ? date : value.toLocaleDateString('pt-BR'); }
+  private errorMessage(error: any, fallback: string): string { return typeof error?.error === 'string' ? error.error : error?.error?.detail || fallback; }
 }

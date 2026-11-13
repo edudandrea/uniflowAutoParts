@@ -62,6 +62,7 @@ await NfeImportChecks.RunAsync();
 await NfeProductChecks.RunAsync();
 await NfeEmissionChecks.RunAsync();
 await CustomerFiscalAddressChecks.RunAsync();
+await CustomerEditorChecks.RunAsync();
 TenantContext Tenant(int id) => new(new HttpContextAccessor { HttpContext = new DefaultHttpContext { User = ChecksAuthentication.Principal(id) } });
 
 var directoryOptions = new DbContextOptionsBuilder<HubDirectoryDbContext>().UseInMemoryDatabase("tenant-checks", root).Options;
@@ -127,6 +128,13 @@ for (var tenantId = 1; tenantId <= 2; tenantId++)
     }
     client.DefaultRequestHeaders.Remove("X-Parts-CSRF");
     client.DefaultRequestHeaders.Add("X-Parts-CSRF", session.GetProperty("csrfToken").GetString());
+    var customerDetail = await client.GetFromJsonAsync<back.Contracts.ClienteDetalheResponse>($"/api/clientes/{tenantId}");
+    Check(customerDetail?.Id == tenantId && customerDetail.Dados.Contatos?.Count == 1, "Consulta HTTP perdeu dados completos do cliente.");
+    var customerUpdate = customerDetail!.Dados with { TipoPessoa = TipoPessoa.fisica, IndicadorIe = IndicadorIe.NaoContribuinte, NomeRazaoSocial = $"Cliente editado {tenantId}" };
+    Check((await client.PutAsJsonAsync($"/api/clientes/{tenantId}", customerUpdate)).StatusCode == HttpStatusCode.OK, "Edicao HTTP do proprio cliente falhou.");
+    Check((await client.GetAsync($"/api/clientes/{3 - tenantId}")).StatusCode == HttpStatusCode.NotFound, "Consulta HTTP leu cliente alheio.");
+    Check((await client.PutAsJsonAsync($"/api/clientes/{3 - tenantId}", customerUpdate)).StatusCode == HttpStatusCode.NotFound, "Edicao HTTP alterou cliente alheio.");
+    Check((await client.PutAsJsonAsync($"/api/clientes/{tenantId}", customerUpdate with { EmpresaId = 3 - tenantId })).StatusCode == HttpStatusCode.Forbidden, "Edicao HTTP aceitou empresa adulterada.");
     Check((await client.GetAsync("/api/fiscal/tributacao")).StatusCode == HttpStatusCode.NoContent,
         "Empresa sem tributacao recebeu configuracao de outra empresa.");
     var defaultEnvironment = await client.GetFromJsonAsync<JsonElement>("/api/fiscal/ambiente");

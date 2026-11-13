@@ -76,3 +76,5 @@ public record ClienteResumoResponse(
     string? Celular,
     bool Ativo,
     DateTime CriadoEm);
+
+public record ClienteDetalheResponse(long Id, CriarClienteRequest Dados, DateTime CriadoEm);

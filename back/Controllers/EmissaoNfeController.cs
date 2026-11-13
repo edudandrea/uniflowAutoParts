@@ -90,18 +90,30 @@ public sealed class EmissaoNfeController(AppDbContext db, TenantContext tenant, 
         if (gate is null) return Conflict("Existe uma operacao em andamento nesta nota.");
         var nota = await db.NotasFiscais.SingleOrDefaultAsync(n => n.Id == id && n.EmpresaId == tenant.EmpresaId, token);
         if (nota is null) return NotFound();
-        if (nota.Situacao != "Processando" || nota.CodigoAutorizacao != "217" || nota.Recibo.Length > 0 || nota.XmlEnvioNfe.Length == 0)
-            return Conflict("Consulte a SEFAZ antes de reenviar. Somente notas nao localizadas podem reutilizar o mesmo XML.");
+        if (!PodeReenviar(nota.Tipo, nota.Situacao, nota.CodigoAutorizacao, nota.XmlEnvioNfe.Length > 0, nota.Recibo.Length > 0))
+            return Conflict("Consulte a SEFAZ antes de reenviar. O reenvio exige XML salvo e nota rejeitada ou nao localizada, sem recibo pendente.");
         try
         {
             using var cert = SefazEventosService.CarregarCertificado(request.Base64, request.Password);
             NfeAssinatura.ValidarTitular(cert, nota.ChaveAcesso.Substring(6, 14));
+            if (await db.NotaFiscalEventos.AnyAsync(e => e.NotaFiscalId == id && (e.Situacao == "Pendente" || e.Situacao == "Indeterminado"), token))
+                return Conflict("Existe evento sem confirmacao. Consulte a nota antes de reenviar.");
+            // Reconfirma a ausencia na autorizadora antes de qualquer retransmissao.
+            using var consultaTimeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+            consultaTimeout.CancelAfter(TimeSpan.FromSeconds(20)); // Preconsulta + transmissao (60s) cabem no prazo do proxy (90s).
+            var consulta = new System.Xml.Linq.XDocument(await eventos.ConsultarAsync(nota, cert, consultaTimeout.Token));
+            NfeAutorizacaoService.AplicarRetorno(nota, consulta);
+            await new NfeEstoqueSaidaService(db).SincronizarAsync(nota, CancellationToken.None);
+            await db.SaveChangesAsync(CancellationToken.None);
+            if (nota.Situacao != "Processando" || nota.CodigoAutorizacao != "217") return Ok(ToResponse(nota));
             nota.CodigoAutorizacao = ""; nota.MotivoAutorizacao = "Reenvio do mesmo XML assinado em andamento.";
             await db.SaveChangesAsync(token);
             await Transmitir(nota, cert, token);
             return Ok(ToResponse(nota));
         }
         catch (Exception e) when (e is ArgumentException or CryptographicException) { return BadRequest(e.Message); }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or XmlException)
+        { return Problem(statusCode: 502, detail: "Nao foi possivel confirmar a situacao na SEFAZ antes do reenvio. Nenhum novo XML foi transmitido nesta tentativa; consulte a mesma nota."); }
     }
 
     private async Task Transmitir(NotaFiscal nota, System.Security.Cryptography.X509Certificates.X509Certificate2 cert, CancellationToken token)
@@ -118,5 +130,7 @@ public sealed class EmissaoNfeController(AppDbContext db, TenantContext tenant, 
         }
         await db.SaveChangesAsync(CancellationToken.None);
     }
-    public static EmissaoNfeResponse ToResponse(NotaFiscal n) => new(n.Id, n.Numero, n.Serie, n.ChaveAcesso, n.Ambiente, n.Situacao, n.CodigoAutorizacao, n.MotivoAutorizacao, n.Protocolo, n.Situacao == "Processando" && n.CodigoAutorizacao == "217" && n.Recibo.Length == 0);
+    public static EmissaoNfeResponse ToResponse(NotaFiscal n) => new(n.Id, n.Numero, n.Serie, n.ChaveAcesso, n.Ambiente, n.Situacao, n.CodigoAutorizacao, n.MotivoAutorizacao, n.Protocolo, PodeReenviar(n.Tipo, n.Situacao, n.CodigoAutorizacao, n.XmlEnvioNfe.Length > 0, n.Recibo.Length > 0));
+    public static bool PodeReenviar(string tipo, string situacao, string codigo, bool temXml, bool temRecibo)
+        => tipo == "NFe" && temXml && !temRecibo && (situacao == "Rejeitada" || situacao == "Processando" && codigo == "217");
 }

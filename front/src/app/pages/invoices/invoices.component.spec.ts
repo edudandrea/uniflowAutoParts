@@ -44,6 +44,52 @@ describe('InvoicesComponent', () => {
   });
   afterEach(() => { try { http.verify(); } finally { TestBed.resetTestingModule(); vi.restoreAllMocks(); } });
 
+  const rejected = { ...nota, situacao: 'Rejeitada' as const, podeCancelar: false, podeCorrigir: false, podeReenviar: true, codigoAutorizacao: '203', motivoAutorizacao: 'Emissor não habilitado' };
+  function openResend() { listRequest().flush(response([rejected])); fixture.detectChanges(); click('[aria-label="Reenviar XML da nota 1700"]'); }
+  const authorization = { id: 7, numero: nota.numero, serie: nota.serie, chaveAcesso: nota.chaveAcesso, ambiente: 2, situacao: 'Autorizada', codigo: '100', motivo: 'Autorizado o uso da NF-e', protocolo: '143260000000001', podeReenviar: false };
+
+  it('resends the stored XML only after the user requests it and shows the SEFAZ protocol', () => {
+    openResend();
+    expect(element.querySelector('.resend-dialog[open]')).not.toBeNull();
+    expect(element.querySelector('.previous-return')!.textContent).toContain('203');
+    http.expectNone(req => req.url.endsWith('/reenviar'));
+    click('.resend-submit');
+    const req = http.expectOne(api + '/7/autorizacao/reenviar');
+    expect(req.request.method).toBe('POST'); expect(req.request.body).toEqual({ base64: certificate.base64, password: certificate.password });
+    expect(element.querySelector<HTMLButtonElement>('.resend-submit')!.disabled).toBe(true);
+    req.flush(authorization); listRequest().flush(response([{ ...nota, podeReenviar: false, codigoAutorizacao: '100' }])); fixture.detectChanges();
+    expect(element.querySelector('.resend-result')!.textContent).toContain('143260000000001');
+    expect(element.querySelector('.resend-result')!.textContent).toContain('Autorizado o uso');
+    expect(element.querySelector('.resend-result')!.textContent).toContain(nota.chaveAcesso);
+    expect(element.querySelector('.resend-submit')).toBeNull();
+  });
+
+  it('shows the full rejection returned by SEFAZ after a resend', () => {
+    openResend(); click('.resend-submit');
+    http.expectOne(api + '/7/autorizacao/reenviar').flush({ ...authorization, situacao: 'Rejeitada', codigo: '225', motivo: 'Falha no Schema XML do lote de NFe', protocolo: '', podeReenviar: true });
+    listRequest().flush(response([{ ...rejected, codigoAutorizacao: '225' }])); fixture.detectChanges();
+    expect(element.querySelector('.resend-result.is-rejected')!.textContent).toContain('225');
+    expect(element.querySelector('.resend-result')!.textContent).toContain('Falha no Schema XML');
+    expect(element.querySelector('.resend-result')!.textContent).not.toContain('Protocolo:');
+  });
+
+  it('keeps an unconfirmed resend as an error without inventing a SEFAZ return', () => {
+    openResend(); click('.resend-submit');
+    http.expectOne(api + '/7/autorizacao/reenviar').flush({ detail: 'Consulta sem confirmação' }, { status: 502, statusText: 'Bad Gateway' });
+    listRequest().flush(response([rejected])); fixture.detectChanges();
+    expect(element.querySelector('.resend-dialog [role="alert"]')!.textContent).toContain('Consulta sem confirmação');
+    expect(element.querySelector('.resend-result')).toBeNull();
+  });
+
+  it('does not offer resend for an authorized invoice or send without an A1 certificate', () => {
+    listRequest().flush(response()); fixture.detectChanges();
+    expect(element.querySelector<HTMLButtonElement>('[aria-label="Reenviar XML da nota 1700"]')!.disabled).toBe(true);
+    click('.filters-panel .primary'); listRequest().flush(response([rejected])); fixture.detectChanges();
+    click('[aria-label="Reenviar XML da nota 1700"]'); certificates.load.mockReturnValue(null as never); click('.resend-submit');
+    expect(element.querySelector('.resend-dialog [role="alert"]')!.textContent).toContain('certificado A1');
+    http.expectNone(req => req.url.endsWith('/reenviar'));
+  });
+
   it('loads real API records and renders the requested fiscal actions', () => {
     expect(element.textContent).toContain('Carregando notas fiscais');
     listRequest().flush(response()); fixture.detectChanges();

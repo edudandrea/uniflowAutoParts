@@ -47,6 +47,9 @@ public class ClientesController(AppDbContext db) : ControllerBase
             return BadRequest("EmpresaId e obrigatorio.");
         }
 
+        var validation = ValidarCadastro(request);
+        if (validation is not null) return BadRequest(validation);
+
         if (string.IsNullOrWhiteSpace(request.NomeRazaoSocial))
         {
             return BadRequest("Nome ou razao social e obrigatorio.");
@@ -72,35 +75,8 @@ public class ClientesController(AppDbContext db) : ControllerBase
             return Conflict("Ja existe um cliente com este CPF/CNPJ.");
         }
 
-        var cliente = new Cliente
-        {
-            TenantId = request.EmpresaId,
-            TipoPessoa = request.TipoPessoa,
-            Relacionamento = request.Relacionamento,
-            NomeRazaoSocial = request.NomeRazaoSocial.Trim(),
-            NomeFantasia = TextoOuNull(request.NomeFantasia),
-            CpfCnpj = cpfCnpj,
-            Rg = TextoOuNull(request.Rg),
-            OrgaoEmissor = TextoOuNull(request.OrgaoEmissor),
-            EstadoCivil = TextoOuNull(request.EstadoCivil),
-            DataNascimento = request.DataNascimento,
-            Profissao = TextoOuNull(request.Profissao),
-            Cnh = TextoOuNull(request.Cnh),
-            InscricaoEstadual = TextoOuNull(request.InscricaoEstadual),
-            InscricaoMunicipal = TextoOuNull(request.InscricaoMunicipal),
-            IndicadorIe = request.IndicadorIe,
-            ConsumidorFinal = request.ConsumidorFinal,
-            Email = TextoOuNull(request.Email),
-            Telefone = TextoOuNull(request.Telefone),
-            Celular = TextoOuNull(request.Celular),
-            ClienteDesde = request.ClienteDesde,
-            Origem = TextoOuNull(request.Origem),
-            VendedorPadrao = TextoOuNull(request.VendedorPadrao),
-            LimiteCredito = request.LimiteCredito,
-            Observacao = TextoOuNull(request.Observacao),
-            Ativo = request.Ativo,
-            CriadoEm = DateTime.UtcNow
-        };
+        var cliente = new Cliente { TenantId = request.EmpresaId, CriadoEm = DateTime.UtcNow };
+        AplicarDados(cliente, request);
 
         if (request.EnderecoId is not null)
         {
@@ -172,6 +148,121 @@ public class ClientesController(AppDbContext db) : ControllerBase
 
         var response = ToResponse(cliente);
         return Created($"/api/clientes/{cliente.Id}", response);
+    }
+
+    [HttpGet("{id:long}")]
+    public async Task<ActionResult<ClienteDetalheResponse>> Obter(long id, [FromQuery] long empresaId)
+    {
+        var cliente = await db.Clientes.AsNoTracking().Include(c => c.CadastroEndereco).Include(c => c.Enderecos)
+            .Include(c => c.Contatos).Include(c => c.DadosComerciais)
+            .SingleOrDefaultAsync(c => c.Id == id && c.TenantId == empresaId);
+        if (cliente is null) return NotFound("Cliente nao encontrado.");
+        var linked = cliente.CadastroEndereco;
+        var address = cliente.Enderecos.OrderByDescending(e => e.Principal).ThenBy(e => e.Id).FirstOrDefault();
+        CriarClienteEnderecoRequest? endereco = linked is not null
+            ? new(TipoEndereco.Comercial, linked.Cep, linked.Logradouro, linked.Numero, linked.Complemento, linked.Bairro, linked.CodigoIbgeMunicipio, linked.Municipio, linked.Uf, linked.Pais, true)
+            : address is null ? null : new(address.Tipo, address.Cep, address.Logradouro, address.Numero, address.Complemento, address.Bairro, address.CodigoIbgeMunicipio, address.Municipio, address.Uf, address.Pais, address.Principal);
+        var commercial = cliente.DadosComerciais;
+        var dados = new CriarClienteRequest(cliente.TenantId, cliente.TipoPessoa, cliente.Relacionamento, cliente.NomeRazaoSocial,
+            cliente.NomeFantasia, cliente.CpfCnpj, cliente.Rg, cliente.OrgaoEmissor, cliente.EstadoCivil, cliente.DataNascimento,
+            cliente.Profissao, cliente.Cnh, cliente.InscricaoEstadual, cliente.InscricaoMunicipal, cliente.IndicadorIe, cliente.ConsumidorFinal,
+            cliente.Email, cliente.Telefone, cliente.Celular, cliente.ClienteDesde, cliente.Origem, cliente.VendedorPadrao, cliente.LimiteCredito,
+            cliente.Observacao, cliente.Ativo, cliente.CadastroEnderecoId, endereco,
+            cliente.Contatos.OrderByDescending(c => c.Principal).ThenBy(c => c.Id).Select(c => new CriarClienteContatoRequest(c.Nome, c.Cargo, c.Email, c.Telefone, c.Celular, c.Principal)).ToArray(),
+            commercial is null ? null : new(commercial.CondicaoPagamento, commercial.LimiteCredito, commercial.TabelaPreco, commercial.VendedorPadrao, commercial.Origem, commercial.BloquearVenda, commercial.PermiteFiado));
+        return Ok(new ClienteDetalheResponse(cliente.Id, dados, cliente.CriadoEm));
+    }
+
+    [HttpPut("{id:long}")]
+    public async Task<IActionResult> Atualizar(long id, CriarClienteRequest request)
+    {
+        var cliente = await db.Clientes.Include(c => c.Enderecos).Include(c => c.Contatos).Include(c => c.DadosComerciais)
+            .SingleOrDefaultAsync(c => c.Id == id && c.TenantId == request.EmpresaId);
+        if (cliente is null) return NotFound("Cliente nao encontrado.");
+        var validation = ValidarCadastro(request);
+        if (validation is not null) return BadRequest(validation);
+        var documento = ApenasDigitos(request.CpfCnpj);
+        if (await db.Clientes.AnyAsync(c => c.TenantId == request.EmpresaId && c.Id != id && c.CpfCnpj == documento))
+            return Conflict("Ja existe um cliente com este CPF/CNPJ.");
+        if (request.EnderecoId is { } addressId && !await db.CadastroEnderecos.AnyAsync(e => e.Id == addressId && e.EmpresaId == request.EmpresaId && (e.Ativo || e.Id == cliente.CadastroEnderecoId)))
+            return BadRequest("Endereco selecionado nao foi encontrado para esta empresa.");
+
+        AplicarDados(cliente, request);
+        cliente.CadastroEnderecoId = request.EnderecoId;
+        if (request.EnderecoId is null && request.Endereco is { } a)
+        {
+            var address = cliente.Enderecos.OrderByDescending(e => e.Principal).ThenBy(e => e.Id).FirstOrDefault();
+            if (address is null) { address = new Endereco(); cliente.Enderecos.Add(address); }
+            address.Tipo = a.Tipo; address.Cep = ApenasDigitos(a.Cep); address.Logradouro = a.Logradouro.Trim();
+            address.Numero = a.Numero.Trim(); address.Complemento = TextoOuNull(a.Complemento); address.Bairro = a.Bairro.Trim();
+            address.CodigoIbgeMunicipio = a.CodigoIbgeMunicipio; address.Municipio = a.Municipio.Trim(); address.Uf = a.Uf.Trim().ToUpperInvariant();
+            address.Pais = a.Pais; address.Principal = a.Principal;
+        }
+        if (request.Contatos is not null)
+        {
+            var existing = cliente.Contatos.OrderByDescending(c => c.Principal).ThenBy(c => c.Id).ToArray();
+            var requested = request.Contatos.Where(c => !string.IsNullOrWhiteSpace(c.Nome)).ToArray();
+            for (var i = 0; i < requested.Length; i++)
+            {
+                var target = i < existing.Length ? existing[i] : new ClienteContato();
+                if (i >= existing.Length) cliente.Contatos.Add(target);
+                var c = requested[i]; target.Nome = c.Nome.Trim(); target.Cargo = TextoOuNull(c.Cargo); target.Email = TextoOuNull(c.Email);
+                target.Telefone = TextoOuNull(c.Telefone); target.Celular = TextoOuNull(c.Celular); target.Principal = c.Principal;
+            }
+            foreach (var removed in existing.Skip(requested.Length)) db.Remove(removed);
+        }
+        if (request.DadosComerciais is { } commercial)
+        {
+            cliente.DadosComerciais ??= new ClienteDadosComerciais();
+            var target = cliente.DadosComerciais;
+            target.CondicaoPagamento = TextoOuNull(commercial.CondicaoPagamento); target.LimiteCredito = commercial.LimiteCredito;
+            target.TabelaPreco = TextoOuNull(commercial.TabelaPreco); target.VendedorPadrao = TextoOuNull(commercial.VendedorPadrao);
+            target.Origem = TextoOuNull(commercial.Origem); target.BloquearVenda = commercial.BloquearVenda; target.PermiteFiado = commercial.PermiteFiado;
+        }
+        cliente.AtualizadoEm = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        return Ok(ToResponse(cliente));
+    }
+
+    private static string? ValidarCadastro(CriarClienteRequest request)
+    {
+        if (request.EmpresaId <= 0) return "EmpresaId e obrigatorio.";
+        if (string.IsNullOrWhiteSpace(request.NomeRazaoSocial)) return "Nome ou razao social e obrigatorio.";
+        var documento = ApenasDigitos(request.CpfCnpj ?? "");
+        if (request.TipoPessoa is not (TipoPessoa.fisica or TipoPessoa.juridica)) return "Tipo de pessoa invalido.";
+        if (documento.Length != (request.TipoPessoa == TipoPessoa.fisica ? 11 : 14)) return "Informe CPF com 11 digitos ou CNPJ com 14 digitos conforme o tipo de pessoa.";
+        if (request.IndicadorIe is not (IndicadorIe.Contribuinte or IndicadorIe.ContribuinteIsento or IndicadorIe.NaoContribuinte)) return "Indicador de IE invalido.";
+        if (request.IndicadorIe == IndicadorIe.Contribuinte && string.IsNullOrWhiteSpace(request.InscricaoEstadual)) return "Informe a inscricao estadual do cliente contribuinte.";
+        if (request.LimiteCredito < 0 || request.DadosComerciais?.LimiteCredito < 0) return "O limite de credito nao pode ser negativo.";
+        return null;
+    }
+
+    private static void AplicarDados(Cliente cliente, CriarClienteRequest request)
+    {
+        cliente.TipoPessoa = request.TipoPessoa;
+        cliente.Relacionamento = request.Relacionamento;
+        cliente.NomeRazaoSocial = request.NomeRazaoSocial.Trim();
+        cliente.NomeFantasia = TextoOuNull(request.NomeFantasia);
+        cliente.CpfCnpj = ApenasDigitos(request.CpfCnpj);
+        cliente.Rg = TextoOuNull(request.Rg);
+        cliente.OrgaoEmissor = TextoOuNull(request.OrgaoEmissor);
+        cliente.EstadoCivil = TextoOuNull(request.EstadoCivil);
+        cliente.DataNascimento = request.DataNascimento;
+        cliente.Profissao = TextoOuNull(request.Profissao);
+        cliente.Cnh = TextoOuNull(request.Cnh);
+        cliente.InscricaoEstadual = TextoOuNull(request.InscricaoEstadual);
+        cliente.InscricaoMunicipal = TextoOuNull(request.InscricaoMunicipal);
+        cliente.IndicadorIe = request.IndicadorIe;
+        cliente.ConsumidorFinal = request.ConsumidorFinal;
+        cliente.Email = TextoOuNull(request.Email);
+        cliente.Telefone = TextoOuNull(request.Telefone);
+        cliente.Celular = TextoOuNull(request.Celular);
+        cliente.ClienteDesde = request.ClienteDesde;
+        cliente.Origem = TextoOuNull(request.Origem);
+        cliente.VendedorPadrao = TextoOuNull(request.VendedorPadrao);
+        cliente.LimiteCredito = request.LimiteCredito;
+        cliente.Observacao = TextoOuNull(request.Observacao);
+        cliente.Ativo = request.Ativo;
     }
 
     private static ClienteResumoResponse ToResponse(Cliente cliente)

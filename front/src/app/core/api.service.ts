@@ -9,7 +9,7 @@ import {
   EstoqueProduto,
   EntradaCompraResumo,
   CadastroEndereco,
-  ClienteResumoResponse,
+  ClienteResumoResponse, ClienteDetalheResponse,
   CriarCadastroEnderecoPayload,
   CriarCategoriaPayload,
   CriarClientePayload,
@@ -114,6 +114,9 @@ export class ApiService {
   criarCliente(payload: CriarClientePayload) {
     return this.http.post<ClienteResumoResponse>(`${this.apiUrl}/clientes`, payload);
   }
+
+  obterCliente(empresaId: number, id: number) { return this.http.get<ClienteDetalheResponse>(`${this.apiUrl}/clientes/${id}`, { params: { empresaId } }); }
+  atualizarCliente(id: number, payload: CriarClientePayload) { return this.http.put<ClienteResumoResponse>(`${this.apiUrl}/clientes/${id}`, payload); }
 
   listarClientes(empresaId: number) {
     return this.http.get<ClienteResumoResponse[]>(`${this.apiUrl}/clientes`, { params: { empresaId } });

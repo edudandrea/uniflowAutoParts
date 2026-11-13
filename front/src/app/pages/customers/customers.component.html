@@ -4,7 +4,7 @@
       <app-icon class="title-icon" name="users" />
       <div>
         <h1>Clientes</h1>
-        <p>Gerencie seus clientes, histórico de compras e relacionamento.</p>
+        <p>Consulte os dados e edite o cadastro dos seus clientes.</p>
       </div>
     </div>
 
@@ -26,33 +26,23 @@
           <strong>{{ metric.value }}</strong>
           <small [class.down]="metric.tone === 'danger'">
             <app-icon [name]="metric.tone === 'danger' ? 'arrow-down' : 'arrow-up'" [size]="14" [strokeWidth]="2" />
-            {{ metric.delta }} <span>vs. mês anterior</span>
+            {{ metric.delta }}
           </small>
         </div>
       </article>
     }
   </section>
 
-  <section class="client-tabs-shell">
-    <nav class="client-main-tabs" aria-label="Navegacao de clientes">
-      <button type="button" [class.active]="activePageTab() === 'Pesquisa'" (click)="abrirPesquisa()">
-        <app-icon name="search" />
-        Pesquisa e resultados
-      </button>
-      <button type="button" [class.active]="activePageTab() === 'Detalhes'" [disabled]="!selectedCustomer()" (click)="abrirDetalhes()">
-        <app-icon name="user" />
-        Dados do cliente
-      </button>
-    </nav>
-
-    @if (activePageTab() === 'Pesquisa') {
+  @if (pageMessage()) { <p class="customer-page-message" role="status">{{ pageMessage() }}</p> }
+  @if (loadingCustomers()) { <p role="status" class="customer-page-message">Carregando clientes...</p> }
+  @if (listError()) { <div class="customer-page-message error" role="alert">{{ listError() }} <button type="button" (click)="carregarClientes()">Tentar novamente</button></div> }
       <article class="client-search-panel">
         <div class="client-search-header">
           <label class="client-search-control">
             <app-icon name="search" />
             <input
               type="search"
-              placeholder="Pesquisar por nome, CPF/CNPJ, telefone, e-mail ou cidade..."
+              placeholder="Pesquisar por nome, CPF/CNPJ, telefone ou e-mail..."
               [value]="customerSearch()"
               (input)="customerSearch.set($any($event.target).value)"
             />
@@ -89,220 +79,9 @@
           }
         </div>
       </article>
-    }
-
-    @if (activePageTab() === 'Detalhes') {
-      @if (selectedCustomer(); as customer) {
-        <section class="client-detail-layout">
-          <article class="client-record">
-            <nav class="record-tabs" aria-label="Secoes do cadastro">
-              <button class="active" type="button"><app-icon name="user" />Dados principais</button>
-              <button type="button"><app-icon name="map-pin" />Enderecos</button>
-              <button type="button"><app-icon name="phone" />Contatos</button>
-              <button type="button"><app-icon name="briefcase-business" />Dados comerciais</button>
-              <button type="button"><app-icon name="circle-dollar-sign" />Financeiro</button>
-              <button type="button"><app-icon name="file-text" />Observações</button>
-            </nav>
-
-            <section class="record-section">
-              <h2>Tipo de pessoa</h2>
-              <div class="person-type-cards">
-                <article [class.active]="customer.tipo === 'PF'">
-                  <app-icon name="user" />
-                  <div>
-                    <strong>Pessoa física</strong>
-                    <small>Cliente CPF</small>
-                  </div>
-                </article>
-                <article [class.active]="customer.tipo === 'PJ'">
-                  <app-icon name="building-2" />
-                  <div>
-                    <strong>Pessoa jurídica</strong>
-                    <small>Cliente CNPJ</small>
-                  </div>
-                </article>
-              </div>
-            </section>
-
-            <section class="record-section">
-              <h2>Identificação</h2>
-              <div class="record-field-grid">
-                <label>
-                  <span>{{ customer.tipo === 'PJ' ? 'CNPJ' : 'CPF' }}</span>
-                  <input type="text" [value]="customer.documento" readonly />
-                </label>
-                <label class="span-2">
-                  <span>Nome completo</span>
-                  <input type="text" [value]="customer.nome" readonly />
-                </label>
-                <label>
-                  <span>Cliente desde</span>
-                  <input type="text" value="02/10/2026" readonly />
-                </label>
-              </div>
-            </section>
-
-            <section class="record-section">
-              <h2>Documento e inscrição</h2>
-              <div class="record-field-grid">
-                <label>
-                  <span>RG</span>
-                  <input type="text" [value]="customer.inscricaoEstadual || '-'" readonly />
-                </label>
-                <label>
-                  <span>Orgão emissor</span>
-                  <input type="text" value="SSP" readonly />
-                </label>
-                <label>
-                  <span>UF</span>
-                  <input type="text" [value]="customer.uf || '-'" readonly />
-                </label>
-                <label>
-                  <span>Data de emissão</span>
-                  <input type="text" value="12/05/2010" readonly />
-                </label>
-              </div>
-            </section>
-
-            <section class="record-section">
-              <h2>Dados complementares</h2>
-              <div class="record-field-grid">
-                <label>
-                  <span>E-mail</span>
-                  <input type="text" [value]="customer.email || '-'" readonly />
-                </label>
-                <label>
-                  <span>Telefone</span>
-                  <input type="text" [value]="customer.telefone" readonly />
-                </label>
-                <label>
-                  <span>Telefone adicional</span>
-                  <input type="text" value="-" readonly />
-                </label>
-                <label>
-                  <span>Profissão</span>
-                  <input type="text" [value]="customer.tipo === 'PJ' ? 'Empresa' : 'Mecanico'" readonly />
-                </label>
-                <label>
-                  <span>Tipo de cliente</span>
-                  <input type="text" [value]="customer.relacionamento === 'Fornecedor' ? 'Fornecedor' : 'Revenda / Oficina'" readonly />
-                </label>
-                <label>
-                  <span>Situação</span>
-                  <input type="text" [value]="customer.status" readonly />
-                </label>
-              </div>
-            </section>
-
-            <section class="record-section address-band">
-              <h2>Endereço principal</h2>
-              <div class="record-field-grid">
-                <label class="span-2">
-                  <span>Logradouro</span>
-                  <input type="text" [value]="customer.logradouro" readonly />
-                </label>
-                <label>
-                  <span>Número</span>
-                  <input type="text" value="-" readonly />
-                </label>
-                <label>
-                  <span>Complemento</span>
-                  <input type="text" value="-" readonly />
-                </label>
-                <label>
-                  <span>Bairro</span>
-                  <input type="text" [value]="customer.bairro" readonly />
-                </label>
-                <label>
-                  <span>Cidade</span>
-                  <input type="text" [value]="customer.cidade" readonly />
-                </label>
-                <label>
-                  <span>UF</span>
-                  <input type="text" [value]="customer.uf || '-'" readonly />
-                </label>
-              </div>
-            </section>
-          </article>
-
-          <aside class="client-summary-column">
-            <article class="summary-card">
-              <h3><app-icon name="user" />Resumo do cliente</h3>
-              <div class="summary-profile">
-                <span class="profile-avatar">{{ initials(customer.nome) }}</span>
-                <div>
-                  <strong>{{ customer.nome }}</strong>
-                  <small>Cliente desde 02/10/2026</small>
-                </div>
-                <span class="status-pill" [class.inactive]="customer.status === 'Inativo'">{{ customer.status }}</span>
-              </div>
-              <dl>
-                <div><dt>{{ customer.tipo === 'PJ' ? 'CNPJ' : 'CPF' }}</dt><dd>{{ customer.documento }}</dd></div>
-                <div><dt>E-mail</dt><dd>{{ customer.email || '-' }}</dd></div>
-                <div><dt>Telefone</dt><dd>{{ customer.telefone }}</dd></div>
-                <div><dt>Tipo de cliente</dt><dd>{{ customer.relacionamento === 'Fornecedor' ? 'Fornecedor' : 'Revenda / Oficina' }}</dd></div>
-                <div><dt>Cidade/UF</dt><dd>{{ customer.cidade }} {{ customer.uf ? '- ' + customer.uf : '' }}</dd></div>
-              </dl>
-            </article>
-
-            <article class="summary-card">
-              <h3><app-icon class="chart" name="chart-no-axes-combined" />Historico de compras <a href="#">Ver todas</a></h3>
-              <dl>
-                <div><dt>Total de compras</dt><dd>{{ formatCurrency(customer.totalComprado || 12480.5) }}</dd></div>
-                <div><dt>Ultima compra</dt><dd>{{ customer.ultimaCompra === '-' ? '28/09/2026' : customer.ultimaCompra }}</dd></div>
-                <div><dt>Quantidade de pedidos</dt><dd>18</dd></div>
-                <div><dt>Ticket medio</dt><dd>R$ 693,36</dd></div>
-              </dl>
-            </article>
-
-            <article class="summary-card">
-              <h3><app-icon class="wallet" name="wallet-cards" />Limite de crédito <a href="#">Editar</a></h3>
-              <dl>
-                <div><dt>Limite definido</dt><dd>R$ 5.000,00</dd></div>
-                <div><dt>Utilizado</dt><dd>R$ 1.250,00</dd></div>
-              </dl>
-              <div class="credit-bar"><span></span></div>
-              <small>25%</small>
-            </article>
-
-            <article class="summary-card">
-              <h3><app-icon class="cart" name="shopping-cart" />Últimas compras <a href="#">Ver todas</a></h3>
-              <div class="purchase-list">
-                <p><span>Venda #1854<small>28/09/2026</small></span><strong>R$ 1.245,00</strong></p>
-                <p><span>Venda #1820<small>15/09/2026</small></span><strong>R$ 890,50</strong></p>
-                <p><span>Venda #1805<small>02/09/2026</small></span><strong>R$ 560,00</strong></p>
-              </div>
-            </article>
-          </aside>
-        </section>
-      } @else {
-        <article class="client-search-panel">
-          <div class="empty-list">
-            <app-icon name="user-search" />
-            <strong>Selecione um cliente</strong>
-            <small>Use a aba de pesquisa para abrir os dados do cadastro.</small>
-          </div>
-        </article>
-      }
-    }
-  </section>
-
-  @if (showCustomerModal()) {
-    <div class="modal-backdrop" role="presentation">
-      <section class="customer-modal customer-modal-large" role="dialog" aria-modal="true" aria-labelledby="new-customer-title">
-        <header class="modal-titlebar">
-          <div class="modal-title-icon">
-            <app-icon name="users" />
-          </div>
-          <div>
-            <h2 id="new-customer-title">Novo cliente</h2>
-            <p>Preencha os dados para cadastrar um novo cliente no sistema.</p>
-          </div>
-          <button class="close-button" type="button" aria-label="Fechar" (click)="fecharNovoCliente()">
-            <app-icon name="x" />
-          </button>
-        </header>
-
+</section>
+<dialog #customerDialog class="customer-modal customer-modal-large" aria-labelledby="new-customer-title" (cancel)="$event.preventDefault(); fecharNovoCliente()">
+  <header class="modal-titlebar"><div class="modal-title-icon"><app-icon name="users" /></div><div><h2 id="new-customer-title">{{ editingCustomerId() !== null ? 'Editar cadastro do cliente' : 'Novo cliente' }}</h2><p>{{ editingCustomerId() !== null ? 'Atualize os dados do cadastro e as informações fiscais.' : 'Preencha os dados para cadastrar um cliente.' }}</p></div><button class="close-button" type="button" aria-label="Fechar edição do cliente" [disabled]="savingCustomer()" (click)="fecharNovoCliente()"><app-icon name="x" /></button></header>
         <nav class="modal-tabs" aria-label="Etapas do cadastro">
           <button
             type="button"
@@ -340,8 +119,8 @@
             <app-icon name="file-text" />Observações
           </button>
         </nav>
-
         <form [formGroup]="customerForm" (ngSubmit)="cadastrarCliente()" class="customer-form">
+          <fieldset class="customer-edit-fields" [disabled]="savingCustomer()">
           @if (activeCustomerModalTab() === 'Dados gerais') {
             <label class="span-2 compact-select">
               <span>Tipo de pessoa</span>
@@ -362,35 +141,26 @@
 
             <label>
               <span>{{ customerForm.controls.tipo.value === 'PJ' ? 'CNPJ' : 'CPF' }} *</span>
-              <input type="text" formControlName="documento" placeholder="000.000.000-00" />
+              <input type="text" formControlName="documento" [placeholder]="customerForm.controls.tipo.value === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'" />
             </label>
             <label class="span-2">
-              <span>Nome completo *</span>
+              <span>{{ customerForm.controls.tipo.value === 'PJ' ? 'Razão social' : 'Nome completo' }} *</span>
               <input type="text" formControlName="nome" placeholder="Digite o nome completo" />
             </label>
-            <label>
+            @if (customerForm.controls.tipo.value === 'PF') { <label>
               <span>Data de nascimento</span>
               <input type="date" formControlName="nascimento" />
-            </label>
+            </label> }
 
-            <label>
+            @if (customerForm.controls.tipo.value === 'PF') { <label>
               <span>RG</span>
               <input type="text" formControlName="rg" placeholder="00.000.000-0" />
-            </label>
-            <label>
+            </label> }
+            @if (customerForm.controls.tipo.value === 'PF') { <label>
               <span>Orgao emissor</span>
               <input type="text" formControlName="orgaoEmissor" />
-            </label>
-            <label>
-              <span>UF</span>
-              <select formControlName="uf">
-                <option>RS</option>
-                <option>SC</option>
-                <option>PR</option>
-                <option>SP</option>
-              </select>
-            </label>
-            <label>
+            </label> }
+            @if (customerForm.controls.tipo.value === 'PF') { <label>
               <span>Estado civil</span>
               <select formControlName="estadoCivil">
                 <option value="">Selecione...</option>
@@ -399,7 +169,7 @@
                 <option>Divorciado(a)</option>
                 <option>Viuvo(a)</option>
               </select>
-            </label>
+            </label> }
 
             <section class="form-section full">
               <h3>Informações adicionais</h3>
@@ -409,7 +179,7 @@
               <span>Nome fantasia</span>
               <input type="text" formControlName="nomeFantasia" placeholder="Nome fantasia (opcional)" />
             </label>
-            <label>
+            @if (customerForm.controls.tipo.value === 'PF') { <label>
               <span>Profissao</span>
               <select formControlName="profissao">
                 <option value="">Selecione...</option>
@@ -418,7 +188,7 @@
                 <option>Vendedor(a)</option>
                 <option>Motorista</option>
               </select>
-            </label>
+            </label> }
             <label>
               <span>Indicador de IE</span>
               <select formControlName="indicadorIe">
@@ -427,10 +197,15 @@
                 <option>Isento</option>
               </select>
             </label>
-            <label>
+            @if (customerForm.controls.tipo.value === 'PF') { <label>
               <span>CNH</span>
               <input type="text" formControlName="cnh" placeholder="00000000000" />
-            </label>
+            </label> }
+            @if (customerForm.controls.tipo.value === 'PJ' || customerForm.controls.indicadorIe.value === 'Contribuinte ICMS') {
+              <label><span>Inscrição Estadual{{ customerForm.controls.indicadorIe.value === 'Contribuinte ICMS' ? ' *' : '' }}</span><input type="text" formControlName="inscricaoEstadual" maxlength="20" placeholder="Informe a Inscrição Estadual" /></label>
+            }
+            @if (customerForm.controls.tipo.value === 'PJ') { <label><span>Inscrição Municipal</span><input type="text" formControlName="inscricaoMunicipal" /></label> }
+            <label><span>Consumidor final</span><select formControlName="consumidorFinal"><option [ngValue]="true">Sim</option><option [ngValue]="false">Não</option></select></label>
           }
 
           @if (activeCustomerModalTab() === 'Enderecos') {
@@ -438,6 +213,7 @@
               <h3>Endereco principal</h3>
               <p>Pesquise por nome da rua, apelido do endereço ou CEP. A manutenção do endereço fica no menu Configurações.</p>
             </section>
+            @if (legacyAddress(); as a) { <p class="full customer-page-message">Endereço atual: {{ a.logradouro }}, {{ a.numero }} · {{ a.bairro }} · {{ a.municipio }}/{{ a.uf }} · CEP {{ formatCep(a.cep) }}. Selecione outro endereço apenas se desejar substituir.</p> }
             <label class="full address-search">
               <span>Pesquisar endereco</span>
               <span class="input-icon">
@@ -611,12 +387,12 @@
             <label class="full">
               <span>Observações gerais</span>
               <textarea formControlName="observacoes" maxlength="500" placeholder="Digite observações sobre o cliente..."></textarea>
-              <small>0/500</small>
+              <small>{{ customerForm.controls.observacoes.value.length }}/500</small>
             </label>
           }
 
             @if (customerMessage()) {
-              <p class="message error full">{{ customerMessage() }}</p>
+              <p class="message error full" role="alert">{{ customerMessage() }}</p>
             }
 
           <footer>
@@ -629,12 +405,29 @@
             <div class="form-buttons">
               <button class="cancel-button" type="button" (click)="fecharNovoCliente()">Cancelar</button>
               <button class="primary-action" type="submit" [disabled]="savingCustomer()">
-                <app-icon name="save" />{{ savingCustomer() ? 'Salvando...' : 'Salvar cliente' }}
+                <app-icon name="save" />{{ savingCustomer() ? 'Salvando...' : editingCustomerId() !== null ? 'Salvar alterações' : 'Salvar cliente' }}
               </button>
             </div>
           </footer>
-        </form>
-      </section>
+        </fieldset></form>
+</dialog>
+<dialog #detailDialog class="customer-modal customer-detail-modal" aria-labelledby="customer-detail-title" (cancel)="$event.preventDefault(); fecharDetalhes()">
+  <header class="modal-titlebar"><div class="modal-title-icon"><app-icon name="user" /></div><div><h2 id="customer-detail-title">Dados do cliente</h2><p>Consulte o cadastro e as informações fiscais.</p></div><button class="close-button" type="button" aria-label="Fechar dados do cliente" (click)="fecharDetalhes()"><app-icon name="x" /></button></header>
+  @if (detailBusy()) { <p class="detail-feedback" role="status">Carregando cadastro...</p> }
+  @if (detailError()) { <div class="detail-feedback" role="alert"><p>{{ detailError() }}</p><button type="button" class="filter-button" (click)="selecionarCliente(selectedCustomerId())">Tentar novamente</button></div> }
+  @if (customerDetails(); as detail) { @let d = detail.dados;
+    <div class="customer-detail-body">
+      <section class="detail-profile"><span class="avatar">{{ initials(d.nomeFantasia || d.nomeRazaoSocial) }}</span><div><h3>{{ d.nomeRazaoSocial }}</h3><p>{{ d.tipoPessoa === 2 ? 'Pessoa jurídica · CNPJ' : 'Pessoa física · CPF' }} {{ d.cpfCnpj }}</p></div><span class="status-pill" [class.inactive]="!d.ativo">{{ d.ativo ? 'Ativo' : 'Inativo' }}</span></section>
+      <section class="detail-section"><h3><app-icon name="file-text" [size]="18" />Identificação e dados fiscais</h3><dl class="customer-detail-grid">
+        @if (d.tipoPessoa === 2) { <div><dt>Nome fantasia</dt><dd>{{ d.nomeFantasia || 'Não informado' }}</dd></div><div><dt>Inscrição Estadual</dt><dd>{{ d.inscricaoEstadual || 'Não informada' }}</dd></div><div><dt>Inscrição Municipal</dt><dd>{{ d.inscricaoMunicipal || 'Não informada' }}</dd></div> }
+        @else { <div><dt>RG / órgão emissor</dt><dd>{{ d.rg || 'Não informado' }} {{ d.orgaoEmissor }}</dd></div><div><dt>Nascimento</dt><dd>{{ formatDate(d.dataNascimento) }}</dd></div><div><dt>Profissão</dt><dd>{{ d.profissao || 'Não informada' }}</dd></div> }
+        <div><dt>Indicador de IE</dt><dd>{{ d.indicadorIe === 1 ? 'Contribuinte do ICMS' : d.indicadorIe === 2 ? 'Contribuinte isento' : 'Não contribuinte' }}</dd></div><div><dt>Consumidor final</dt><dd>{{ d.consumidorFinal ? 'Sim' : 'Não' }}</dd></div><div><dt>Relacionamento</dt><dd>{{ d.relacionamento === 2 ? 'Fornecedor' : d.relacionamento === 3 ? 'Cliente e fornecedor' : 'Cliente' }}</dd></div><div><dt>Cliente desde</dt><dd>{{ formatDate(d.clienteDesde || detail.criadoEm) }}</dd></div>
+      </dl></section>
+      <section class="detail-section"><h3><app-icon name="map-pin" [size]="18" />Endereço do cadastro</h3>@if (d.endereco; as a) { <p>{{ a.logradouro }}, {{ a.numero }}{{ a.complemento ? ' · ' + a.complemento : '' }}</p><p>{{ a.bairro }} · {{ a.municipio }} / {{ a.uf }}</p><p>CEP {{ formatCep(a.cep) }} · IBGE {{ a.codigoIbgeMunicipio }}</p> } @else { <p>Nenhum endereço vinculado a este cliente.</p> }</section>
+      <section class="detail-section"><h3><app-icon name="phone" [size]="18" />Contatos</h3><dl class="customer-detail-grid"><div><dt>E-mail principal</dt><dd>{{ d.email || 'Não informado' }}</dd></div><div><dt>Telefone</dt><dd>{{ d.telefone || 'Não informado' }}</dd></div><div><dt>Celular</dt><dd>{{ d.celular || 'Não informado' }}</dd></div></dl>@for (contact of d.contatos; track $index) { <div class="detail-contact"><strong>{{ contact.nome }}{{ contact.principal ? ' · Principal' : '' }}</strong><p>{{ contact.cargo }} {{ contact.email }} {{ contact.telefone }} {{ contact.celular }}</p></div> }</section>
+      <section class="detail-section"><h3><app-icon name="briefcase-business" [size]="18" />Dados comerciais</h3><dl class="customer-detail-grid"><div><dt>Limite de crédito</dt><dd>{{ formatCurrency(d.dadosComerciais?.limiteCredito ?? d.limiteCredito ?? 0) }}</dd></div><div><dt>Condição de pagamento</dt><dd>{{ d.dadosComerciais?.condicaoPagamento || 'Não informada' }}</dd></div><div><dt>Tabela de preço</dt><dd>{{ d.dadosComerciais?.tabelaPreco || 'Não informada' }}</dd></div><div><dt>Vendas bloqueadas</dt><dd>{{ d.dadosComerciais?.bloquearVenda ? 'Sim' : 'Não' }}</dd></div></dl></section>
+      <section class="detail-section"><h3><app-icon name="file-text" [size]="18" />Observações</h3><p class="detail-notes">{{ d.observacao || 'Nenhuma observação cadastrada.' }}</p></section>
     </div>
   }
-</section>
+  <footer class="detail-footer"><button class="cancel-button" type="button" (click)="fecharDetalhes()">Fechar</button><button class="primary-action edit-customer" type="button" [disabled]="detailBusy() || !customerDetails()" (click)="editarCliente()"><app-icon name="pencil" [size]="18" />Editar cadastro</button></footer>
+</dialog>

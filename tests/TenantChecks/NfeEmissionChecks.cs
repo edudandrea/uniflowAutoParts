@@ -100,6 +100,39 @@ internal static class NfeEmissionChecks
             Check(await Controller(db).Emitir(Request() with { Base64 = Convert.ToBase64String(wrong.Export(X509ContentType.Pfx, "fixture")) }, default) is BadRequestObjectResult, "Aceitou certificado de outro CNPJ-base.");
             Check(await db.NotasFiscais.CountAsync() == before, "Validacao invalida consumiu numero fiscal.");
         }
+        transport.RejectNext = "203";
+        var rejectedRequest = Request();
+        await using (var db = new AppDbContext(options, Tenant(1)))
+        {
+            var rejected = Result(await Controller(db).Emitir(rejectedRequest, default));
+            Check(rejected.Situacao == "Rejeitada" && rejected.PodeReenviar, "Nota rejeitada com XML salvo nao permite reenvio.");
+            var stored = await db.NotasFiscais.SingleAsync(n => n.Id == rejected.Id);
+            var originalXml = stored.XmlEnvioNfe; var count = await db.NotasFiscais.CountAsync();
+            var nextNumber = (await db.NumeracoesNfe.SingleAsync()).ProximoNumero;
+            var before = transport.Authorizations;
+            var resent = Result(await Controller(db).Reenviar(rejected.Id, credentials, default));
+            Check(resent.Situacao == "Autorizada" && resent.Codigo == "100" && resent.Protocolo.Length == 15, "Reenvio nao retornou resposta e protocolo reais do transporte.");
+            Check(resent.Id == rejected.Id && resent.ChaveAcesso == rejected.ChaveAcesso && resent.Numero == rejected.Numero && stored.XmlEnvioNfe == originalXml, "Reenvio alterou nota, chave, numero ou XML.");
+            Check(await db.NotasFiscais.CountAsync() == count && (await db.NumeracoesNfe.SingleAsync()).ProximoNumero == nextNumber && transport.Authorizations == before + 1, "Reenvio criou nota ou consumiu nova numeracao.");
+            Check(await Controller(db).Reenviar(rejected.Id, credentials, default) is ConflictObjectResult, "Permitiu reenvio de nota autorizada.");
+            // Simula estado local desatualizado: a consulta deve recuperar autorizacao, sem retransmitir.
+            stored.Situacao = "Rejeitada"; stored.CodigoAutorizacao = "203"; await db.SaveChangesAsync();
+            var recovered = Result(await Controller(db).Reenviar(rejected.Id, credentials, default));
+            Check(recovered.Situacao == "Autorizada" && transport.Authorizations == before + 1, "Retransmitiu nota ja autorizada na SEFAZ.");
+        }
+        transport.RejectNext = "203";
+        await using (var db = new AppDbContext(options, Tenant(1)))
+        {
+            var rejected = Result(await Controller(db).Emitir(Request(), default));
+            var before = transport.Authorizations; transport.FailConsult = true;
+            Check(await Controller(db).Reenviar(rejected.Id, credentials, default) is ObjectResult { StatusCode: 502 }, "Falha de consulta nao foi informada no reenvio.");
+            Check(transport.Authorizations == before, "Transmitiu XML sem confirmar ausencia na SEFAZ.");
+            transport.RejectNext = "225";
+            var failed = Result(await Controller(db).Reenviar(rejected.Id, credentials, default));
+            Check(failed.Situacao == "Rejeitada" && failed.Codigo == "225", "Perdeu rejeicao da SEFAZ no retorno do reenvio.");
+        }
+        await using (var db = new AppDbContext(options, Tenant(2)))
+            Check(await Controller(db, 2).Reenviar(first.Id, credentials, default) is NotFoundResult, "Reenvio acessou outra empresa.");
         Check(transport.Events.All(e => e.Environment == 1), "Eventos de producao foram enviados para homologacao.");
         Console.WriteLine($"NF-e authorization lifecycle: {checks} passed; certificado e transporte simulados, nenhuma transmissao externa.");
     }
@@ -108,6 +141,7 @@ internal static class NfeEmissionChecks
     {
         private readonly Dictionary<string, XElement> authorized = new();
         public readonly List<(string Key, int Environment, string Type, int Sequence, XElement Send, XElement Result)> Events = [];
+        public string? RejectNext; public bool FailConsult;
         public int Authorizations; public bool TimeoutAfter; public bool TimeoutBefore; public bool TimeoutEventAfter;
         public override Task<XDocument> EnviarAsync(string service, int ambiente, string tipo, string xml, X509Certificate2 cert, CancellationToken token)
         {
@@ -116,7 +150,9 @@ internal static class NfeEmissionChecks
             {
                 Authorizations++;
                 if (TimeoutBefore) { TimeoutBefore = false; throw new HttpRequestException("Timeout simulado antes do processamento"); }
-                var nfe = doc.Descendants(ns + "NFe").Single(); var key = nfe.Element(ns + "infNFe")!.Attribute("Id")!.Value[3..]; authorized[key] = new XElement(nfe);
+                var nfe = doc.Descendants(ns + "NFe").Single(); var key = nfe.Element(ns + "infNFe")!.Attribute("Id")!.Value[3..];
+                if (RejectNext is { } rejection) { RejectNext = null; return Task.FromResult(NfeFixtures.Autorizacao(nfe, code: rejection, ambiente: ambiente)); }
+                authorized[key] = new XElement(nfe);
                 if (TimeoutAfter) { TimeoutAfter = false; throw new HttpRequestException("Timeout simulado apos autorizacao"); }
                 return Task.FromResult(NfeFixtures.Autorizacao(nfe, ambiente: ambiente));
             }
@@ -131,6 +167,7 @@ internal static class NfeEmissionChecks
             }
             if (service == "NFeConsultaProtocolo4")
             {
+                if (FailConsult) { FailConsult = false; throw new HttpRequestException("Falha simulada na consulta"); }
                 var key = doc.Root!.Element(ns + "chNFe")!.Value;
                 var result = new XElement(ns + "retConsSitNFe", new XElement(ns + "tpAmb", ambiente), new XElement(ns + "chNFe", key), new XElement(ns + "cStat", authorized.ContainsKey(key) ? Events.Any(e => e.Key == key && e.Type == "110111") ? "101" : "100" : "217"), new XElement(ns + "xMotivo", "Consulta de teste"));
                 if (authorized.TryGetValue(key, out var nfe)) result.Add(NfeFixtures.Protocolo(nfe, ambiente: ambiente));

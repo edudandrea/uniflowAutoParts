@@ -7,7 +7,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Subject, catchError, of, switchMap, tap } from 'rxjs';
 
 import { ApiService } from '../../core/api.service';
-import { NotaFiscal, NotaFiscalEventoHistorico, NotaFiscalFiltros, NotaFiscalListaResponse } from '../../core/app-models';
+import { EmissaoNfeResponse, NotaFiscal, NotaFiscalEventoHistorico, NotaFiscalFiltros, NotaFiscalListaResponse } from '../../core/app-models';
 import { FiscalCertificateService } from '../../core/fiscal-certificate.service';
 import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
@@ -53,6 +53,11 @@ export class InvoicesComponent implements OnInit {
   protected readonly importError = signal('');
   protected readonly importing = signal(false);
   protected readonly consulting = signal<number | null>(null);
+  private readonly resendDialog = viewChild<ElementRef<HTMLDialogElement>>('resendDialog');
+  protected readonly resendNote = signal<NotaFiscal | null>(null);
+  protected readonly resending = signal(false);
+  protected readonly resendResult = signal<EmissaoNfeResponse | null>(null);
+  protected readonly resendError = signal('');
   protected xmlFile: File | null = null;
   protected pdfFile: File | null = null;
 
@@ -186,7 +191,7 @@ export class InvoicesComponent implements OnInit {
   }
 
   protected consult(nota: NotaFiscal): void {
-    if (this.consulting()) return;
+    if (this.consulting() || this.resending()) return;
     try {
       const certificate = this.certificates.load();
       if (!certificate) { this.message.set('Cadastre o certificado A1 nas configuracoes para consultar a SEFAZ.'); return; }
@@ -203,6 +208,37 @@ export class InvoicesComponent implements OnInit {
         },
       });
     } catch { this.message.set('Certificado salvo invalido. Cadastre novamente nas configuracoes.'); }
+  }
+
+  protected openResend(nota: NotaFiscal): void {
+    if (!nota.podeReenviar || this.resending() || this.consulting() !== null || this.busy()) return;
+    this.returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.resendNote.set(nota); this.resendResult.set(null); this.resendError.set('');
+    this.resendDialog()?.nativeElement.showModal();
+  }
+  protected closeResend(): void {
+    if (this.resending()) return;
+    this.resendDialog()?.nativeElement.close(); this.returnFocus?.focus();
+  }
+  protected submitResend(): void {
+    const nota = this.resendNote();
+    if (!nota?.podeReenviar || this.resending() || this.resendResult()) return;
+    try {
+      const certificate = this.certificates.load();
+      if (!certificate) { this.resendError.set('Cadastre o certificado A1 nas configurações antes de reenviar.'); return; }
+      this.resending.set(true); this.resendError.set('');
+      this.api.consultarAutorizacao(nota.id, certificate, true).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: result => {
+          this.resending.set(false); this.resendResult.set(result);
+          this.message.set('NF-e ' + result.numero + ' · SEFAZ ' + (result.codigo || 'sem confirmação') + ': ' + result.motivo);
+          this.loadPage(this.page());
+        },
+        error: (error: HttpErrorResponse) => {
+          this.resending.set(false); this.resendError.set(this.errorMessage(error, 'Não foi possível confirmar o reenvio. Consulte a mesma nota antes de tentar novamente.'));
+          this.loadPage(this.page());
+        },
+      });
+    } catch { this.resending.set(false); this.resendError.set('Certificado salvo inválido. Cadastre novamente nas configurações.'); }
   }
 
   protected exportPage(): void {

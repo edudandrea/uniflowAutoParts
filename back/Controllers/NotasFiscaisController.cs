@@ -67,6 +67,7 @@ public class NotasFiscaisController(AppDbContext db, SefazEventosService sefaz, 
             {
                 n.Id, n.Numero, n.Serie, n.Emissao, n.Cliente, n.DocumentoCliente, n.Tipo,
                 n.Situacao, n.Valor, n.ChaveAcesso, n.Ambiente, n.AutorizadaEm, TemPdf = n.Pdf != null,
+                n.CodigoAutorizacao, n.MotivoAutorizacao, n.Protocolo, TemXmlEnvio = n.XmlEnvioNfe != "", TemRecibo = n.Recibo != "",
                 Pendente = n.Eventos.Any(e => e.Situacao == "Pendente" || e.Situacao == "Indeterminado"),
                 Correcoes = n.Eventos.Count(e => e.Tipo == "110110" && e.Situacao == "Confirmado")
             }).ToListAsync(cancellationToken);
@@ -76,7 +77,8 @@ public class NotasFiscaisController(AppDbContext db, SefazEventosService sefaz, 
                 SefazEventosService.Bloqueio(new NotaFiscal { Ambiente = n.Ambiente, ChaveAcesso = n.ChaveAcesso, Situacao = n.Situacao });
             return new NotaFiscalResponse(n.Id, n.Numero, n.Serie, n.Emissao, n.Cliente, n.DocumentoCliente,
                 n.Tipo, n.Situacao, n.Valor, n.ChaveAcesso, n.Ambiente, n.TemPdf,
-                bloqueio is null && SefazEventosService.BloqueioCancelamento(new NotaFiscal { Ambiente = n.Ambiente, ChaveAcesso = n.ChaveAcesso, Situacao = n.Situacao, AutorizadaEm = n.AutorizadaEm }) is null, bloqueio is null && n.Tipo == "NFe" && n.Correcoes < 20, bloqueio);
+                bloqueio is null && SefazEventosService.BloqueioCancelamento(new NotaFiscal { Ambiente = n.Ambiente, ChaveAcesso = n.ChaveAcesso, Situacao = n.Situacao, AutorizadaEm = n.AutorizadaEm }) is null, bloqueio is null && n.Tipo == "NFe" && n.Correcoes < 20, bloqueio,
+                !n.Pendente && EmissaoNfeController.PodeReenviar(n.Tipo, n.Situacao, n.CodigoAutorizacao, n.TemXmlEnvio, n.TemRecibo), n.CodigoAutorizacao, n.MotivoAutorizacao, n.Protocolo);
         }).ToList();
         return Ok(new NotaFiscalListaResponse(pagina, 10, total, resumo, result));
     }
