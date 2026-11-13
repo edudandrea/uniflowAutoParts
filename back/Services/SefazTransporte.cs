@@ -44,9 +44,26 @@ public class SefazTransporte(ILogger<SefazTransporte>? logger = null)
         catch (Exception error) when (error is HttpRequestException or OperationCanceledException or XmlException)
         {
             // Registra o diagnostico tecnico sem XML fiscal, certificado, senha ou corpo da resposta.
-            logger?.LogWarning(error, "SEFAZ: falha em {Servico}, ambiente {Ambiente}, destino {Destino}, HTTP {HttpStatus}, duracao {DuracaoMs} ms, requisicao cancelada {Cancelada}.",
-                servico, ambiente, url, httpStatus, clock.ElapsedMilliseconds, token.IsCancellationRequested);
+            logger?.LogWarning(error, "SEFAZ: falha em {Servico}, ambiente {Ambiente}, destino {Destino}, HTTP {HttpStatus}, duracao {DuracaoMs} ms, requisicao cancelada {Cancelada}, diagnostico {Diagnostico}.",
+                servico, ambiente, url, httpStatus, clock.ElapsedMilliseconds, token.IsCancellationRequested, ResumirErro(error));
             throw;
         }
+    }
+    // Mantem as causas na mesma linha mesmo quando a hospedagem separa o stack trace.
+    private static string ResumirErro(Exception error)
+    {
+        var causes = new List<string>();
+        for (Exception? cause = error; cause is not null && causes.Count < 6; cause = cause.InnerException)
+        {
+            var message = new string(cause.Message.Select(c => char.IsControl(c) ? ' ' : c).Take(400).ToArray());
+            var code = cause switch
+            {
+                HttpRequestException http => $" [{http.HttpRequestError}]",
+                System.Net.Sockets.SocketException socket => $" [{socket.SocketErrorCode}]",
+                _ => ""
+            };
+            causes.Add($"{cause.GetType().FullName}{code}: {message}");
+        }
+        return string.Join(" -> ", causes);
     }
 }
