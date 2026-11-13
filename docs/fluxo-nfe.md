@@ -55,3 +55,7 @@ O transporte SEFAZ registra inicio, servico, ambiente, destino, duracao, status 
 O frontend Docker define proxy_read_timeout e proxy_send_timeout de 90 segundos para permitir que a API devolva o resultado do cliente SEFAZ, cujo limite e 60 segundos. Esse ajuste nao corrige indisponibilidade da SEFAZ, erros TLS ou falhas do gateway externo; os logs devem identificar a causa. API_PROXY_TARGET deve apontar para a origem do servico backend (sem /api), nunca para o proprio frontend. Publicar backend e frontend e necessario para ativar estes ajustes na hospedagem.
 
 A linha `SEFAZ: falha` inclui tambem `diagnostico`: tipo e mensagem da excecao e suas causas internas, em uma unica linha. Isso permite distinguir erros DNS/socket, negociacao TLS e resposta HTTP mesmo quando a interface de logs separa as linhas da excecao. O resumo limita a quantidade de causas e o tamanho de cada mensagem; o stack trace completo permanece no registro de warning.
+
+### SecureConnectionError / PartialChain na SEFAZ/RS
+
+O backend Docker instala a raiz publica ICP-Brasil v10 exigida pela cadeia SERPRO SSLv1 do servidor SEFAZ/RS, com verificacao de impressao digital no build. A validacao TLS permanece ativa. Veja [origem, fingerprint e manutencao](../back/certificates/README.md). Para corrigir uma instancia em execucao, reconstrua e publique o backend usando back/Dockerfile; reiniciar o container antigo nao aplica a mudanca. Depois consulte a mesma nota pendente antes de qualquer reenvio. Nao e necessario trocar o A1 da empresa nem alterar a Cloudflare por causa deste erro.
