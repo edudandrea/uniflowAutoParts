@@ -6,7 +6,7 @@ import { CadastroEndereco, ClienteResumoResponse, ClienteDetalheResponse, CriarC
 import { ApiService } from '../../core/api.service';
 import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
-@Component({ selector: 'app-customers', imports: [ReactiveFormsModule, AppIconComponent], templateUrl: './customers.component.html', styleUrl: './customers.component.scss' })
+@Component({ selector: 'app-customers', imports: [ReactiveFormsModule, AppIconComponent], templateUrl: './customers.component.html', styleUrls: ['./customers.component.scss', './customer-display.scss'] })
 export class CustomersComponent {
   private readonly api = inject(ApiService);
   private readonly session = inject(SessionService);
@@ -19,6 +19,14 @@ export class CustomersComponent {
   private editSource: ClienteDetalheResponse | null = null;
   protected readonly selectedCustomerId = signal('');
   protected readonly editingCustomerId = signal<number | null>(null);
+  protected readonly activeDetailSection = signal('customer-record');
+  protected readonly customerDetailSections = [
+    { id: 'customer-record', label: 'Dados cadastrais', icon: 'file-text' },
+    { id: 'customer-addresses', label: 'Endereço(s)', icon: 'map-pin' },
+    { id: 'customer-contacts', label: 'Contatos', icon: 'phone' },
+    { id: 'customer-commercial', label: 'Dados comerciais', icon: 'boxes' },
+    { id: 'customer-history', label: 'Histórico', icon: 'calendar' },
+  ];
   protected readonly customerDetails = signal<ClienteDetalheResponse | null>(null);
   protected readonly detailBusy = signal(false);
   protected readonly detailError = signal('');
@@ -80,12 +88,38 @@ export class CustomersComponent {
   }
   protected selecionarCliente(id: string): void {
     this.returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    this.activeDetailSection.set('customer-record');
     this.selectedCustomerId.set(id); this.customerDetails.set(null); this.detailError.set(''); this.detailBusy.set(true);
     this.detailDialog()?.nativeElement.showModal();
     this.api.obterCliente(this.empresaId, Number(id)).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: data => { if (this.selectedCustomerId() === id) { this.customerDetails.set(data); this.detailBusy.set(false); } },
       error: error => { if (this.selectedCustomerId() === id) { this.detailError.set(this.errorMessage(error, 'Não foi possível carregar o cadastro do cliente.')); this.detailBusy.set(false); } },
     });
+  }
+  protected goToCustomerSection(id: string): void {
+    const section = this.detailDialog()?.nativeElement.querySelector<HTMLElement>('#' + id);
+    if (!section) return;
+    this.activeDetailSection.set(id); section.scrollIntoView({ block: 'start', behavior: 'instant' }); section.focus({ preventScroll: true });
+  }
+  protected editCustomerAddress(): void { this.editarCliente(); this.activeCustomerModalTab.set('Enderecos'); }
+  protected formatDocument(value: string): string {
+    const digits = value.replace(/\D/g, '');
+    return digits.length === 14 ? digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : digits.length === 11 ? digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4') : value;
+  }
+  protected printCustomer(): void {
+    const dialog = this.detailDialog()?.nativeElement; if (!dialog || !this.customerDetails()) return;
+    const content = dialog.cloneNode(true) as HTMLElement;
+    content.querySelectorAll('button, nav, .detail-footer').forEach(e => e.remove());
+    const frame = document.createElement('iframe'); frame.title = 'Impressão do cadastro do cliente'; frame.setAttribute('aria-hidden', 'true');
+    frame.setAttribute('sandbox', 'allow-same-origin allow-modals');
+    Object.assign(frame.style, { position: 'fixed', width: '1px', height: '1px', border: '0', opacity: '0' });
+    frame.onload = () => {
+      const preview = frame.contentWindow; if (!preview) { frame.remove(); return; }
+      preview.addEventListener('afterprint', () => frame.remove(), { once: true });
+      try { preview.focus(); preview.print(); } catch { frame.remove(); }
+    };
+    frame.srcdoc = "<!doctype html><html lang=\"pt-BR\"><head><meta charset=\"utf-8\"><meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\"><title>Cadastro do cliente</title><style>body{font:12px Arial,sans-serif;color:#19344e;padding:20px}h2{font-size:20px}h3{font-size:14px}section{margin:14px 0;padding:12px;border:1px solid #dde5eb;break-inside:avoid}dl{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}dt{color:#687d90;font-size:11px}dd{margin:4px 0;overflow-wrap:anywhere}svg{width:14px;height:14px;vertical-align:middle}.detail-profile{display:flex;gap:12px;align-items:center}.detail-profile-badges{margin-left:auto}.avatar{font-weight:bold}p{line-height:1.5}.detail-notes{white-space:pre-wrap}</style></head><body>" + content.innerHTML + "</body></html>";
+    document.body.append(frame);
   }
   protected fecharDetalhes(): void { this.detailDialog()?.nativeElement.close(); this.returnFocus?.focus(); }
   protected abrirNovoCliente(): void {

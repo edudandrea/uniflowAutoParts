@@ -128,6 +128,8 @@ for (var tenantId = 1; tenantId <= 2; tenantId++)
     }
     client.DefaultRequestHeaders.Remove("X-Parts-CSRF");
     client.DefaultRequestHeaders.Add("X-Parts-CSRF", session.GetProperty("csrfToken").GetString());
+    var fiscalProfileResponse = await client.GetAsync($"/api/fiscal/destinatario/{tenantId}");
+    Check(fiscalProfileResponse.IsSuccessStatusCode && fiscalProfileResponse.Headers.CacheControl?.NoStore == true, "Consulta fiscal permitiu cache de dados desatualizados.");
     var customerDetail = await client.GetFromJsonAsync<back.Contracts.ClienteDetalheResponse>($"/api/clientes/{tenantId}");
     Check(customerDetail?.Id == tenantId && customerDetail.Dados.Contatos?.Count == 1, "Consulta HTTP perdeu dados completos do cliente.");
     var customerUpdate = customerDetail!.Dados with { TipoPessoa = TipoPessoa.fisica, IndicadorIe = IndicadorIe.NaoContribuinte, NomeRazaoSocial = $"Cliente editado {tenantId}" };

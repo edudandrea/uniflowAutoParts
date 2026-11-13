@@ -77,4 +77,4 @@ public record ClienteResumoResponse(
     bool Ativo,
     DateTime CriadoEm);
 
-public record ClienteDetalheResponse(long Id, CriarClienteRequest Dados, DateTime CriadoEm);
+public record ClienteDetalheResponse(long Id, CriarClienteRequest Dados, DateTime CriadoEm, DateTime? AtualizadoEm = null);

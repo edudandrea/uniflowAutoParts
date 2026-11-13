@@ -1,3 +1,4 @@
+import { AlertService } from '../../core/alert.service';
 import { SessionService } from '../../core/session.service';
 import { Component, computed, ElementRef, HostListener, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -14,9 +15,9 @@ interface SaleDraft {
   cliente: ClienteResumoResponse | null; itens: SaleItem[]; pagamentos: Payment[];
   tipo: string; vendedor: string; emitir: boolean; modelo: string; finalidade: string;
   natureza: string; cfop: string; serie: string; desconto: number; frete: number;
-  despesas: number; observacoes: string; csosn?: string; destinatario?: DestinatarioFiscalData; destinatarioClienteId?: number;
+  despesas: number; observacoes: string; csosn?: string; destinatario?: DestinatarioFiscalData; destinatarioClienteId?: number; destinatarioCadastro?: DestinatarioFiscalData;
   vehicleName?: string; vehiclePlate?: string; modalidadeFrete?: number; indicadorPresenca?: number;
-  emissionRequestId?: string; emissionPayload?: EmitirNfePayload | null; emittedNote?: EmissaoNfeResponse | null; emissionAttempted?: boolean;
+  vendaOrigemId?: number; emissionRequestId?: string; emissionPayload?: EmitirNfePayload | null; emittedNote?: EmissaoNfeResponse | null; emissionAttempted?: boolean;
 }
 
 @Component({
@@ -25,6 +26,12 @@ interface SaleDraft {
 })
 export class SalesComponent {
   private readonly api = inject(ApiService);
+  private readonly alerts = inject(AlertService);
+  private clearing = false;
+  private vendaOrigemId: number | undefined;
+  private notify(text: string, icon: 'info' | 'success' | 'error' = 'info', fiscal = false): void {
+    (fiscal ? this.fiscalMessage : this.message).set(text); this.alerts.notify(text, icon);
+  }
   private readonly session = inject(SessionService);
   private readonly certificateStore = inject(FiscalCertificateService);
   private readonly reviewDialog = viewChild<ElementRef<HTMLDialogElement>>('reviewDialog');
@@ -49,20 +56,22 @@ export class SalesComponent {
   protected destination: DestinatarioFiscalData | null = null;
   protected readonly destinationBusy = signal(false);
   private destinationId: number | null = null;
+  private destinationBaseline: DestinatarioFiscalData | null = null;
   private emissionRequestId: string = crypto.randomUUID();
   private emissionPayload: EmitirNfePayload | null = null;
 
   protected requestInvoice(): void {
     if (this.emissionBusy() || this.emittedNote() || this.destinationBusy()) return;
-    if (!this.emitir || this.tipo !== 'Venda' || this.modelo !== '55') { this.fiscalMessage.set('Selecione Venda e NF-e modelo 55 para emitir.'); return; }
-    if (!this.cliente() || !this.itens().length || this.balance() !== 0) { this.fiscalMessage.set('Revise cliente, itens e pagamentos antes de emitir.'); return; }
-    if (!this.destination && !this.emissionPayload) { this.fiscalMessage.set('Carregue e revise o endereço fiscal do destinatário antes de emitir.'); return; }
-    if (!this.fiscalEnvironment()) { this.fiscalMessage.set('Carregue o ambiente fiscal antes de emitir.'); return; }
+    if (!this.emitir || this.tipo !== 'Venda' || this.modelo !== '55') { this.notify('Selecione Venda e NF-e modelo 55 para emitir.', 'info', true); return; }
+    if (!this.cliente() || !this.itens().length || this.balance() !== 0) { this.notify('Revise cliente, itens e pagamentos antes de emitir.', 'info', true); return; }
+    if (!this.emissionPayload && this.destinationError()) { this.notify('Atualize os dados do cadastro antes de emitir: ' + this.destinationError(), 'info', true); return; }
+    if (!this.destination && !this.emissionPayload) { this.notify('Carregue e revise o endereço fiscal do destinatário antes de emitir.', 'info', true); return; }
+    if (!this.fiscalEnvironment()) { this.notify('Carregue o ambiente fiscal antes de emitir.', 'info', true); return; }
     try {
       const cert = this.certificateStore.load();
-      if (!cert) { this.fiscalMessage.set('Cadastre o certificado A1 nas configurações antes de emitir.'); return; }
+      if (!cert) { this.notify('Cadastre o certificado A1 nas configurações antes de emitir.', 'info', true); return; }
       this.emissionPayload ??= {
-        solicitacaoId: this.emissionRequestId, clienteId: this.cliente()!.id, ambiente: this.fiscalEnvironment() === 'producao' ? 1 : 2,
+        solicitacaoId: this.emissionRequestId, vendaOrigemId: this.vendaOrigemId, clienteId: this.cliente()!.id, ambiente: this.fiscalEnvironment() === 'producao' ? 1 : 2,
         modalidadeFrete: this.modalidadeFrete, indicadorPresenca: this.indicadorPresenca,
         serie: Number(this.serie), natureza: this.natureza, cfop: this.cfop, modelo: this.modelo,
         desconto: this.desconto || 0, frete: this.frete || 0, despesas: this.despesas || 0, observacoes: this.observacoes,
@@ -72,37 +81,38 @@ export class SalesComponent {
         pagamentos: this.pagamentos().map(p => ({ forma: p.forma, valor: p.valor })),
       };
       this.emissionAttempted.set(true);
-      if (!this.saveDraft()) { this.emissionAttempted.set(false); this.emissionPayload = null; this.fiscalMessage.set('Não foi possível guardar a identificação da tentativa. Salve o rascunho antes de transmitir.'); return; }
+      if (!this.saveDraft()) { this.emissionAttempted.set(false); this.emissionPayload = null; this.notify('Não foi possível guardar a identificação da tentativa. Salve o rascunho antes de transmitir.', 'error', true); return; }
       this.emissionBusy.set(true); this.fiscalMessage.set('Enviando a NF-e. Aguarde a resposta da SEFAZ.');
       this.api.emitirNfe(this.emissionPayload, cert).subscribe({
         next: result => this.applyEmission(result),
         error: error => {
           this.emissionBusy.set(false);
           if (error.status === 400) { this.emissionAttempted.set(false); this.emissionPayload = null; }
-          this.fiscalMessage.set(typeof error.error === 'string' ? error.error : error.error?.detail ?? 'A resposta não foi recebida. Use Recuperar tentativa para consultar a mesma solicitação, sem gerar outra nota.');
+          this.notify(typeof error.error === 'string' ? error.error : error.error?.detail ?? 'A resposta não foi recebida. Use Recuperar tentativa para consultar a mesma solicitação, sem gerar outra nota.', 'error', true);
           this.saveDraft();
         },
       });
-    } catch { this.emissionBusy.set(false); this.fiscalMessage.set('Não foi possível carregar o certificado ou preparar a solicitação fiscal.'); }
+    } catch { this.emissionBusy.set(false); this.notify('Não foi possível carregar o certificado ou preparar a solicitação fiscal.', 'error', true); }
   }
 
   protected consultEmission(reenviar = false): void {
     const nota = this.emittedNote(); if (!nota || this.emissionBusy()) return;
     try {
-      const cert = this.certificateStore.load(); if (!cert) { this.fiscalMessage.set('Cadastre o certificado A1 para consultar.'); return; }
+      const cert = this.certificateStore.load(); if (!cert) { this.notify('Cadastre o certificado A1 para consultar.', 'info', true); return; }
       this.emissionBusy.set(true);
       this.api.consultarAutorizacao(nota.id, cert, reenviar).subscribe({ next: result => this.applyEmission(result), error: error => {
-        this.emissionBusy.set(false); this.fiscalMessage.set(typeof error.error === 'string' ? error.error : error.error?.detail ?? 'Não foi possível confirmar o processamento. Consulte novamente a mesma nota.');
+        this.emissionBusy.set(false); this.notify(typeof error.error === 'string' ? error.error : error.error?.detail ?? 'Não foi possível confirmar o processamento. Consulte novamente a mesma nota.', 'error', true);
       } });
-    } catch { this.emissionBusy.set(false); this.fiscalMessage.set('Certificado salvo inválido.'); }
+    } catch { this.emissionBusy.set(false); this.notify('Certificado salvo inválido.', 'error', true); }
   }
   private applyEmission(result: EmissaoNfeResponse): void {
     this.emittedNote.set(result); this.emissionBusy.set(false); this.saveDraft();
-    this.fiscalMessage.set(result.situacao === 'Autorizada' ? `NF-e ${result.numero} autorizada. Protocolo ${result.protocolo}.` : `SEFAZ ${result.codigo || 'sem confirmação'}: ${result.motivo}`);
+    this.notify(result.situacao === 'Autorizada' ? `NF-e ${result.numero} autorizada. Protocolo ${result.protocolo}.` : `SEFAZ ${result.codigo || 'sem confirmação'}: ${result.motivo}`, result.situacao === 'Autorizada' ? 'success' : result.situacao === 'Rejeitada' ? 'error' : 'info', true);
   }
   protected reviseRejected(): void {
     if (this.emittedNote()?.situacao !== 'Rejeitada') return;
-    this.emissionAttempted.set(false); this.emissionPayload = null; this.emittedNote.set(null); this.emissionRequestId = crypto.randomUUID(); this.fiscalMessage.set('Corrija os dados fiscais antes de iniciar uma nova tentativa.'); this.saveDraft();
+    this.vendaOrigemId ??= this.emittedNote()!.id;
+    this.emissionAttempted.set(false); this.emissionPayload = null; this.emittedNote.set(null); this.emissionRequestId = crypto.randomUUID(); this.notify('Corrija os dados fiscais antes de iniciar uma nova tentativa.', 'info', true); this.saveDraft(); this.loadDestination();
   }
   protected goToReviewSection(index: number): void {
     const section = this.reviewDialog()?.nativeElement.querySelector<HTMLElement>('#' + this.reviewSteps[index]?.id);
@@ -119,12 +129,19 @@ export class SalesComponent {
   }
   protected loadDestination(force = false): void {
     const customer = this.cliente();
-    if (!customer || this.emissionAttempted() || this.destinationLoadingId === customer.id || (!force && this.destinationId === customer.id)) return;
+    if (!customer || this.emissionAttempted() || this.destinationLoadingId === customer.id) return;
     this.destinationLoadingId = customer.id; this.destinationBusy.set(true); this.destinationError.set('');
     this.api.carregarDestinatarioFiscal(customer.id).subscribe({
       next: data => {
         if (this.cliente()?.id !== customer.id || this.destinationLoadingId !== customer.id) return;
-        this.destination = { ...data }; this.destinationId = customer.id;
+        const previous = this.destinationId === customer.id ? this.destination : null;
+        const merged = { ...data };
+        // Mantem apenas ajustes manuais de endereco; a condicao fiscal vem do cadastro atual.
+        const addressFields = ['logradouro', 'numero', 'complemento', 'bairro', 'municipio', 'codigoMunicipio', 'uf', 'cep'] as const;
+        if (!force && previous) for (const field of addressFields) {
+          if (!this.destinationBaseline || previous[field] !== this.destinationBaseline[field]) Object.assign(merged, { [field]: previous[field] });
+        }
+        this.destination = merged; this.destinationBaseline = { ...data }; this.destinationId = customer.id;
         this.destinationLoadingId = null; this.destinationBusy.set(false);
       },
       error: () => {
@@ -142,7 +159,7 @@ export class SalesComponent {
     const nota = this.emittedNote(); if (!nota || !['Autorizada', 'Cancelada'].includes(nota.situacao)) return;
     this.api.baixarNotaFiscal(this.session.empresaId, nota.id, 'xml').subscribe({ next: blob => {
       const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `nfe-${nota.chaveAcesso}.xml`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
-    }, error: () => this.fiscalMessage.set('Não foi possível baixar o XML autorizado.') });
+    }, error: () => this.notify('Não foi possível baixar o XML autorizado.', 'error', true) });
   }
   protected closeReview(): void {
     if (!this.emissionBusy()) this.reviewDialog()?.nativeElement.close();
@@ -221,7 +238,7 @@ export class SalesComponent {
       error: () => { this.loading.set(false); this.loadError.set('Não foi possível carregar clientes e produtos. Verifique se o backend está disponível e tente novamente.'); },
     });
   }
-  protected selectCustomer(c: ClienteResumoResponse): void { this.csosn = ''; this.cliente.set(c); this.customerSearch.set(''); this.editingCustomer = false; this.destination = null; this.destinationId = null; this.destinationLoadingId = null; this.destinationBusy.set(false); this.destinationError.set(''); }
+  protected selectCustomer(c: ClienteResumoResponse): void { this.csosn = ''; this.cliente.set(c); this.customerSearch.set(''); this.editingCustomer = false; this.destination = null; this.destinationId = null; this.destinationBaseline = null; this.destinationLoadingId = null; this.destinationBusy.set(false); this.destinationError.set(''); }
   protected focusProductSearch(): void { this.productSearchInput()?.nativeElement.focus(); }
 
   @HostListener('document:keydown', ['$event'])
@@ -278,11 +295,11 @@ export class SalesComponent {
   protected currency(value: number): string { return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
   private round(value: number): number { return Math.round((value + Number.EPSILON) * 100) / 100; }
   private draft(): SaleDraft {
-    return { cliente: this.cliente(), itens: this.itens(), pagamentos: this.pagamentos(), tipo: this.tipo, vendedor: this.vendedor, emitir: this.emitir, modelo: this.modelo, finalidade: this.finalidade, natureza: this.natureza, cfop: this.cfop, serie: this.serie, desconto: this.desconto, frete: this.frete, despesas: this.despesas, observacoes: this.observacoes, csosn: this.csosn, destinatario: this.destination ?? undefined, destinatarioClienteId: this.destinationId ?? undefined, vehicleName: this.vehicleName, vehiclePlate: this.vehiclePlate, modalidadeFrete: this.modalidadeFrete, indicadorPresenca: this.indicadorPresenca, emissionRequestId: this.emissionRequestId, emissionPayload: this.emissionPayload, emittedNote: this.emittedNote(), emissionAttempted: this.emissionAttempted() };
+    return { cliente: this.cliente(), itens: this.itens(), pagamentos: this.pagamentos(), tipo: this.tipo, vendedor: this.vendedor, emitir: this.emitir, modelo: this.modelo, finalidade: this.finalidade, natureza: this.natureza, cfop: this.cfop, serie: this.serie, desconto: this.desconto, frete: this.frete, despesas: this.despesas, observacoes: this.observacoes, csosn: this.csosn, destinatario: this.destination ?? undefined, destinatarioClienteId: this.destinationId ?? undefined, destinatarioCadastro: this.destinationBaseline ?? undefined, vehicleName: this.vehicleName, vehiclePlate: this.vehiclePlate, modalidadeFrete: this.modalidadeFrete, indicadorPresenca: this.indicadorPresenca, vendaOrigemId: this.vendaOrigemId, emissionRequestId: this.emissionRequestId, emissionPayload: this.emissionPayload, emittedNote: this.emittedNote(), emissionAttempted: this.emissionAttempted() };
   }
-  protected saveDraft(): boolean {
-    try { localStorage.setItem(this.draftKey, JSON.stringify(this.draft())); this.message.set('Rascunho salvo neste navegador. Você pode continuar depois.'); return true; }
-    catch { this.message.set('Não foi possível salvar o rascunho. Verifique o armazenamento do navegador.'); return false; }
+  protected saveDraft(showAlert = false): boolean {
+    try { localStorage.setItem(this.draftKey, JSON.stringify(this.draft())); this.message.set('Rascunho salvo neste navegador. Você pode continuar depois.'); if (showAlert) this.alerts.notify(this.message(), 'success'); return true; }
+    catch { this.notify('Não foi possível salvar o rascunho. Verifique o armazenamento do navegador.', 'error'); return false; }
   }
   private restore(): void {
     try {
@@ -296,30 +313,42 @@ export class SalesComponent {
       this.cfop = draft.cfop; this.serie = draft.serie; this.desconto = draft.desconto;
       this.frete = draft.frete; this.despesas = draft.despesas; this.observacoes = draft.observacoes;
       this.modalidadeFrete = draft.modalidadeFrete ?? 9; this.indicadorPresenca = draft.indicadorPresenca ?? 1;
+      this.vendaOrigemId = draft.vendaOrigemId;
       this.emissionRequestId = draft.emissionRequestId ?? crypto.randomUUID(); this.emissionPayload = draft.emissionPayload ?? null; this.emittedNote.set(draft.emittedNote ?? null); this.emissionAttempted.set(draft.emissionAttempted ?? false);
       this.destination = this.emissionPayload?.destinatario ?? (draft.destinatarioClienteId === draft.cliente?.id ? draft.destinatario ?? null : null);
       this.destinationId = this.destination ? draft.cliente?.id ?? null : null;
+      this.destinationBaseline = this.destination ? draft.destinatarioCadastro ?? null : null;
       this.vehicleName = draft.vehicleName ?? ''; this.vehiclePlate = draft.vehiclePlate ?? '';
       this.message.set('Seu último rascunho foi recuperado.');
     } catch { this.message.set('Não foi possível recuperar o rascunho salvo.'); }
   }
-  protected clear(): void {
-    if (this.emissionBusy() || this.emissionAttempted() && (!this.emittedNote() || this.emittedNote()?.situacao === 'Processando')) { this.message.set('Consulte a tentativa fiscal pendente antes de iniciar outra venda.'); return; }
-    if ((this.itens().length || this.cliente()) && !window.confirm('Limpar a venda e excluir o rascunho salvo?')) return;
+  protected async clear(): Promise<void> {
+    if (this.clearing) return;
+    if (this.emissionBusy() || this.emissionAttempted() && !this.emittedNote()) { this.notify('Recupere a tentativa para confirmar seu registro antes de iniciar outra venda.'); return; }
+    this.clearing = true;
+    const registered = this.emittedNote();
+    try {
+      if ((this.itens().length || this.cliente()) && !await this.alerts.confirm(registered
+        ? `A NF-e ${registered.numero} continuará no menu NF-e para consulta e validação. Iniciar uma nova venda mantém o registro e a baixa do estoque.`
+        : 'Limpar a venda e excluir o rascunho salvo?', registered ? 'Iniciar nova venda?' : 'Limpar venda?')) return;
+    } finally { this.clearing = false; }
+    if (this.emissionBusy()) return;
+    try { localStorage.removeItem(this.draftKey); } catch { this.notify('Não foi possível excluir o rascunho. A venda foi preservada; verifique o armazenamento do navegador.', 'error'); return; }
+    this.closeReview(); this.vendaOrigemId = undefined; this.showOptions = false; this.reviewStep.set(0);
     this.emissionAttempted.set(false); this.emissionPayload = null; this.emittedNote.set(null); this.emissionRequestId = crypto.randomUUID(); this.fiscalMessage.set('');
     this.cliente.set(null); this.itens.set([]); this.pagamentos.set([{ id: 1, forma: 'Pix', valor: 0 }]);
-    this.csosn = ''; this.destination = null; this.destinationId = null; this.destinationLoadingId = null; this.destinationBusy.set(false); this.destinationError.set('');
+    this.csosn = ''; this.destination = null; this.destinationId = null; this.destinationBaseline = null; this.destinationLoadingId = null; this.destinationBusy.set(false); this.destinationError.set('');
     this.desconto = 0; this.frete = 0; this.despesas = 0; this.observacoes = ''; this.vendedor = '';
     this.vehicleName = ''; this.vehiclePlate = ''; this.editingVehicle = false; this.editingCustomer = false;
     this.customerSearch.set(''); this.productSearch.set(''); this.message.set('');
-    try { localStorage.removeItem(this.draftKey); } catch { this.message.set('A venda foi limpa, mas não foi possível excluir o rascunho salvo.'); }
+    this.notify(registered ? `Nova venda liberada. A NF-e ${registered.numero} está disponível no menu NF-e.` : 'Venda limpa. Você já pode iniciar outra venda.', 'success');
   }
   protected finish(): void {
-    if (!this.cliente()) { this.message.set('Selecione um cliente para continuar.'); return; }
-    if (!this.itens().length) { this.message.set('Adicione pelo menos um produto à venda.'); return; }
-    if (this.desconto < 0 || this.frete < 0 || this.despesas < 0 || this.desconto > this.subtotal() - this.itemDiscount()) { this.message.set('Revise os descontos, frete e despesas da venda.'); return; }
-    if (this.balance() !== 0) { this.message.set('O valor dos pagamentos deve ser igual ao total da venda.'); return; }
-    if (this.emitir && (!/^\d{4}$/.test(this.cfop) || !/^\d{1,3}$/.test(this.serie) || !this.natureza.trim())) { this.message.set('Preencha a natureza da operação, um CFOP de 4 dígitos e uma série válida.'); return; }
+    if (!this.cliente()) { this.notify('Selecione um cliente para continuar.', 'info', false); return; }
+    if (!this.itens().length) { this.notify('Adicione pelo menos um produto à venda.', 'info', false); return; }
+    if (this.desconto < 0 || this.frete < 0 || this.despesas < 0 || this.desconto > this.subtotal() - this.itemDiscount()) { this.notify('Revise os descontos, frete e despesas da venda.', 'info', false); return; }
+    if (this.balance() !== 0) { this.notify('O valor dos pagamentos deve ser igual ao total da venda.', 'info', false); return; }
+    if (this.emitir && (!/^\d{4}$/.test(this.cfop) || !/^\d{1,3}$/.test(this.serie) || !this.natureza.trim())) { this.notify('Preencha a natureza da operação, um CFOP de 4 dígitos e uma série válida.', 'info', false); return; }
     if (this.saveDraft()) {
       this.message.set('');
       this.fiscalMessage.set('');

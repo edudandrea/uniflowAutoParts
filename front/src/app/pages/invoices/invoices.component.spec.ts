@@ -1,3 +1,4 @@
+import { AlertService } from '../../core/alert.service';
 import { SessionService } from '../../core/session.service';
 import { sessionStub } from '../../../testing/session.fixture';
 import { provideHttpClient } from '@angular/common/http';
@@ -33,7 +34,7 @@ describe('InvoicesComponent', () => {
     certificates.load.mockReturnValue(certificate);
     TestBed.overrideComponent(AppIconComponent, { set: { template: '', imports: [] } });
     await TestBed.configureTestingModule({
-      imports: [InvoicesComponent], providers: [{ provide: SessionService, useFactory: sessionStub }, provideHttpClient(), provideHttpClientTesting(), { provide: FiscalCertificateService, useValue: certificates }],
+      imports: [InvoicesComponent], providers: [{ provide: SessionService, useFactory: sessionStub }, provideHttpClient(), provideHttpClientTesting(), { provide: AlertService, useValue: { notify: vi.fn(), confirm: vi.fn().mockResolvedValue(true) } }, { provide: FiscalCertificateService, useValue: certificates }],
     }).compileComponents();
     HTMLDialogElement.prototype.showModal = function () { this.open = true; };
     HTMLDialogElement.prototype.close = function () { this.open = false; };
@@ -210,5 +211,6 @@ describe('InvoicesComponent', () => {
     listRequest().flush(response([{ ...nota, situacao: 'Cancelada', podeCancelar: false, podeCorrigir: false }])); fixture.detectChanges();
     expect(element.querySelector('tbody')?.textContent).toContain('Cancelada');
     expect(element.querySelector('.notice')?.textContent).toContain('Cancelamento homologado');
+    expect(TestBed.inject(AlertService).notify).toHaveBeenCalledWith(expect.stringContaining('Cancelamento homologado'), 'success');
   });
 });

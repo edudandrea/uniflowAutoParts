@@ -23,12 +23,22 @@ public sealed class EmissaoNfeController(AppDbContext db, TenantContext tenant, 
         if (tenant.EmpresaId <= 0) return Unauthorized();
         await using var gate = await FiscalLock.AdquirirAsync(db, tenant.EmpresaId, token);
         if (gate is null) return Conflict("Existe uma emissao em andamento para esta empresa.");
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { request.ClienteId, request.Ambiente, request.Serie, request.Natureza, request.Cfop, request.Modelo, request.Desconto, request.Frete, request.Despesas, request.Observacoes, request.Itens, request.Pagamentos, request.Destinatario, request.ModalidadeFrete, request.IndicadorPresenca }) + (request.Csosn is null ? "" : "|CSOSN:" + request.Csosn))));
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { request.ClienteId, request.Ambiente, request.Serie, request.Natureza, request.Cfop, request.Modelo, request.Desconto, request.Frete, request.Despesas, request.Observacoes, request.Itens, request.Pagamentos, request.Destinatario, request.ModalidadeFrete, request.IndicadorPresenca }) + (request.Csosn is null ? "" : "|CSOSN:" + request.Csosn) + (request.VendaOrigemId is null ? "" : "|VENDA:" + request.VendaOrigemId))));
         var existing = await db.NotasFiscais.SingleOrDefaultAsync(n => n.EmpresaId == tenant.EmpresaId && n.SolicitacaoId == request.SolicitacaoId, token);
         if (existing is not null)
             return existing.HashSolicitacao == hash ? Ok(ToResponse(existing)) : Conflict("Esta solicitacao ja esta vinculada a outra nota. Consulte a nota antes de alterar a venda.");
         try
         {
+            long? origemId = null;
+            if (request.VendaOrigemId is { } origem)
+            {
+                var anterior = await db.NotasFiscais.SingleOrDefaultAsync(n => n.Id == origem && n.EmpresaId == tenant.EmpresaId, token);
+                if (anterior is null) return BadRequest("Venda de origem nao encontrada.");
+                origemId = anterior.VendaOrigemId ?? anterior.Id;
+                var revisoes = await db.NotasFiscais.Where(n => n.EmpresaId == tenant.EmpresaId && (n.Id == origemId || n.VendaOrigemId == origemId)).ToListAsync(token);
+                if (revisoes.Any(n => n.Situacao != "Rejeitada" || n.XmlEnvioNfe.Length == 0))
+                    return Conflict("Somente vendas com todas as tentativas rejeitadas podem ter uma nova revisao fiscal. Consulte a nota pendente no menu NF-e.");
+            }
             var empresa = await db.Empresas.SingleAsync(e => e.Id == tenant.EmpresaId, token);
             var config = await db.ConfiguracoesFiscais.SingleOrDefaultAsync(c => c.EmpresaId == tenant.EmpresaId, token) ?? new ConfiguracaoFiscal { EmpresaId = tenant.EmpresaId };
             var tax = await db.ConfiguracoesTributarias.SingleOrDefaultAsync(c => c.EmpresaId == tenant.EmpresaId, token);
@@ -42,11 +52,13 @@ public sealed class EmissaoNfeController(AppDbContext db, TenantContext tenant, 
             var numero = Math.Max(numeracao?.ProximoNumero ?? 1, await EmitenteFiscalController.ProximoLivre(db, tenant.EmpresaId, config.Ambiente, request.Serie, token));
             using var cert = SefazEventosService.CarregarCertificado(request.Base64, request.Password);
             var nota = NfeGerador.Criar(empresa, config, tax, cliente, produtos, request, numero, tenant.UsuarioId, cert);
-            nota.HashSolicitacao = hash;
+            nota.HashSolicitacao = hash; nota.VendaOrigemId = origemId;
             db.NotasFiscais.Add(nota);
             if (numeracao is null) { numeracao = new NumeracaoNfe { EmpresaId = tenant.EmpresaId, Ambiente = config.Ambiente, Serie = request.Serie }; db.NumeracoesNfe.Add(numeracao); }
             numeracao.ProximoNumero = checked(numero + 1);
-            // Reserva numero, chave, XML assinado e itens antes de qualquer chamada externa.
+            // Uma gravação usa a transação implícita do EF, compatível com EnableRetryOnFailure.
+            // Confirma nota, itens, numeração e baixa da venda juntos antes de qualquer chamada externa.
+            await new NfeEstoqueSaidaService(db).SincronizarAsync(nota, token);
             await db.SaveChangesAsync(token);
             await using var noteGate = await FiscalLock.AdquirirAsync(db, -nota.Id, CancellationToken.None);
             if (noteGate is null) return Ok(ToResponse(nota));
@@ -86,10 +98,15 @@ public sealed class EmissaoNfeController(AppDbContext db, TenantContext tenant, 
     [HttpPost("{id:long}/autorizacao/reenviar")]
     public async Task<IActionResult> Reenviar(long id, CertificadoRequest request, CancellationToken token)
     {
+        await using var companyGate = await FiscalLock.AdquirirAsync(db, tenant.EmpresaId, token);
+        if (companyGate is null) return Conflict("Existe uma emissao em andamento para esta empresa.");
         await using var gate = await FiscalLock.AdquirirAsync(db, -id, token);
         if (gate is null) return Conflict("Existe uma operacao em andamento nesta nota.");
         var nota = await db.NotasFiscais.SingleOrDefaultAsync(n => n.Id == id && n.EmpresaId == tenant.EmpresaId, token);
         if (nota is null) return NotFound();
+        var origemId = nota.VendaOrigemId ?? nota.Id;
+        if (await db.NotasFiscais.AnyAsync(n => n.EmpresaId == tenant.EmpresaId && n.VendaOrigemId == origemId && n.Id > id, token))
+            return Conflict("Esta tentativa foi substituida por uma revisao fiscal. Consulte a nota mais recente da venda.");
         if (!PodeReenviar(nota.Tipo, nota.Situacao, nota.CodigoAutorizacao, nota.XmlEnvioNfe.Length > 0, nota.Recibo.Length > 0))
             return Conflict("Consulte a SEFAZ antes de reenviar. O reenvio exige XML salvo e nota rejeitada ou nao localizada, sem recibo pendente.");
         try

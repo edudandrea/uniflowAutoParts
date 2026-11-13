@@ -25,6 +25,15 @@ describe('Customer details and edition', () => {
   });
   afterEach(() => { try { http.verify(); } finally { TestBed.resetTestingModule(); } });
 
+  it('navigates the data cards and opens address editing from the detail modal', () => {
+    openDetail();
+    const addressSection = element.querySelector<HTMLElement>('#customer-addresses')!; addressSection.scrollIntoView = vi.fn();
+    element.querySelectorAll<HTMLButtonElement>('.detail-tabs button')[1].click(); fixture.detectChanges();
+    expect(addressSection.scrollIntoView).toHaveBeenCalled(); expect(element.querySelectorAll('.detail-tabs [aria-current="location"]')).toHaveLength(1);
+    click('.detail-add-address');
+    expect(element.querySelector('.customer-modal-large[open]')).not.toBeNull(); expect(element.querySelector('.address-picker')).not.toBeNull();
+  });
+
   it('opens real customer data in a modal instead of inline details', () => {
     openDetail(); expect(element.querySelector('.customer-detail-modal[open]')).not.toBeNull();
     expect(element.querySelector('.customer-detail-body')!.textContent).toContain('0290123456');

@@ -29,6 +29,7 @@ public sealed class EmitenteFiscalController(AppDbContext db, TenantContext tena
     }
 
     [HttpGet("~/api/fiscal/destinatario/{id:long}")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<IActionResult> Destinatario(long id, CancellationToken token)
     {
         var cliente = await db.Clientes.AsNoTracking().Include(c => c.CadastroEndereco).Include(c => c.Enderecos)

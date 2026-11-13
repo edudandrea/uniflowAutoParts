@@ -151,6 +151,7 @@ public class ClientesController(AppDbContext db) : ControllerBase
     }
 
     [HttpGet("{id:long}")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<ActionResult<ClienteDetalheResponse>> Obter(long id, [FromQuery] long empresaId)
     {
         var cliente = await db.Clientes.AsNoTracking().Include(c => c.CadastroEndereco).Include(c => c.Enderecos)
@@ -170,7 +171,7 @@ public class ClientesController(AppDbContext db) : ControllerBase
             cliente.Observacao, cliente.Ativo, cliente.CadastroEnderecoId, endereco,
             cliente.Contatos.OrderByDescending(c => c.Principal).ThenBy(c => c.Id).Select(c => new CriarClienteContatoRequest(c.Nome, c.Cargo, c.Email, c.Telefone, c.Celular, c.Principal)).ToArray(),
             commercial is null ? null : new(commercial.CondicaoPagamento, commercial.LimiteCredito, commercial.TabelaPreco, commercial.VendedorPadrao, commercial.Origem, commercial.BloquearVenda, commercial.PermiteFiado));
-        return Ok(new ClienteDetalheResponse(cliente.Id, dados, cliente.CriadoEm));
+        return Ok(new ClienteDetalheResponse(cliente.Id, dados, cliente.CriadoEm, cliente.AtualizadoEm));
     }
 
     [HttpPut("{id:long}")]

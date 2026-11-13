@@ -1140,6 +1140,9 @@ namespace UniflowAutoParts.Api.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<long?>("VendaOrigemId")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Xml")
                         .IsRequired()
                         .HasColumnType("text");
@@ -1154,11 +1157,15 @@ namespace UniflowAutoParts.Api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("VendaOrigemId");
+
                     b.HasIndex("EmpresaId", "Emissao");
 
                     b.HasIndex("EmpresaId", "SolicitacaoId")
                         .IsUnique()
                         .HasFilter("\"SolicitacaoId\" IS NOT NULL");
+
+                    b.HasIndex("EmpresaId", "VendaOrigemId");
 
                     b.HasIndex("EmpresaId", "ChaveAcesso", "Ambiente")
                         .IsUnique();
@@ -1516,6 +1523,11 @@ namespace UniflowAutoParts.Api.Migrations
                         .HasForeignKey("EmpresaId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("back.Models.NotaFiscal", null)
+                        .WithMany()
+                        .HasForeignKey("VendaOrigemId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("back.Models.NotaFiscalEvento", b =>

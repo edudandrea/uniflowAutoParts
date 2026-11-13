@@ -111,7 +111,7 @@ export interface CriarClientePayload {
   };
 }
 
-export interface ClienteDetalheResponse { id: number; dados: Omit<CriarClientePayload, "dadosComerciais"> & { dadosComerciais: CriarClientePayload["dadosComerciais"] | null }; criadoEm: string }
+export interface ClienteDetalheResponse { id: number; dados: Omit<CriarClientePayload, "dadosComerciais"> & { dadosComerciais: CriarClientePayload["dadosComerciais"] | null }; criadoEm: string; atualizadoEm?: string | null }
 
 export interface ClienteResumoResponse {
   id: number;
@@ -376,6 +376,7 @@ export interface EmitenteFiscalData {
 export interface EmitenteFiscalResponse { cnpj: string; dados: EmitenteFiscalData }
 export interface DestinatarioFiscalData { inscricaoEstadual: string; indicadorIe: number; consumidorFinal: boolean; logradouro: string; numero: string; complemento: string | null; bairro: string; municipio: string; codigoMunicipio: string; uf: string; cep: string }
 export interface EmitirNfePayload {
+  vendaOrigemId?: number;
   csosn?: string;
   modalidadeFrete?: number; indicadorPresenca?: number;
   destinatario?: DestinatarioFiscalData;

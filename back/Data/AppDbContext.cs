@@ -100,6 +100,8 @@ namespace back.Data
             {
                 entity.HasIndex(e => new { e.EmpresaId, e.ChaveAcesso, e.Ambiente }).IsUnique();
                 entity.HasIndex(e => new { e.EmpresaId, e.Emissao });
+                entity.HasOne<NotaFiscal>().WithMany().HasForeignKey(e => e.VendaOrigemId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(e => new { e.EmpresaId, e.VendaOrigemId });
                 entity.Property(e => e.Valor).HasPrecision(18, 2);
                 entity.HasIndex(e => new { e.EmpresaId, e.SolicitacaoId }).IsUnique().HasFilter("\"SolicitacaoId\" IS NOT NULL");
                 entity.HasIndex(e => new { e.EmpresaId, e.Ambiente, e.Tipo, e.Serie, e.Numero }).IsUnique();

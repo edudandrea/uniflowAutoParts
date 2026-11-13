@@ -67,7 +67,7 @@ export class ApiService {
     );
   }
 
-  carregarDestinatarioFiscal(id: number) { return this.http.get<DestinatarioFiscalData>(`${this.apiUrl}/fiscal/destinatario/${id}`); }
+  carregarDestinatarioFiscal(id: number) { return this.http.get<DestinatarioFiscalData>(`${this.apiUrl}/fiscal/destinatario/${id}`, { headers: { 'Cache-Control': 'no-cache' } }); }
   carregarEmitenteFiscal() { return this.http.get<EmitenteFiscalResponse>(`${this.apiUrl}/fiscal/emitente`); }
   salvarEmitenteFiscal(dados: EmitenteFiscalData) { return this.http.put<EmitenteFiscalResponse>(`${this.apiUrl}/fiscal/emitente`, dados); }
   emitirNfe(payload: EmitirNfePayload, cert: FiscalCertificate) {

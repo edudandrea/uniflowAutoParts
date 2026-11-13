@@ -1,3 +1,4 @@
+import { AlertService } from '../../core/alert.service';
 import { SessionService } from '../../core/session.service';
 import { DatePipe } from '@angular/common';
 import { Component, computed, DestroyRef, ElementRef, inject, OnInit, signal, viewChild } from '@angular/core';
@@ -22,6 +23,8 @@ const emptyFilters = (): NotaFiscalFiltros => ({
   styleUrl: './invoices.component.scss',
 })
 export class InvoicesComponent implements OnInit {
+  private readonly alerts = inject(AlertService);
+  private notify(text: string, icon: 'info' | 'success' | 'error' = 'info'): void { this.alerts.notify(text, icon); }
   private readonly api = inject(ApiService);
   private readonly session = inject(SessionService);
   private readonly certificates = inject(FiscalCertificateService);
@@ -89,7 +92,7 @@ export class InvoicesComponent implements OnInit {
       || (this.filters.valorMinimo !== null && this.filters.valorMinimo < 0)
       || (this.filters.valorMaximo !== null && this.filters.valorMaximo < 0)
       || (this.filters.valorMinimo !== null && this.filters.valorMaximo !== null && this.filters.valorMinimo > this.filters.valorMaximo)) {
-      this.message.set('Revise o periodo e o intervalo de valores dos filtros.');
+      this.message.set('Revise o periodo e o intervalo de valores dos filtros.'); this.notify('Revise o periodo e o intervalo de valores dos filtros.', 'info');
       return;
     }
     this.message.set('');
@@ -125,17 +128,17 @@ export class InvoicesComponent implements OnInit {
   protected submitEvent(): void {
     const event = this.event();
     if (!event || this.busy()) return;
-    if (event.acao === 'cancelar' && !this.noCirculation) { this.eventError.set('Confirme que a mercadoria não circulou e a operação não foi realizada.'); return; }
+    if (event.acao === 'cancelar' && !this.noCirculation) { this.eventError.set('Confirme que a mercadoria não circulou e a operação não foi realizada.'); this.notify('Confirme que a mercadoria não circulou e a operação não foi realizada.', 'error'); return; }
     const texto = this.eventText.trim();
     const max = event.acao === 'cancelar' ? 255 : 1000;
     if (texto.length < 15 || texto.length > max) {
-      this.eventError.set(`Informe um texto entre 15 e ${max} caracteres.`);
+      this.eventError.set(`Informe um texto entre 15 e ${max} caracteres.`); this.notify(`Informe um texto entre 15 e ${max} caracteres.`, 'error');
       return;
     }
     try {
       const certificate = this.certificates.load();
       if (!certificate) {
-        this.eventError.set('Cadastre o certificado A1 em Configuracoes > Certificado e Tributacoes.');
+        this.eventError.set('Cadastre o certificado A1 em Configuracoes > Certificado e Tributacoes.'); this.notify('Cadastre o certificado A1 em Configuracoes > Certificado e Tributacoes.', 'error');
         return;
       }
       this.busy.set(true);
@@ -145,17 +148,17 @@ export class InvoicesComponent implements OnInit {
           next: (result) => {
             this.busy.set(false);
             this.closeEvent();
-            this.message.set(`${result.motivo} Protocolo: ${result.protocolo}.`);
+            this.message.set(`${result.motivo} Protocolo: ${result.protocolo}.`); this.notify(`${result.motivo} Protocolo: ${result.protocolo}.`, 'success');
             this.loadPage(this.page());
           },
           error: (error: HttpErrorResponse) => {
             this.busy.set(false);
-            this.eventError.set(this.errorMessage(error, 'Nao foi possivel confirmar o evento na SEFAZ.'));
+            this.eventError.set(this.errorMessage(error, 'Nao foi possivel confirmar o evento na SEFAZ.')); this.notify(this.errorMessage(error, 'Nao foi possivel confirmar o evento na SEFAZ.'), 'error');
             this.loadPage(this.page());
           },
         });
     } catch {
-      this.eventError.set('Certificado salvo invalido. Cadastre novamente nas configuracoes.');
+      this.eventError.set('Certificado salvo invalido. Cadastre novamente nas configuracoes.'); this.notify('Certificado salvo invalido. Cadastre novamente nas configuracoes.', 'error');
     }
   }
 
@@ -180,34 +183,35 @@ export class InvoicesComponent implements OnInit {
       },
       error: () => {
         this.downloading.set(null);
-        this.message.set(`Nao foi possivel baixar o ${formato.toUpperCase()}. Tente novamente.`);
+        this.message.set(`Nao foi possivel baixar o ${formato.toUpperCase()}. Tente novamente.`); this.notify(`Nao foi possivel baixar o ${formato.toUpperCase()}. Tente novamente.`, 'info');
       },
     });
   }
 
   protected async copyKey(nota: NotaFiscal): Promise<void> {
-    try { await navigator.clipboard.writeText(nota.chaveAcesso); this.message.set('Chave de acesso copiada.'); }
-    catch { this.message.set('Nao foi possivel copiar. Selecione e copie a chave de acesso na tabela.'); }
+    try { await navigator.clipboard.writeText(nota.chaveAcesso); this.message.set('Chave de acesso copiada.'); this.notify('Chave de acesso copiada.', 'info'); }
+    catch { this.message.set('Nao foi possivel copiar. Selecione e copie a chave de acesso na tabela.'); this.notify('Nao foi possivel copiar. Selecione e copie a chave de acesso na tabela.', 'info'); }
   }
 
   protected consult(nota: NotaFiscal): void {
     if (this.consulting() || this.resending()) return;
     try {
       const certificate = this.certificates.load();
-      if (!certificate) { this.message.set('Cadastre o certificado A1 nas configuracoes para consultar a SEFAZ.'); return; }
+      if (!certificate) { this.message.set('Cadastre o certificado A1 nas configuracoes para consultar a SEFAZ.'); this.notify('Cadastre o certificado A1 nas configuracoes para consultar a SEFAZ.', 'info'); return; }
       this.consulting.set(nota.id);
       this.api.consultarNotaFiscal(this.tenantId, nota.id, certificate).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: (result) => {
           this.consulting.set(null);
           this.message.set(`SEFAZ ${result.codigo}: ${result.motivo}.${result.pendente ? ' Existe evento ainda sem confirmacao; novos envios permanecem bloqueados.' : ''}`);
+          this.notify(this.message(), result.situacao === 'Autorizada' || result.situacao === 'Cancelada' ? 'success' : result.situacao === 'Rejeitada' ? 'error' : 'info');
           this.loadPage(this.page());
         },
         error: (error: HttpErrorResponse) => {
           this.consulting.set(null);
-          this.message.set(this.errorMessage(error, 'Nao foi possivel consultar a SEFAZ.'));
+          this.message.set(this.errorMessage(error, 'Nao foi possivel consultar a SEFAZ.')); this.notify(this.errorMessage(error, 'Nao foi possivel consultar a SEFAZ.'), 'error');
         },
       });
-    } catch { this.message.set('Certificado salvo invalido. Cadastre novamente nas configuracoes.'); }
+    } catch { this.message.set('Certificado salvo invalido. Cadastre novamente nas configuracoes.'); this.notify('Certificado salvo invalido. Cadastre novamente nas configuracoes.', 'error'); }
   }
 
   protected openResend(nota: NotaFiscal): void {
@@ -225,20 +229,20 @@ export class InvoicesComponent implements OnInit {
     if (!nota?.podeReenviar || this.resending() || this.resendResult()) return;
     try {
       const certificate = this.certificates.load();
-      if (!certificate) { this.resendError.set('Cadastre o certificado A1 nas configurações antes de reenviar.'); return; }
+      if (!certificate) { this.resendError.set('Cadastre o certificado A1 nas configurações antes de reenviar.'); this.notify('Cadastre o certificado A1 nas configurações antes de reenviar.', 'error'); return; }
       this.resending.set(true); this.resendError.set('');
       this.api.consultarAutorizacao(nota.id, certificate, true).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: result => {
           this.resending.set(false); this.resendResult.set(result);
-          this.message.set('NF-e ' + result.numero + ' · SEFAZ ' + (result.codigo || 'sem confirmação') + ': ' + result.motivo);
+          this.message.set('NF-e ' + result.numero + ' · SEFAZ ' + (result.codigo || 'sem confirmação') + ': ' + result.motivo); this.notify('NF-e ' + result.numero + ' · SEFAZ ' + (result.codigo || 'sem confirmação') + ': ' + result.motivo, result.situacao === 'Autorizada' || result.situacao === 'Cancelada' ? 'success' : result.situacao === 'Rejeitada' ? 'error' : 'info');
           this.loadPage(this.page());
         },
         error: (error: HttpErrorResponse) => {
-          this.resending.set(false); this.resendError.set(this.errorMessage(error, 'Não foi possível confirmar o reenvio. Consulte a mesma nota antes de tentar novamente.'));
+          this.resending.set(false); this.resendError.set(this.errorMessage(error, 'Não foi possível confirmar o reenvio. Consulte a mesma nota antes de tentar novamente.')); this.notify(this.errorMessage(error, 'Não foi possível confirmar o reenvio. Consulte a mesma nota antes de tentar novamente.'), 'error');
           this.loadPage(this.page());
         },
       });
-    } catch { this.resending.set(false); this.resendError.set('Certificado salvo inválido. Cadastre novamente nas configurações.'); }
+    } catch { this.resending.set(false); this.resendError.set('Certificado salvo inválido. Cadastre novamente nas configurações.'); this.notify('Certificado salvo inválido. Cadastre novamente nas configurações.', 'error'); }
   }
 
   protected exportPage(): void {
@@ -275,9 +279,9 @@ export class InvoicesComponent implements OnInit {
 
   protected importInvoice(): void {
     if (this.importing()) return;
-    if (!this.xmlFile) { this.importError.set('Selecione o XML autorizado da nota de saida.'); return; }
+    if (!this.xmlFile) { this.importError.set('Selecione o XML autorizado da nota de saida.'); this.notify('Selecione o XML autorizado da nota de saida.', 'error'); return; }
     if (this.xmlFile.size > 5_000_000 || (this.pdfFile?.size ?? 0) > 5_000_000) {
-      this.importError.set('Cada arquivo deve ter ate 5 MB.'); return;
+      this.importError.set('Cada arquivo deve ter ate 5 MB.'); this.notify('Cada arquivo deve ter ate 5 MB.', 'error'); return;
     }
     this.importing.set(true);
     this.importError.set('');
@@ -290,7 +294,7 @@ export class InvoicesComponent implements OnInit {
       },
       error: (error: HttpErrorResponse) => {
         this.importing.set(false);
-        this.importError.set(this.errorMessage(error, 'Nao foi possivel importar a nota fiscal.'));
+        this.importError.set(this.errorMessage(error, 'Nao foi possivel importar a nota fiscal.')); this.notify(this.errorMessage(error, 'Nao foi possivel importar a nota fiscal.'), 'error');
       },
     });
   }

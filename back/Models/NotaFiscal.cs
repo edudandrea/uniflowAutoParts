@@ -18,6 +18,7 @@ public class NotaFiscal
     public int Ambiente { get; set; }
     public string Xml { get; set; } = "";
     public byte[]? Pdf { get; set; }
+    public long? VendaOrigemId { get; set; }
     public Guid? SolicitacaoId { get; set; }
     public string HashSolicitacao { get; set; } = "";
     public string XmlEnvioNfe { get; set; } = "";

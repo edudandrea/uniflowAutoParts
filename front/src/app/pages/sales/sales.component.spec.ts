@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { FiscalCertificateService } from '../../core/fiscal-certificate.service';
+import { AlertService } from '../../core/alert.service';
 import { SessionService } from '../../core/session.service';
 import { sessionStub } from '../../../testing/session.fixture';
 import { environment } from '../../../environments/environment';
@@ -28,7 +29,7 @@ import { SalesComponent } from './sales.component';
     localStorage.clear();
     await TestBed.configureTestingModule({
       imports: [SalesComponent],
-      providers: [...appConfig.providers, provideHttpClient(), provideHttpClientTesting(), provideRouter([]), { provide: SessionService, useFactory: sessionStub }],
+      providers: [...appConfig.providers, provideHttpClient(), provideHttpClientTesting(), { provide: AlertService, useValue: { notify: vi.fn(), confirm: vi.fn().mockResolvedValue(true) } }, provideRouter([]), { provide: SessionService, useFactory: sessionStub }],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
     fixture = TestBed.createComponent(SalesComponent);
@@ -111,6 +112,47 @@ import { SalesComponent } from './sales.component';
     expect(element.querySelectorAll('.review-navigation [aria-current="location"]').length).toBe(1);
   });
 
+  it('refreshes the registry IE and tax status every time review opens while preserving only manual address changes', async () => {
+    await prepareEmission(); await input('[aria-label="Número do destinatário"]', '28');
+    element.querySelector<HTMLButtonElement>('.finish-button')!.click(); fixture.detectChanges();
+    http.expectOne(`${environment.apiUrl}/fiscal/destinatario/7`).flush({ ...destination, indicadorIe: 9, consumidorFinal: true });
+    fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    expect(element.querySelector<HTMLSelectElement>('[aria-label="Indicador de IE do destinatário"]')!.selectedOptions[0].textContent).toContain('Não contribuinte');
+    element.querySelector<HTMLButtonElement>('.finish-button')!.click(); fixture.detectChanges();
+    const refresh = http.expectOne(`${environment.apiUrl}/fiscal/destinatario/7`);
+    expect(refresh.request.headers.get('Cache-Control')).toBe('no-cache');
+    refresh.flush({ ...destination, inscricaoEstadual: '290782465', consumidorFinal: true, logradouro: 'Rua atualizada no cadastro' });
+    fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    expect(element.querySelector<HTMLSelectElement>('[aria-label="Indicador de IE do destinatário"]')!.selectedOptions[0].textContent).toContain('Contribuinte do ICMS');
+    expect(element.querySelector<HTMLInputElement>('[aria-label="Número do destinatário"]')!.value).toBe('28');
+    expect(element.querySelector<HTMLInputElement>('[aria-label="Logradouro do destinatário"]')!.value).toBe('Rua atualizada no cadastro');
+    element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
+    const req = http.expectOne(`${environment.apiUrl}/notas-fiscais/emitir`);
+    expect(req.request.body.destinatario.indicadorIe).toBe(1); expect(req.request.body.destinatario.inscricaoEstadual).toBe('290782465'); expect(req.request.body.destinatario.consumidorFinal).toBe(true);
+    req.flush(authorized); fixture.detectChanges();
+  });
+
+  it('replaces stale fiscal status from an old saved draft with the current customer registry', async () => {
+    await prepareEmission();
+    [...element.querySelectorAll<HTMLButtonElement>('.actions button')].find(b => b.textContent?.includes('Salvar rascunho'))!.click();
+    const saved = JSON.parse(localStorage.getItem(draftKey)!); saved.destinatario.indicadorIe = 9; saved.destinatario.inscricaoEstadual = '290782465'; delete saved.destinatarioCadastro;
+    localStorage.setItem(draftKey, JSON.stringify(saved));
+    fixture.destroy(); fixture = TestBed.createComponent(SalesComponent); element = fixture.nativeElement; fixture.detectChanges(); catalog([product], 'producao');
+    Object.defineProperty(element.querySelector('dialog')!, 'showModal', { value: vi.fn() });
+    element.querySelector<HTMLButtonElement>('.finish-button')!.click(); fixture.detectChanges();
+    http.expectOne(`${environment.apiUrl}/fiscal/destinatario/7`).flush({ ...destination, inscricaoEstadual: '290782465' });
+    fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    expect(element.querySelector<HTMLSelectElement>('[aria-label="Indicador de IE do destinatário"]')!.selectedOptions[0].textContent).toContain('Contribuinte do ICMS');
+  });
+
+  it('blocks emission after a failed registry refresh instead of transmitting cached fiscal status', async () => {
+    await prepareEmission(); element.querySelector<HTMLButtonElement>('.finish-button')!.click(); fixture.detectChanges();
+    http.expectOne(`${environment.apiUrl}/fiscal/destinatario/7`).flush({}, { status: 500, statusText: 'Unavailable' }); fixture.detectChanges();
+    expect(element.querySelector<HTMLButtonElement>('.invoice-button')!.disabled).toBe(true);
+    element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
+    http.expectNone(`${environment.apiUrl}/notas-fiscais/emitir`);
+  });
+
   it('transmits the reviewed sale and shows authorization only after receiving the protocol', async () => {
     await prepareEmission();
     expect(element.querySelector('.emission-result')).toBeNull();
@@ -123,7 +165,8 @@ import { SalesComponent } from './sales.component';
     req.flush(authorized); fixture.detectChanges();
     expect(element.querySelector('.emission-result')!.textContent).toContain('Autorizada');
     expect(element.querySelector('.emission-result')!.textContent).toContain(authorized.protocolo);
-    expect(element.querySelector<HTMLButtonElement>('.invoice-button')!.disabled).toBe(true);
+    expect(element.querySelector('.invoice-button:not(.new-sale-button)')).toBeNull();
+    expect(element.querySelector<HTMLButtonElement>('.new-sale-button')!.disabled).toBe(false);
   });
 
   it('persists the sale CSOSN and reuses it when recovering an unknown response', async () => {
@@ -166,8 +209,57 @@ import { SalesComponent } from './sales.component';
     expect(element.querySelector('.emission-result')!.textContent).toContain('Rejeitada');
     expect(element.querySelector<HTMLFieldSetElement>('.sale-fields')!.disabled).toBe(true);
     [...element.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent?.trim() === 'Revisar dados para nova tentativa')!.click(); fixture.detectChanges();
+    http.expectOne(`${environment.apiUrl}/fiscal/destinatario/7`).flush(destination); fixture.detectChanges();
     expect(element.querySelector<HTMLFieldSetElement>('.sale-fields')!.disabled).toBe(false);
   });
+  it('starts another sale while the registered invoice remains pending in the NF-e menu', async () => {
+    await prepareEmission();
+    Object.defineProperty(element.querySelector('dialog')!, 'close', { value: vi.fn() });
+    element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
+    http.expectOne(`${environment.apiUrl}/notas-fiscais/emitir`).flush({ ...authorized, situacao: 'Processando', codigo: '', protocolo: '', motivo: 'Aguardando SEFAZ' });
+    fixture.detectChanges();
+    expect(TestBed.inject(AlertService).notify).toHaveBeenCalledWith(expect.stringContaining('Aguardando SEFAZ'), 'info');
+    element.querySelector<HTMLButtonElement>('.new-sale-button')!.click();
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(TestBed.inject(AlertService).confirm).toHaveBeenCalledWith(expect.stringContaining('menu NF-e'), 'Iniciar nova venda?');
+    expect(element.querySelector<HTMLFieldSetElement>('.sale-fields')!.disabled).toBe(false);
+    expect(element.querySelector('.emission-result')).toBeNull();
+    expect(element.querySelectorAll('.items-panel tbody tr')).toHaveLength(0);
+    expect(localStorage.getItem(draftKey)).toBeNull();
+    http.expectNone(req => req.method === 'POST');
+  });
+
+  it('keeps the sale if the SweetAlert confirmation is dismissed', async () => {
+    await addProduct();
+    vi.mocked(TestBed.inject(AlertService).confirm).mockResolvedValueOnce(false);
+    [...element.querySelectorAll<HTMLButtonElement>('.actions button')].find(b => b.textContent?.includes('Limpar venda'))!.click();
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(element.querySelector('.items-panel tbody')!.textContent).toContain(product.descricao);
+  });
+
+  it('does not discard an unknown transmission before recovering the same request', async () => {
+    await prepareEmission(); element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
+    http.expectOne(`${environment.apiUrl}/notas-fiscais/emitir`).flush({}, { status: 502, statusText: 'Unknown response' });
+    [...element.querySelectorAll<HTMLButtonElement>('.actions button')].find(b => b.textContent?.includes('Limpar venda'))!.click();
+    await fixture.whenStable(); fixture.detectChanges();
+    expect(TestBed.inject(AlertService).confirm).not.toHaveBeenCalled();
+    expect(element.querySelector<HTMLFieldSetElement>('.sale-fields')!.disabled).toBe(true);
+    expect(JSON.parse(localStorage.getItem(draftKey)!).emissionAttempted).toBe(true);
+  });
+
+  it('preserves the sale identity when correcting rejected fiscal data', async () => {
+    await prepareEmission(); element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
+    const original=http.expectOne(`${environment.apiUrl}/notas-fiscais/emitir`); const id=original.request.body.solicitacaoId;
+    original.flush({ ...authorized, situacao: 'Rejeitada', codigo: '203', protocolo: '' }); fixture.detectChanges();
+    [...element.querySelectorAll<HTMLButtonElement>('button')].find(b => b.textContent?.trim() === 'Revisar dados para nova tentativa')!.click(); fixture.detectChanges();
+    http.expectOne(`${environment.apiUrl}/fiscal/destinatario/7`).flush(destination); fixture.detectChanges();
+    element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
+    const revision=http.expectOne(`${environment.apiUrl}/notas-fiscais/emitir`);
+    expect(revision.request.body.vendaOrigemId).toBe(authorized.id);
+    expect(revision.request.body.solicitacaoId).not.toBe(id);
+    revision.flush(authorized);
+  });
+
   it('shows the saved production environment instead of a fixed homologation label', async () => {
     fixture.destroy(); fixture = TestBed.createComponent(SalesComponent); element = fixture.nativeElement; fixture.detectChanges();
     http.expectOne(`${environment.apiUrl}/fiscal/ambiente`).flush({ environment: 'producao', emissaoDisponivel: false });

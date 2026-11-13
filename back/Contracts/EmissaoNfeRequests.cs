@@ -5,7 +5,7 @@ public sealed record EmitirNfePagamentoRequest(string Forma, decimal Valor);
 public sealed record EmitirNfeRequest(Guid SolicitacaoId, long ClienteId, int Ambiente, int Serie, string Natureza,
     string Cfop, string Modelo, decimal Desconto, decimal Frete, decimal Despesas, string? Observacoes,
     IReadOnlyList<EmitirNfeItemRequest> Itens, IReadOnlyList<EmitirNfePagamentoRequest> Pagamentos,
-    string Base64, string Password, DestinatarioFiscalRequest? Destinatario = null, int ModalidadeFrete = 9, int IndicadorPresenca = 1, string? Csosn = null);
+    string Base64, string Password, DestinatarioFiscalRequest? Destinatario = null, int ModalidadeFrete = 9, int IndicadorPresenca = 1, string? Csosn = null, long? VendaOrigemId = null);
 public sealed record EmissaoNfeResponse(long Id, string Numero, string Serie, string ChaveAcesso, int Ambiente,
     string Situacao, string Codigo, string Motivo, string Protocolo, bool PodeReenviar);
 public sealed record EmitenteFiscalRequest(string RazaoSocial, string InscricaoEstadual, string Logradouro,

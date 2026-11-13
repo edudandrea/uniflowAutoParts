@@ -15,7 +15,7 @@ O certificado A1 é carregado na aplicação e enviado somente para assinar e au
 3. Confirme **Emitir NF-e em produção** para transmitir uma nota real, ou use homologação para testes.
 4. Aguarde a autorização e o protocolo. O XML autorizado pode ser baixado na revisão ou na lista de notas.
 
-O backend valida o XML contra o pacote oficial de schemas, assina e reserva número, chave e XML no banco antes da transmissão. A autorização só é confirmada com protocolo correspondente à chave, ambiente e digest do XML enviado. O estoque só registra a saída após autorização, uma vez por item.
+O backend valida o XML contra o pacote oficial de schemas, assina e reserva número, chave e XML no banco antes da transmissão. A autorização só é confirmada com protocolo correspondente à chave, ambiente e digest do XML enviado. O estoque registra a saída no registro da venda, antes da transmissão, inclusive com nota pendente; consultas e autorização não repetem a baixa.
 
 Em timeout ou queda de conexão, a nota permanece em processamento. Reabra o rascunho ou consulte a nota na lista. A mesma solicitação recupera a nota existente sem transmitir uma nova. Após consulta com código 217, o sistema permite reenviar o mesmo XML, mantendo chave e número. Duplicidades 204/539 permanecem pendentes de conferência para evitar uma segunda emissão da mesma operação; confira a numeração e a nota preexistente na SEFAZ antes de regularizar.
 
@@ -61,3 +61,15 @@ A linha `SEFAZ: falha` inclui tambem `diagnostico`: tipo e mensagem da excecao e
 O backend Docker instala a raiz publica ICP-Brasil v10 exigida pela cadeia SERPRO SSLv1 do servidor SEFAZ/RS, com verificacao de impressao digital no build. A validacao TLS permanece ativa. Veja [origem, fingerprint e manutencao](../back/certificates/README.md). Para corrigir uma instancia em execucao, reconstrua e publique o backend usando back/Dockerfile; reiniciar o container antigo nao aplica a mudanca. Depois consulte a mesma nota pendente antes de qualquer reenvio. Nao e necessario trocar o A1 da empresa nem alterar a Cloudflare por causa deste erro.
 
 A listagem de notas exibe o ultimo codigo e motivo da autorizacao e o botao Reenviar XML. O dialogo apresenta o retorno completo da SEFAZ, situacao e protocolo. O reenvio utiliza somente o XML assinado salvo, com a mesma chave, nota e numeracao. Notas rejeitadas e nao localizadas (217) podem iniciar o fluxo quando possuem XML salvo e nao possuem recibo ou evento pendente. O backend consulta novamente a autorizadora e somente retransmite apos confirmar codigo 217; se encontrar autorizacao ou cancelamento, atualiza a nota sem novo envio. Rejeicoes que exigem alterar o XML devem ser corrigidas no fluxo da venda.
+
+## Estoque e novas vendas com NF-e pendente
+
+A venda é registrada junto com a nota, os itens e a numeração em uma transação local antes da transmissão à SEFAZ. Nesse registro é feita a baixa das quantidades vendidas, inclusive fracionadas, mesmo que a nota continue em processamento ou seja rejeitada. Adicionar produtos a um rascunho não movimenta estoque.
+
+Após receber a identificação da nota registrada, use **Nova venda**. A tela limpa somente o rascunho local; a nota e a baixa permanecem registradas. Consulte e valide a nota no menu **NF-e**. Caso a resposta de transmissão se perca sem fornecer a identificação da nota, use **Recuperar tentativa** antes de descartá-la.
+
+A autorização, consulta e retransmissão do mesmo XML não repetem a baixa. O cancelamento confirmado pela SEFAZ devolve a quantidade uma única vez. Um cancelamento sem confirmação mantém o estoque baixado até que a consulta confirme o evento.
+
+Uma revisão de nota rejeitada informa `vendaOrigemId`, vinculando as tentativas à mesma venda. A revisão ajusta somente a diferença das quantidades (incluindo produtos removidos), sem baixar novamente toda a venda. Tentativas substituídas não podem ser retransmitidas e uma venda pendente, autorizada ou cancelada não pode ganhar outra revisão. A migração `LinkFiscalSaleStock` adiciona o vínculo; a API aplica as migrações na inicialização.
+
+Vendas e NF-e utilizam SweetAlert2 nos avisos, resultados e confirmações. O retorno da SEFAZ também permanece na tela para consulta.

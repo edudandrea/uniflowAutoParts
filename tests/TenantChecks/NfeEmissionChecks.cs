@@ -67,7 +67,7 @@ internal static class NfeEmissionChecks
         {
             pending = Result(await Controller(db).Emitir(timedOut, default));
             Check(pending.Situacao == "Processando", "Timeout confirmou nota sem protocolo.");
-            Check(await db.Estoques.CountAsync() == 2, "Timeout baixou estoque antes da autorizacao.");
+            Check(await db.Estoques.CountAsync() == 3 && await db.Estoques.Where(e => e.NotaFiscalItem!.NotaFiscalId == pending.Id).SumAsync(e => e.Quantidade) == 2, "Venda pendente nao baixou a quantidade registrada.");
         }
         await using (var db = new AppDbContext(options, Tenant(1)))
         {
@@ -133,6 +133,35 @@ internal static class NfeEmissionChecks
         }
         await using (var db = new AppDbContext(options, Tenant(2)))
             Check(await Controller(db, 2).Reenviar(first.Id, credentials, default) is NotFoundResult, "Reenvio acessou outra empresa.");
+        // Revisões fiscais pertencem à mesma venda: não repetir a baixa, ajustar quantidades e estornar ao cancelar.
+        await using (var db = new AppDbContext(options, Tenant(1)))
+        {
+            var second = NfeFixtures.Produto(2); second.MarcaId = (await db.CadastroItens.FirstAsync()).MarcaId; second.CategoriaId = (await db.CadastroItens.FirstAsync()).CategoriaId;
+            db.CadastroItens.Add(second); await db.SaveChangesAsync();
+            decimal Net() => db.Estoques.AsEnumerable().Sum(e => e.Tipo == "Saida" ? e.Quantidade : -e.Quantidade);
+            var baseline = Net();
+            transport.RejectNext = "203";
+            var venda = Request() with { Itens = [new(1, 3.5m, 20, 0), new(2, 2, 20, 0)], Pagamentos = [new("Pix", 110)] };
+            var rejeitada = Result(await Controller(db).Emitir(venda, default));
+            Check(rejeitada.Situacao == "Rejeitada" && Net() == baseline + 5.5m, "Venda registrada nao baixou quantidades fracionadas e todos os produtos.");
+            var revision = venda with { SolicitacaoId = Guid.NewGuid(), VendaOrigemId = rejeitada.Id, Csosn = "102" };
+            transport.RejectNext = "203";
+            var revisada = Result(await Controller(db).Emitir(revision, default));
+            Check(Net() == baseline + 5.5m, "Revisao fiscal repetiu a baixa da mesma venda.");
+            Check(await Controller(db).Reenviar(rejeitada.Id, credentials, default) is ConflictObjectResult, "Reenviou tentativa substituida por revisao.");
+            var reduced = revision with { SolicitacaoId = Guid.NewGuid(), Itens = [new(1, 1.25m, 20, 0)], Pagamentos = [new("Pix", 25)] };
+            var aprovada = Result(await Controller(db).Emitir(reduced, default));
+            Check(aprovada.Situacao == "Autorizada" && Net() == baseline + 1.25m, "Correcao da venda nao ajustou produto removido e quantidade reduzida.");
+            var replay = Result(await Controller(db).Emitir(reduced, default));
+            Check(replay.Id == aprovada.Id && Net() == baseline + 1.25m, "Repeticao da revisao alterou estoque.");
+            Check(await Controller(db).Emitir(reduced with { SolicitacaoId = Guid.NewGuid() }, default) is ConflictObjectResult, "Criou outra revisao de venda autorizada.");
+            var eventos = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport));
+            transport.TimeoutEventAfter = true;
+            Check(await eventos.Cancelar(aprovada.Id, 1, new("Cancelamento solicitado pelo cliente", encoded, "fixture", true), default) is ObjectResult { StatusCode: 502 } && Net() == baseline + 1.25m, "Estornou antes de confirmar o cancelamento na SEFAZ.");
+            Check(await eventos.Consultar(aprovada.Id, 1, credentials, default) is OkObjectResult && Net() == baseline, "Cancelamento recuperado nao devolveu a quantidade restante da venda.");
+            await eventos.Consultar(aprovada.Id, 1, credentials, default);
+            Check(Net() == baseline, "Consulta repetida duplicou o estorno da venda revisada.");
+        }
         Check(transport.Events.All(e => e.Environment == 1), "Eventos de producao foram enviados para homologacao.");
         Console.WriteLine($"NF-e authorization lifecycle: {checks} passed; certificado e transporte simulados, nenhuma transmissao externa.");
     }
