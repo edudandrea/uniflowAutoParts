@@ -18,6 +18,7 @@ public static class HubCompanyProfile
             empresa.Cnpj = digits;
         }
         empresa.InscricaoEstadual = Read("inscricao_estadual") ?? empresa.InscricaoEstadual;
+        empresa.LogoUrl = Read("logo_url") ?? empresa.LogoUrl;
         empresa.Endereco = Read("logradouro") ?? empresa.Endereco;
         empresa.Numero = Read("numero") ?? empresa.Numero;
         empresa.Complemento = Read("complemento") ?? empresa.Complemento;

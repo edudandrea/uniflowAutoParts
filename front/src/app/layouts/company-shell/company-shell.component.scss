@@ -24,17 +24,15 @@
 }
 
 .sidebar-brand {
-  min-height: 72px;
+  min-height: 134px;
   display: flex;
   align-items: center;
   padding: 0 8px 14px;
 }
 
-.sidebar-brand img {
-  width: 174px;
-  max-height: 64px;
-  object-fit: contain;
-  object-position: left center;
+.sidebar-brand app-company-logo {
+  width: 100%;
+  height: 120px;
 }
 
 .mini-mark {
@@ -265,11 +263,9 @@ nav {
     align-items: center;
   }
 
-  .mobile-brand img {
-    width: min(164px, 58vw);
-    max-height: 46px;
-    object-fit: contain;
-    object-position: left center;
+  .mobile-brand app-company-logo {
+    width: min(200px, 58vw);
+    height: 64px;
   }
 
   .mobile-menu-button {

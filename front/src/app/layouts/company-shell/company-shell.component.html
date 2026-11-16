@@ -2,11 +2,7 @@
   <aside class="company-sidebar" [class.mobile-open]="mobileMenuOpen()">
     <div class="mobile-shell-bar">
       <div class="mobile-brand">
-        @if (!logoUnavailable()) {
-          <img src="/logo-uniflow-autoparts.png" alt="UniFlow AutoParts" (error)="logoUnavailable.set(true)" />
-        } @else {
-          <div class="mini-mark">UF</div>
-        }
+        <app-company-logo />
       </div>
       <button
         class="mobile-menu-button"
@@ -20,11 +16,7 @@
     </div>
 
     <div class="sidebar-brand">
-      @if (!logoUnavailable()) {
-        <img src="/logo-uniflow-autoparts.png" alt="UniFlow AutoParts" (error)="logoUnavailable.set(true)" />
-      } @else {
-        <div class="mini-mark">UF</div>
-      }
+      <app-company-logo />
     </div>
 
     <nav aria-label="Menu principal">

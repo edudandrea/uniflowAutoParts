@@ -9,7 +9,7 @@ export interface HubSession {
   available: boolean;
   portalUrl: string | null;
   csrfToken?: string;
-  empresa?: { id: number; nome: string; razaoSocial: string; cnpj: string | null; hubTenantId: string };
+  empresa?: { id: number; nome: string; razaoSocial: string; cnpj: string | null; hubTenantId: string; logoUrl?: string | null };
   usuario?: { id: string; sujeito: string; nome: string; email: string; perfil: string };
 }
 

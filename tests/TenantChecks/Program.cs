@@ -36,6 +36,7 @@ builder.Services.AddSingleton(new HubAuthSettings(new ConfigurationBuilder().Bui
 builder.Services.AddScoped<SefazEventosService>();
 builder.Services.AddScoped<SefazTransporte>();
 builder.Services.AddScoped<NfeAutorizacaoService>();
+builder.Services.AddScoped<EmpresaLogoService>();
 builder.Services.AddSingleton<ICloudflareR2StorageService, ChecksStorage>();
 builder.Services.AddAntiforgery(o => o.HeaderName = "X-Parts-CSRF");
 builder.Services.AddAuthentication("Checks").AddScheme<AuthenticationSchemeOptions, ChecksAuthentication>("Checks", _ => { });
@@ -68,7 +69,7 @@ TenantContext Tenant(int id) => new(new HttpContextAccessor { HttpContext = new 
 var directoryOptions = new DbContextOptionsBuilder<HubDirectoryDbContext>().UseInMemoryDatabase("tenant-checks", root).Options;
 await using (var directory = new HubDirectoryDbContext(directoryOptions))
 {
-    directory.Empresas.AddRange(new Empresas { Id = 1, RazaoSocial = "EMPRESA A", NomeFantasia = "EMPRESA A", Cnpj = "11111111000111" },
+    directory.Empresas.AddRange(new Empresas { Id = 1, RazaoSocial = "EMPRESA A", NomeFantasia = "EMPRESA A", Cnpj = "11111111000111", LogoUrl = "https://example.test/empresa-a.png" },
         new Empresas { Id = 2, RazaoSocial = "EMPRESA B", NomeFantasia = "EMPRESA B", Cnpj = "22222222000122" });
     directory.Users.AddRange(new Users { Id = 1, EmpresaId = 1, Nome = "Usuario A", Email = "a@example.test", EmailNormalizado = "A@EXAMPLE.TEST" },
         new Users { Id = 2, EmpresaId = 2, Nome = "Usuario B", Email = "b@example.test", EmailNormalizado = "B@EXAMPLE.TEST" });
@@ -113,6 +114,7 @@ for (var tenantId = 1; tenantId <= 2; tenantId++)
     var sessionResponse = await client.GetAsync("/api/auth/session");
     var session = (await sessionResponse.Content.ReadFromJsonAsync<JsonElement>());
     Check(session.GetProperty("empresa").GetProperty("id").GetInt32() == tenantId, "Perfil exibiu empresa incorreta.");
+    Check(session.GetProperty("empresa").GetProperty("logoUrl").GetString() == (tenantId == 1 ? "https://example.test/empresa-a.png" : null), "Sessao nao isolou a logo por empresa.");
     Check(session.GetProperty("usuario").GetProperty("nome").GetString() == $"Usuario {tenantId}", "Perfil exibiu usuario incorreto.");
     Check(sessionResponse.Headers.CacheControl?.NoStore == true, "Sessao nao deve ser armazenada em cache.");
     Check((await client.GetAsync($"/api/notas-fiscais/{3 - tenantId}/xml")).StatusCode == HttpStatusCode.NotFound, "Download XML acessou nota alheia.");

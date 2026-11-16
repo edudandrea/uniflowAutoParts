@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Security.Cryptography.X509Certificates;
 using System.Xml.Linq;
 using back.Contracts;
@@ -14,6 +15,7 @@ internal static class NfeEmissionChecks
     public static async Task RunAsync()
     {
         var options = await NfeTestDatabase.CreateAsync(1, 2);
+        var logos = new EmpresaLogoService(new Microsoft.Extensions.DependencyInjection.ServiceCollection().BuildServiceProvider(), Microsoft.Extensions.Logging.Abstractions.NullLogger<EmpresaLogoService>.Instance);
         TenantContext Tenant(int id) => new(new HttpContextAccessor { HttpContext = new DefaultHttpContext { User = ChecksAuthentication.Principal(id) } });
         var checks = 0;
         void Check(bool v, string error) { if (!v) throw new Exception(error); checks++; }
@@ -44,7 +46,7 @@ internal static class NfeEmissionChecks
         {
             Check((await db.Estoques.SingleAsync()).Quantidade == 2 && (await db.Estoques.SingleAsync()).Tipo == "Saida", "Autorizacao nao baixou o estoque.");
             Check((await db.NotasFiscais.SingleAsync()).Xml.Contains("nfeProc"), "Nao persistiu XML protocolado.");
-            var downloads = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport));
+            var downloads = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport), logos);
             var xmlDownload = await downloads.Baixar(first.Id, "xml", 1, default) as FileContentResult;
             Check(xmlDownload is { ContentType: "application/xml" } && System.Text.Encoding.UTF8.GetString(xmlDownload.FileContents) == (await db.NotasFiscais.SingleAsync()).Xml, "Download alterou XML autorizado.");
             var pdfDownload = await downloads.Baixar(first.Id, "pdf", 1, default) as FileContentResult;
@@ -52,6 +54,18 @@ internal static class NfeEmissionChecks
             using (var parsed = PdfSharp.Pdf.IO.PdfReader.Open(new MemoryStream(pdfDownload!.FileContents), PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import))
                 Check(parsed.PageCount == 1 && parsed.Info.Subject.Contains(first.ChaveAcesso), "DANFE nao tem pagina ou chave da nota autorizada.");
             if (Environment.GetEnvironmentVariable("NFE_PDF_DIR") is { } pdfDir) await System.IO.File.WriteAllBytesAsync(System.IO.Path.Combine(pdfDir, "danfe-authorized.pdf"), pdfDownload!.FileContents);
+            const string logoUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR4nGMQ6YkiCTGMahjVMHw1AACjcvoB5CbqbwAAAABJRU5ErkJggg==";
+            var company = await db.Empresas.SingleAsync();
+            company.LogoUrl = logoUrl;
+            await db.SaveChangesAsync();
+            var branded = (FileContentResult)await downloads.Baixar(first.Id, "pdf", 1, default);
+            using (var parsed = PdfSharp.Pdf.IO.PdfReader.Open(new MemoryStream(branded.FileContents), PdfSharp.Pdf.IO.PdfDocumentOpenMode.Import))
+                Check(parsed.Internals.GetAllObjects().OfType<PdfSharp.Pdf.PdfDictionary>().Any(d => d.Elements.GetName("/Subtype") == "/Image"), "DANFE nao incorporou a logo cadastrada da empresa.");
+            company.LogoUrl = null;
+            await db.SaveChangesAsync();
+            Check(await logos.CarregarAsync(1, "data:image/png;base64,invalido", default) is null, "Aceitou logo invalida.");
+            Check(await logos.CarregarAsync(1, "http://127.0.0.1/logo.png", default) is null, "Tentou carregar logo HTTP interna.");
+            Check(await logos.CarregarAsync(1, "/api/documentos/empresas/2/arquivo?key=empresas%2F2%2Flogo.png", default) is null, "Logo acessou arquivo de outra empresa.");
             var multipage = await db.NotasFiscais.SingleAsync();
             var expanded = NotaFiscalXml.Ler(multipage.Xml); var info = expanded.Descendants(NotaFiscalXml.Ns + "infNFe").Single();
             var productXml = info.Element(NotaFiscalXml.Ns + "det")!;
@@ -65,7 +79,7 @@ internal static class NfeEmissionChecks
             Check(replay.Id == first.Id && transport.Authorizations == 1, "Repetir a mesma solicitacao retransmitiu a NF-e.");
             Check(await Controller(db).Emitir(request with { Observacoes = "Dados alterados" }, default) is ConflictObjectResult, "Reutilizou solicitacao com outros dados.");
             Check(await Controller(db).Emitir(request with { Csosn = "102" }, default) is ConflictObjectResult, "Reutilizou solicitacao com CSOSN alterado.");
-            var eventos = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport));
+            var eventos = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport), logos);
             Check(await eventos.Cancelar(first.Id, 1, new("Cancelamento solicitado pelo cliente", encoded, "fixture"), default) is BadRequestObjectResult, "Cancelou sem confirmar nao circulacao.");
             Check(await eventos.Corrigir(first.Id, 1, new("Corrigir observacao de entrega no portao dois", encoded, "fixture"), default) is OkObjectResult, "Nao registrou CC-e de producao.");
             Check(await eventos.Corrigir(first.Id, 1, new("Corrigir entrega no portao dois e horario combinado", encoded, "fixture"), default) is OkObjectResult, "Nao registrou segunda CC-e.");
@@ -88,7 +102,7 @@ internal static class NfeEmissionChecks
         {
             pending = Result(await Controller(db).Emitir(timedOut, default));
             Check(pending.Situacao == "Processando", "Timeout confirmou nota sem protocolo.");
-            var downloads = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport));
+            var downloads = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport), logos);
             Check(await downloads.Baixar(pending.Id, "pdf", 1, default) is ConflictObjectResult && await downloads.Baixar(pending.Id, "xml", 1, default) is ConflictObjectResult, "Liberou download de nota sem autorizacao.");
             Check(await db.Estoques.CountAsync() == 3 && await db.Estoques.Where(e => e.NotaFiscalItem!.NotaFiscalId == pending.Id).SumAsync(e => e.Quantidade) == 2, "Venda pendente nao baixou a quantidade registrada.");
         }
@@ -97,7 +111,7 @@ internal static class NfeEmissionChecks
             Check(Result(await Controller(db).Emitir(timedOut, default)).Id == pending.Id && transport.Authorizations == 2, "Timeout gerou nova chave ao repetir solicitacao.");
             Check(Result(await Controller(db).Consultar(pending.Id, credentials, default)).Situacao == "Autorizada", "Consulta nao recuperou autorizacao apos timeout.");
             Check(await db.Estoques.CountAsync() == 3, "Recuperacao nao baixou estoque uma unica vez.");
-            var eventos = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport));
+            var eventos = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport), logos);
             transport.TimeoutEventAfter = true;
             Check(await eventos.Corrigir(pending.Id, 1, new("Corrigir entrega no portao lateral da empresa", encoded, "fixture"), default) is ObjectResult { StatusCode: 502 }, "Timeout de evento nao manteve estado indeterminado.");
             Check(await eventos.Corrigir(pending.Id, 1, new("Corrigir entrega no portao lateral novamente", encoded, "fixture"), default) is ConflictObjectResult, "Permitiu outro evento sem reconciliar o anterior.");
@@ -117,7 +131,7 @@ internal static class NfeEmissionChecks
         await using (var db = new AppDbContext(options, Tenant(2)))
         {
             Check(await Controller(db, 2).Consultar(first.Id, credentials, default) is NotFoundResult, "Consulta acessou nota de outra empresa.");
-            var downloads = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport));
+            var downloads = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport), logos);
             Check(await downloads.Baixar(first.Id, "pdf", 2, default) is NotFoundObjectResult, "Download PDF acessou outra empresa.");
         }
         using var wrong = NfeFixtures.Certificate("98765432000199");
@@ -182,7 +196,7 @@ internal static class NfeEmissionChecks
             var replay = Result(await Controller(db).Emitir(reduced, default));
             Check(replay.Id == aprovada.Id && Net() == baseline + 1.25m, "Repeticao da revisao alterou estoque.");
             Check(await Controller(db).Emitir(reduced with { SolicitacaoId = Guid.NewGuid() }, default) is ConflictObjectResult, "Criou outra revisao de venda autorizada.");
-            var eventos = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport));
+            var eventos = new NotasFiscaisController(db, new SefazEventosService(transport), new NfeAutorizacaoService(transport), logos);
             transport.TimeoutEventAfter = true;
             Check(await eventos.Cancelar(aprovada.Id, 1, new("Cancelamento solicitado pelo cliente", encoded, "fixture", true), default) is ObjectResult { StatusCode: 502 } && Net() == baseline + 1.25m, "Estornou antes de confirmar o cancelamento na SEFAZ.");
             Check(await eventos.Consultar(aprovada.Id, 1, credentials, default) is OkObjectResult && Net() == baseline, "Cancelamento recuperado nao devolveu a quantidade restante da venda.");

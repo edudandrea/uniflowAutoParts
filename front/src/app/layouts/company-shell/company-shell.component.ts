@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { SessionService } from '../../core/session.service';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
+import { CompanyLogoComponent } from '../../shared/company-logo/company-logo.component';
 
 interface CompanyMenuItem {
   label: string;
@@ -12,7 +13,7 @@ interface CompanyMenuItem {
 
 @Component({
   selector: 'app-company-shell',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet, AppIconComponent],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, AppIconComponent, CompanyLogoComponent],
   templateUrl: './company-shell.component.html',
   styleUrl: './company-shell.component.scss',
 })
@@ -30,7 +31,6 @@ export class CompanyShellComponent {
     });
   }
 
-  protected readonly logoUnavailable = signal(false);
   protected readonly expandedMenus = signal<Record<string, boolean>>({});
   protected readonly mobileMenuOpen = signal(false);
 

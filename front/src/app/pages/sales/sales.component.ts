@@ -7,6 +7,7 @@ import { forkJoin } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { ClienteResumoResponse, Produto, EmitirNfePayload, EmissaoNfeResponse, DestinatarioFiscalData } from '../../core/app-models';
 import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
+import { CompanyLogoComponent } from '../../shared/company-logo/company-logo.component';
 import { FiscalCertificateService, FiscalEnvironment } from '../../core/fiscal-certificate.service';
 
 interface SaleItem { produto: Produto; quantidade: number; preco: number; desconto: number; precoEditado?: boolean; origem?: string; ncm?: string; unidade?: string }
@@ -21,7 +22,7 @@ interface SaleDraft {
 }
 
 @Component({
-  selector: 'app-sales', imports: [FormsModule, RouterLink, AppIconComponent],
+  selector: 'app-sales', imports: [FormsModule, RouterLink, AppIconComponent, CompanyLogoComponent],
   templateUrl: './sales.component.html', styleUrls: ['./sales.component.scss', './sale-review.scss'],
 })
 export class SalesComponent {

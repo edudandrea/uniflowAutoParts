@@ -12,7 +12,7 @@ namespace back.Controllers;
 
 [ApiController]
 [Route("api/notas-fiscais")]
-public class NotasFiscaisController(AppDbContext db, SefazEventosService sefaz, NfeAutorizacaoService autorizacao) : ControllerBase
+public class NotasFiscaisController(AppDbContext db, SefazEventosService sefaz, NfeAutorizacaoService autorizacao, EmpresaLogoService logos) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<NotaFiscalListaResponse>> Listar(
@@ -163,7 +163,9 @@ public class NotasFiscaisController(AppDbContext db, SefazEventosService sefaz, 
         try
         {
             token.ThrowIfCancellationRequested();
-            return File(NfeDanfeService.Gerar(nota), "application/pdf", nome + ".pdf");
+            var logoUrl = await db.Empresas.AsNoTracking().Where(e => e.Id == nota.EmpresaId).Select(e => e.LogoUrl).SingleOrDefaultAsync(token);
+            var logo = await logos.CarregarAsync(nota.EmpresaId, logoUrl, token);
+            return File(NfeDanfeService.Gerar(nota, logo), "application/pdf", nome + ".pdf");
         }
         catch (Exception error) when (error is ArgumentException or XmlException or FormatException)
         { return Problem(statusCode: 422, detail: "O XML autorizado salvo esta incompleto ou divergente. Nao foi possivel gerar o DANFE desta nota."); }

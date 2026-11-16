@@ -10,7 +10,7 @@ public static class NfeDanfeService
 {
     private static readonly object PdfGate = new();
 
-    public static byte[] Gerar(NotaFiscal nota)
+    public static byte[] Gerar(NotaFiscal nota, byte[]? logo = null)
     {
         if (nota.Tipo != "NFe" || nota.Situacao is not ("Autorizada" or "Cancelada") || nota.ChaveAcesso.Length != 44)
             throw new ArgumentException("O DANFE exige uma NF-e autorizada com chave de acesso valida.");
@@ -22,7 +22,7 @@ public static class NfeDanfeService
         lock (PdfGate)
         {
             using var generated = new MemoryStream();
-            DanfeGenerator.GenerateFromXmlContent(nota.Xml, generated, new DanfeOptions { UseDefaultLogo = false, EmitFooter = false, Font = DanfeFont.Roboto });
+            DanfeGenerator.GenerateFromXmlContent(nota.Xml, generated, new DanfeOptions { LogoBytes = logo, UseDefaultLogo = false, EmitFooter = false, Font = DanfeFont.Roboto });
             generated.Position = 0;
             using var document = PdfReader.Open(generated, PdfDocumentOpenMode.Modify);
             document.Info.Title = nota.Situacao == "Cancelada" ? "DANFE - NF-e CANCELADA" : "DANFE - NF-e " + nota.Numero;

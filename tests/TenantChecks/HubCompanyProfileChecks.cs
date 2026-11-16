@@ -15,6 +15,7 @@ internal static class HubCompanyProfileChecks
         var company = new Empresas { Id = 1, HubTenantId = "central-7", Bairro = "Bairro preenchido localmente" };
         var principal = new ClaimsPrincipal(new ClaimsIdentity(new[] {
             new Claim("tenant_name", "Nome fantasia HUB"), new Claim("tenant_razao_social", "Razao social HUB"),
+            new Claim("tenant_logo_url", "https://example.test/logo.png"),
             new Claim("tenant_cnpj", "12.345.678/0001-95"), new Claim("tenant_inscricao_estadual", "1234567890"),
             new Claim("tenant_logradouro", "Rua do HUB"), new Claim("tenant_numero", "123"), new Claim("tenant_complemento", "Sala 2"),
             new Claim("tenant_municipio", "Porto Alegre"), new Claim("tenant_uf", "rs"), new Claim("tenant_cep", "90010-000"), new Claim("tenant_bairro", " ")
@@ -25,6 +26,7 @@ internal static class HubCompanyProfileChecks
             || company.Cidade != "Porto Alegre" || company.InscricaoEstadual != "1234567890" || company.HubTenantId != "central-7" || company.Bairro != "Bairro preenchido localmente")
             throw new Exception("Dados fiscais do HUB nao foram mapeados corretamente.");
         HubCompanyProfile.Aplicar(company, new ClaimsPrincipal(new ClaimsIdentity()));
+        if (company.LogoUrl != "https://example.test/logo.png") throw new Exception("Logo recebida do HUB nao foi preservada.");
         if (company.Cnpj != "12345678000195") throw new Exception("Claims ausentes apagaram dados locais.");
 
         var options = await NfeTestDatabase.CreateAsync(1, 2);

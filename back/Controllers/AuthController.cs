@@ -21,7 +21,7 @@ public class AuthController(AppDbContext db, HubAuthSettings hub, IAntiforgery a
         var company = await db.Empresas.AsNoTracking().Select(e => new
         {
             e.Id, nome = e.NomeFantasia == "" ? e.RazaoSocial : e.NomeFantasia,
-            e.RazaoSocial, e.Cnpj, e.HubTenantId
+            e.RazaoSocial, e.Cnpj, e.HubTenantId, e.LogoUrl
         }).SingleOrDefaultAsync(token);
         if (company is null) return Unauthorized();
         return Ok(new
