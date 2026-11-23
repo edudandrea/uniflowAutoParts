@@ -41,6 +41,7 @@ export const routes: Routes = [
       { path: 'financeiro/movimentacoes', component: FinancialComponent },
       { path: 'financeiro/conciliacao', component: FinancialComponent },
       { path: 'configuracoes/enderecos', component: AddressesComponent },
+      { path: 'configuracoes/municipios', loadComponent: () => import('./pages/municipalities/municipalities.component').then(m => m.MunicipalitiesComponent) },
       { path: 'configuracoes/categorias', component: CategoriesComponent },
       { path: 'configuracoes/marcas', component: BrandsComponent },
       { path: 'configuracoes/certificado-digital', component: FiscalSettingsComponent },

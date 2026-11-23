@@ -130,6 +130,26 @@ for (var tenantId = 1; tenantId <= 2; tenantId++)
     }
     client.DefaultRequestHeaders.Remove("X-Parts-CSRF");
     client.DefaultRequestHeaders.Add("X-Parts-CSRF", session.GetProperty("csrfToken").GetString());
+    const string municipiosUrl = "/api/municipios";
+    var municipios = await client.GetFromJsonAsync<MunicipioResponse[]>(municipiosUrl) ?? [];
+    Check(municipios.Length == 5571 && municipios.Select(m => m.Uf).Distinct().Count() == 27 &&
+        municipios.Any(m => m is { CodigoIbge: "5101837", Nome: "Boa Esperança do Norte", Uf: "MT" }),
+        "Catálogo IBGE incompleto ou cadastro manual visível a outra empresa.");
+    if (tenantId == 1)
+    {
+        var manual = new MunicipioResponse("5199999", "Município de teste", "MT");
+        Check((await client.PostAsJsonAsync(municipiosUrl, manual with { Uf = "SP" })).StatusCode == HttpStatusCode.BadRequest,
+            "Cadastro aceitou código IBGE de outra UF.");
+        Check((await client.PostAsJsonAsync(municipiosUrl, manual with { CodigoIbge = "5101837" })).StatusCode == HttpStatusCode.Conflict,
+            "Cadastro permitiu duplicar código da base IBGE.");
+        using var cadastro = await client.PostAsJsonAsync(municipiosUrl, manual);
+        Check(cadastro.StatusCode == HttpStatusCode.Created,
+            $"Não cadastrou município manual ({cadastro.StatusCode}): {await cadastro.Content.ReadAsStringAsync()}");
+        Check((await client.PostAsJsonAsync(municipiosUrl, manual)).StatusCode == HttpStatusCode.Conflict,
+            "Cadastro permitiu duplicar município manual.");
+        municipios = await client.GetFromJsonAsync<MunicipioResponse[]>(municipiosUrl) ?? [];
+        Check(municipios.Length == 5572 && municipios.Contains(manual), "Município manual não apareceu para sua empresa.");
+    }
     var fiscalProfileResponse = await client.GetAsync($"/api/fiscal/destinatario/{tenantId}");
     Check(fiscalProfileResponse.IsSuccessStatusCode && fiscalProfileResponse.Headers.CacheControl?.NoStore == true, "Consulta fiscal permitiu cache de dados desatualizados.");
     var customerDetail = await client.GetFromJsonAsync<back.Contracts.ClienteDetalheResponse>($"/api/clientes/{tenantId}");

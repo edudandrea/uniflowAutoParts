@@ -93,7 +93,7 @@
           <button
             type="button"
             [class.active]="activeCustomerModalTab() === 'Enderecos'"
-            (click)="activeCustomerModalTab.set('Enderecos')"
+            (click)="abrirAbaEnderecos()"
           >
             <app-icon name="map-pin" />Endereços
           </button>
@@ -210,12 +210,51 @@
 
           @if (activeCustomerModalTab() === 'Enderecos') {
             <section class="form-section full">
-              <h3>Endereco principal</h3>
-              <p>Pesquise por nome da rua, apelido do endereço ou CEP. A manutenção do endereço fica no menu Configurações.</p>
+              <h3>Endereço principal</h3>
             </section>
-            @if (legacyAddress(); as a) { <p class="full customer-page-message">Endereço atual: {{ a.logradouro }}, {{ a.numero }} · {{ a.bairro }} · {{ a.municipio }}/{{ a.uf }} · CEP {{ formatCep(a.cep) }}. Selecione outro endereço apenas se desejar substituir.</p> }
+            @if (customerForm.controls.enderecoId.value === null) {
+              <ng-container formGroupName="enderecoProprio">
+                <label>
+                  <span>UF</span>
+                  <select formControlName="uf" (change)="limparCidade()">
+                    <option value="">Selecione a UF</option>
+                    @if (municipioAtualForaDaLista(); as atual) {
+                      @if (!ufs().includes(atual.uf)) { <option [value]="atual.uf">{{ atual.uf }}</option> }
+                    }
+                    @for (uf of ufs(); track uf) { <option [value]="uf">{{ uf }}</option> }
+                  </select>
+                </label>
+                <label>
+                  <span>Cidade</span>
+                  <select formControlName="codigoIbge">
+                    <option value="">Selecione a cidade</option>
+                    @if (municipioAtualForaDaLista(); as atual) {
+                      <option [value]="atual.codigoIbgeMunicipio">{{ atual.municipio }}</option>
+                    }
+                    @for (municipio of municipiosDaUf(); track municipio.codigoIbge) {
+                      <option [value]="municipio.codigoIbge">{{ municipio.nome }}</option>
+                    }
+                  </select>
+                </label>
+                @if (carregandoMunicipios()) { <p class="full" role="status">Carregando municípios…</p> }
+                @if (erroMunicipios()) {
+                  <p class="full">Não foi possível carregar os municípios.
+                    <button class="cancel-button" type="button" (click)="carregarMunicipios()">Tentar novamente</button>
+                  </p>
+                }
+                <label><span>CEP</span><input formControlName="cep" inputmode="numeric" maxlength="9" /></label>
+                <label><span>Logradouro</span><input formControlName="logradouro" /></label>
+                <label><span>Número</span><input formControlName="numero" placeholder="S/N" /></label>
+                <label><span>Bairro</span><input formControlName="bairro" /></label>
+                <label><span>Complemento</span><input formControlName="complemento" /></label>
+              </ng-container>
+            } @else {
+              <div class="full">
+                <button class="cancel-button" type="button" (click)="usarEnderecoProprio()">Usar endereço próprio do cliente</button>
+              </div>
+            }
             <label class="full address-search">
-              <span>Pesquisar endereco</span>
+              <span>Pesquisar endereço cadastrado</span>
               <span class="input-icon">
                 <app-icon name="search" />
                 <input type="search" formControlName="enderecoBusca" placeholder="Digite uma rua, nome do endereco ou CEP" />

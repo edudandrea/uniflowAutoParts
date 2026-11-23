@@ -25,6 +25,7 @@
   </ItemGroup>
 
   <ItemGroup><Content Include="Schemas/**/*.xsd" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" /></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="Data/municipios-ibge.csv" LogicalName="municipios-ibge.csv" /></ItemGroup>
   <ItemGroup>
     <!-- NFEDanfe 2.3.6 marca TTF como Compile no pacote; copiar somente como conteúdo. -->
     <Content Include="$(PkgNFEDanfe)/contentFiles/any/any/fonts/*.ttf" Link="fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

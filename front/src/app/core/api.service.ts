@@ -20,6 +20,7 @@ import {
   ImportarProdutosFabricanteResponse,
   ImportarNfeResponse,
   Marca,
+  Municipio,
   Produto,
   ProdutoListaResponse,
   NotaFiscalFiltros,
@@ -126,6 +127,14 @@ export class ApiService {
     return this.http.get<CadastroEndereco[]>(`${this.apiUrl}/enderecos`, {
       params: { empresaId, busca },
     });
+  }
+
+  listarMunicipios() {
+    return this.http.get<Municipio[]>(`${this.apiUrl}/municipios`);
+  }
+
+  criarMunicipio(municipio: Municipio) {
+    return this.http.post<Municipio>(`${this.apiUrl}/municipios`, municipio);
   }
 
   criarEndereco(payload: CriarCadastroEnderecoPayload) {

@@ -22,6 +22,7 @@ namespace back.Data
         public DbSet<ClienteVeiculo> ClienteVeiculos => Set<ClienteVeiculo>();
         public DbSet<Endereco> Enderecos => Set<Endereco>();
         public DbSet<CadastroEndereco> CadastroEnderecos => Set<CadastroEndereco>();
+        public DbSet<MunicipioManual> MunicipiosManuais => Set<MunicipioManual>();
         public DbSet<Categoria> Categorias => Set<Categoria>();
         public DbSet<Marca> Marcas => Set<Marca>();
         public DbSet<CadastroItens> CadastroItens => Set<CadastroItens>();
@@ -67,6 +68,15 @@ namespace back.Data
             modelBuilder.Entity<Users>().HasQueryFilter(e => e.EmpresaId == CurrentEmpresaId);
             modelBuilder.Entity<Cliente>().HasQueryFilter(e => e.TenantId == CurrentEmpresaId);
             modelBuilder.Entity<CadastroEndereco>().HasQueryFilter(e => e.EmpresaId == CurrentEmpresaId);
+            modelBuilder.Entity<MunicipioManual>(entity =>
+            {
+                entity.HasKey(e => new { e.EmpresaId, e.CodigoIbge });
+                entity.HasQueryFilter(e => e.EmpresaId == CurrentEmpresaId);
+                entity.Property(e => e.CodigoIbge).HasMaxLength(7);
+                entity.Property(e => e.Nome).HasMaxLength(120);
+                entity.Property(e => e.Uf).HasMaxLength(2);
+                entity.HasOne<Empresas>().WithMany().HasForeignKey(e => e.EmpresaId).OnDelete(DeleteBehavior.Restrict);
+            });
             modelBuilder.Entity<Categoria>().HasQueryFilter(e => e.TenantId == CurrentEmpresaId);
             modelBuilder.Entity<Marca>().HasQueryFilter(e => e.TenantId == CurrentEmpresaId);
             modelBuilder.Entity<CadastroItens>().HasQueryFilter(e => e.EmpresaId == CurrentEmpresaId);

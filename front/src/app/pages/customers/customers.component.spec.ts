@@ -12,6 +12,18 @@ describe('Customer details and edition', () => {
   const address = { id: 6, empresaId: 1, nome: 'Endereco principal', cep: '95098340', logradouro: 'Rua das Industrias', numero: '1450', complemento: 'Sala 2', bairro: 'Distrito Industrial', codigoIbgeMunicipio: '4305108', municipio: 'Caxias do Sul', uf: 'RS', pais: 'Brasil', ativo: true };
   const detail = { id: 7, criadoEm: summary.criadoEm, dados: { empresaId: 1, tipoPessoa: 2, relacionamento: 1, nomeRazaoSocial: summary.nomeRazaoSocial, nomeFantasia: null, cpfCnpj: summary.cpfCnpj, rg: null, orgaoEmissor: null, estadoCivil: null, dataNascimento: null, profissao: null, cnh: null, inscricaoEstadual: '0290123456', inscricaoMunicipal: '12345', indicadorIe: 1, consumidorFinal: false, email: summary.email, telefone: summary.telefone, celular: null, clienteDesde: '2026-10-02', origem: 'Indicacao', vendedorPadrao: null, limiteCredito: 1500, observacao: 'Observacao real do cadastro', ativo: true, enderecoId: 6, endereco: { ...address, tipo: 2, principal: true }, contatos: [{ nome: 'Contato principal', cargo: 'Gerente', email: 'contato@example.test', telefone: '5432145566', celular: null, principal: true }, { nome: 'Contato adicional', cargo: null, email: 'outro@example.test', telefone: null, celular: null, principal: false }], dadosComerciais: { condicaoPagamento: '30 dias', limiteCredito: 1500, tabelaPreco: 'Oficina', vendedorPadrao: null, origem: 'Indicacao', bloquearVenda: false, permiteFiado: true } } };
   const base = '/api/clientes';
+  const municipios = [
+    { codigoIbge: '4305108', nome: 'Caxias do Sul', uf: 'RS' },
+    { codigoIbge: '4314902', nome: 'Porto Alegre', uf: 'RS' },
+    { codigoIbge: '4205407', nome: 'Florianópolis', uf: 'SC' },
+  ];
+  async function selecionar(name: string, value: string) {
+    const field = element.querySelector<HTMLSelectElement>(`select[formControlName="${name}"]`)!;
+    field.value = value;
+    field.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    await fixture.whenStable();
+  }
   function click(selector: string) { element.querySelector<HTMLButtonElement>(selector)!.click(); fixture.detectChanges(); }
   async function input(name: string, value: string) { const field = element.querySelector<HTMLInputElement>('[formControlName="' + name + '"]')!; field.value = value; field.dispatchEvent(new Event('input')); fixture.detectChanges(); await fixture.whenStable(); }
   function openDetail() { click('.client-result-card'); http.expectOne(req => req.url === base + '/7' && req.params.get('empresaId') === '1').flush(detail); fixture.detectChanges(); }
@@ -31,6 +43,7 @@ describe('Customer details and edition', () => {
     element.querySelectorAll<HTMLButtonElement>('.detail-tabs button')[1].click(); fixture.detectChanges();
     expect(addressSection.scrollIntoView).toHaveBeenCalled(); expect(element.querySelectorAll('.detail-tabs [aria-current="location"]')).toHaveLength(1);
     click('.detail-add-address');
+    http.expectOne('/api/municipios').flush(municipios); fixture.detectChanges();
     expect(element.querySelector('.customer-modal-large[open]')).not.toBeNull(); expect(element.querySelector('.address-picker')).not.toBeNull();
   });
 
@@ -66,6 +79,42 @@ describe('Customer details and edition', () => {
     http.expectOne(base + '/7').flush('Documento ja cadastrado', { status: 409, statusText: 'Conflict' }); fixture.detectChanges();
     expect(element.querySelector('.customer-modal-large[open]')).not.toBeNull(); expect(element.querySelector('[role="alert"]')!.textContent).toContain('Documento ja cadastrado');
     expect(element.querySelector<HTMLInputElement>('[formControlName="inscricaoEstadual"]')!.value).toBe('0298888888');
+  });
+
+  it('filters the cities by state and saves the selected IBGE code for a new customer', async () => {
+    click('.hero-actions .primary-action');
+    await input('nome', 'Cliente PF'); await input('documento', '12345678909');
+    click('.modal-tabs button:nth-child(2)');
+    http.expectOne('/api/municipios').flush(municipios); fixture.detectChanges();
+    await selecionar('uf', 'RS');
+    const cidade = element.querySelector<HTMLSelectElement>('[formControlName="codigoIbge"]')!;
+    expect([...cidade.options].map(o => o.textContent)).toEqual(['Selecione a cidade', 'Caxias do Sul', 'Porto Alegre']);
+    await selecionar('codigoIbge', '4305108');
+    await selecionar('uf', 'SC');
+    expect(cidade.value).toBe('');
+    await selecionar('codigoIbge', '4205407');
+    await input('cep', '88010-000'); await input('logradouro', 'Rua das Flores'); await input('bairro', 'Centro');
+    submit();
+    const req = http.expectOne(base);
+    expect(req.request.body.enderecoId).toBeNull();
+    expect(req.request.body.endereco).toMatchObject({ municipio: 'Florianópolis', uf: 'SC', codigoIbgeMunicipio: '4205407', cep: '88010000' });
+    req.flush({ ...summary, id: 8 });
+    http.expectOne(req => req.url === base + '/8').flush({ ...detail, id: 8 });
+  });
+
+  it('changes the city of a linked customer address through a customer-specific address', async () => {
+    openDetail(); click('.detail-add-address');
+    http.expectOne('/api/municipios').flush(municipios); fixture.detectChanges();
+    click('.customer-form .full > .cancel-button');
+    await fixture.whenStable();
+    expect(element.querySelector<HTMLSelectElement>('[formControlName="codigoIbge"]')!.value).toBe('4305108');
+    await selecionar('codigoIbge', '4314902');
+    submit();
+    const req = http.expectOne(base + '/7');
+    expect(req.request.body.enderecoId).toBeNull();
+    expect(req.request.body.endereco).toMatchObject({ municipio: 'Porto Alegre', uf: 'RS', codigoIbgeMunicipio: '4314902', logradouro: address.logradouro, complemento: address.complemento });
+    req.flush(summary);
+    http.expectOne(req => req.url === base + '/7').flush(detail);
   });
 
   it('creates a CPF customer without requiring a state registration', async () => {

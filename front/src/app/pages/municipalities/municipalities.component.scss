@@ -1,0 +1,53 @@
+:host { display: block; color: var(--ink); }
+
+.municipios-panel, dialog {
+  background: white;
+  border: 1px solid #dce6ef;
+  border-radius: 12px;
+}
+
+.municipios-filtros, footer, nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.municipios-filtros, footer, .feedback { padding: 14px 18px; }
+.municipios-filtros label:first-child { flex: 1 1 230px; }
+footer { justify-content: space-between; }
+
+label { display: grid; gap: 6px; font-weight: 600; }
+input, select, button {
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 1px solid #dce6ef;
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+}
+
+.primary-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: white;
+  background: var(--brand-green-dark);
+  white-space: nowrap;
+}
+
+button:disabled { cursor: default; opacity: .6; }
+table { width: 100%; border-collapse: collapse; text-align: left; }
+th, td { padding: 10px 18px; border-bottom: 1px solid #e6edf3; }
+th { background: #f5f8fb; }
+dialog { width: min(440px, calc(100% - 28px)); padding: 22px; color: inherit; }
+dialog::backdrop { background: #12314e80; }
+dialog form { display: grid; gap: 14px; }
+dialog h2, .erro { margin: 0; }
+dialog footer { justify-content: flex-end; padding: 0; }
+.erro { color: #a9434b; }
+
+@media (max-width: 480px) {
+  th, td { padding-inline: 10px; }
+}

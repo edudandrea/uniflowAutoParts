@@ -2,7 +2,7 @@ import { SessionService } from '../../core/session.service';
 import { Component, computed, DestroyRef, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { CadastroEndereco, ClienteResumoResponse, ClienteDetalheResponse, CriarClientePayload } from '../../core/app-models';
+import { CadastroEndereco, ClienteResumoResponse, ClienteDetalheResponse, CriarClientePayload, Municipio } from '../../core/app-models';
 import { ApiService } from '../../core/api.service';
 import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
@@ -38,6 +38,10 @@ export class CustomersComponent {
   protected readonly savingCustomer = signal(false);
   protected readonly customerMessage = signal('');
   protected readonly enderecos = signal<CadastroEndereco[]>([]);
+  private readonly municipios = signal<Municipio[] | null>(null);
+  protected readonly carregandoMunicipios = signal(false);
+  protected readonly erroMunicipios = signal(false);
+  protected readonly ufs = computed(() => [...new Set(this.municipios()?.map(m => m.uf) ?? [])].sort());
   protected readonly customerRecords = signal<ClienteResumoResponse[]>([]);
   protected readonly customers = computed(() => this.customerRecords().map(c => ({
     id: String(c.id), nome: c.nomeFantasia || c.nomeRazaoSocial, subtitulo: c.tipoPessoa === 2 ? 'Pessoa jurídica' : 'Pessoa física',
@@ -64,6 +68,9 @@ export class CustomersComponent {
     telefone: [''], celular: [''], email: ['', Validators.email], clienteDesde: [''], origem: [''], vendedorPadrao: [''],
     ativo: [true], observacoes: [''], relacionamento: ['Cliente' as 'Cliente' | 'Fornecedor' | 'Ambos'],
     enderecoId: [null as number | null], enderecoBusca: [''],
+    enderecoProprio: this.fb.nonNullable.group({
+      uf: [''], codigoIbge: [''], cep: [''], logradouro: [''], numero: [''], bairro: [''], complemento: [''],
+    }),
     contatoNome: [''], contatoCargo: [''], contatoEmail: ['', Validators.email], contatoTelefone: [''], contatoCelular: [''],
     condicaoPagamento: [''], limiteCredito: [0, Validators.min(0)], tabelaPreco: [''], bloquearVenda: [false], permiteFiado: [true],
   });
@@ -73,7 +80,14 @@ export class CustomersComponent {
     return this.enderecos().filter(e => (e.ativo || e.id === this.formState().enderecoId) && (!term || [e.nome, e.logradouro, e.bairro, e.municipio, e.cep].some(v => v.toLocaleLowerCase('pt-BR').includes(term))));
   });
   protected readonly enderecoSelecionado = computed(() => this.enderecos().find(e => e.id === this.formState().enderecoId) ?? null);
-  protected readonly legacyAddress = computed(() => !this.formState().enderecoId ? this.editSource?.dados.endereco ?? null : null);
+  protected readonly municipiosDaUf = computed(() =>
+    (this.municipios() ?? []).filter(m => m.uf === this.formState().enderecoProprio?.uf));
+  protected readonly municipioAtualForaDaLista = computed(() => {
+    const form = this.formState().enderecoProprio;
+    const atual = this.editSource?.dados.endereco;
+    return atual?.municipio && atual.uf === form?.uf && atual.codigoIbgeMunicipio === form.codigoIbge &&
+      !this.municipiosDaUf().some(m => m.codigoIbge === form.codigoIbge) ? atual : null;
+  });
 
   constructor() {
     this.api.listarEnderecos(this.empresaId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ next: data => this.enderecos.set(data), error: () => {} });
@@ -101,7 +115,35 @@ export class CustomersComponent {
     if (!section) return;
     this.activeDetailSection.set(id); section.scrollIntoView({ block: 'start', behavior: 'instant' }); section.focus({ preventScroll: true });
   }
-  protected editCustomerAddress(): void { this.editarCliente(); this.activeCustomerModalTab.set('Enderecos'); }
+  protected editCustomerAddress(): void { this.editarCliente(); this.abrirAbaEnderecos(); }
+  protected abrirAbaEnderecos(): void {
+    this.activeCustomerModalTab.set('Enderecos');
+    this.carregarMunicipios();
+  }
+  protected carregarMunicipios(): void {
+    if (this.municipios() || this.carregandoMunicipios()) return;
+    this.carregandoMunicipios.set(true);
+    this.erroMunicipios.set(false);
+    this.api.listarMunicipios().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: municipios => { this.municipios.set(municipios); this.carregandoMunicipios.set(false); },
+      error: () => { this.erroMunicipios.set(true); this.carregandoMunicipios.set(false); },
+    });
+  }
+  protected limparCidade(): void {
+    this.customerForm.controls.enderecoProprio.controls.codigoIbge.setValue('');
+  }
+  protected usarEnderecoProprio(): void {
+    const vinculado = this.enderecoSelecionado() ?? this.editSource?.dados.endereco;
+    if (vinculado) this.preencherEnderecoProprio(vinculado);
+    this.customerForm.controls.enderecoId.setValue(null);
+    this.customerForm.controls.enderecoProprio.markAsDirty();
+  }
+  private preencherEnderecoProprio(endereco: Pick<CadastroEndereco, 'uf' | 'codigoIbgeMunicipio' | 'cep' | 'logradouro' | 'numero' | 'bairro' | 'complemento'>): void {
+    this.customerForm.controls.enderecoProprio.patchValue({
+      uf: endereco.uf, codigoIbge: endereco.codigoIbgeMunicipio, cep: endereco.cep,
+      logradouro: endereco.logradouro, numero: endereco.numero, bairro: endereco.bairro, complemento: endereco.complemento ?? '',
+    });
+  }
   protected formatDocument(value: string): string {
     const digits = value.replace(/\D/g, '');
     return digits.length === 14 ? digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : digits.length === 11 ? digits.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4') : value;
@@ -142,6 +184,7 @@ export class CustomersComponent {
       enderecoId: d.enderecoId, enderecoBusca: '', contatoNome: contact?.nome || '', contatoCargo: contact?.cargo || '', contatoEmail: contact?.email || '', contatoTelefone: contact?.telefone || '', contatoCelular: contact?.celular || '',
       condicaoPagamento: commercial?.condicaoPagamento || '', limiteCredito: commercial?.limiteCredito ?? d.limiteCredito ?? 0, tabelaPreco: commercial?.tabelaPreco || '', bloquearVenda: commercial?.bloquearVenda ?? false, permiteFiado: commercial?.permiteFiado ?? true,
     });
+    if (d.endereco && d.enderecoId === null) this.preencherEnderecoProprio(d.endereco);
     this.customerMessage.set(''); this.activeCustomerModalTab.set('Dados gerais'); this.detailDialog()?.nativeElement.close(); this.customerDialog()?.nativeElement.showModal();
   }
   protected fecharNovoCliente(): void {
@@ -156,6 +199,24 @@ export class CustomersComponent {
     const f = this.customerForm.getRawValue(); const digits = f.documento.replace(/\D/g, '');
     if (digits.length !== (f.tipo === 'PJ' ? 14 : 11)) { this.customerMessage.set('Informe CPF com 11 dígitos ou CNPJ com 14 dígitos conforme o tipo de pessoa.'); this.activeCustomerModalTab.set('Dados gerais'); return; }
     if (f.indicadorIe === 'Contribuinte ICMS' && !f.inscricaoEstadual.trim()) { this.customerMessage.set('Informe a Inscrição Estadual do cliente contribuinte.'); this.activeCustomerModalTab.set('Dados gerais'); return; }
+    const original = this.editSource?.dados.endereco ?? null;
+    let endereco = original;
+    if (f.enderecoId === null && this.customerForm.controls.enderecoProprio.dirty) {
+      const { uf, codigoIbge, cep, logradouro, numero, bairro, complemento } = f.enderecoProprio;
+      const municipio = this.municipios()?.find(m => m.uf === uf && m.codigoIbge === codigoIbge);
+      const nome = municipio?.nome ?? this.municipioAtualForaDaLista()?.municipio;
+      const cepDigitos = cep.replace(/\D/g, '');
+      if (!nome || cepDigitos.length !== 8 || !logradouro.trim() || !bairro.trim()) {
+        this.customerMessage.set('Selecione a UF e a cidade e informe CEP, logradouro e bairro.');
+        this.abrirAbaEnderecos();
+        return;
+      }
+      endereco = {
+        tipo: original?.tipo ?? (f.tipo === 'PJ' ? 2 : 1), principal: original?.principal ?? true,
+        uf, codigoIbgeMunicipio: codigoIbge, municipio: nome, cep: cepDigitos, logradouro,
+        numero: numero.trim() || 'S/N', bairro, complemento: complemento.trim() || null, pais: original?.pais ?? 'Brasil',
+      };
+    }
     const contacts = [...(this.editSource?.dados.contatos ?? [])];
     if (f.contatoNome.trim()) {
       const primary = { nome: f.contatoNome, cargo: f.contatoCargo || null, email: f.contatoEmail || null, telefone: f.contatoTelefone || null, celular: f.contatoCelular || null, principal: contacts[0]?.principal ?? true };
@@ -167,7 +228,7 @@ export class CustomersComponent {
       dataNascimento: f.nascimento || null, profissao: f.profissao || null, cnh: f.cnh || null, inscricaoEstadual: f.inscricaoEstadual || null, inscricaoMunicipal: f.inscricaoMunicipal || null,
       indicadorIe: f.indicadorIe === 'Contribuinte ICMS' ? 1 : f.indicadorIe === 'Isento' ? 2 : 9, consumidorFinal: f.consumidorFinal,
       email: f.email || null, telefone: f.telefone || null, celular: f.celular || null, clienteDesde: f.clienteDesde || null, origem: f.origem || null, vendedorPadrao: f.vendedorPadrao || null,
-      limiteCredito: f.limiteCredito, observacao: f.observacoes || null, ativo: f.ativo, enderecoId: f.enderecoId, endereco: this.editSource?.dados.endereco ?? null, contatos: contacts,
+      limiteCredito: f.limiteCredito, observacao: f.observacoes || null, ativo: f.ativo, enderecoId: f.enderecoId, endereco, contatos: contacts,
       dadosComerciais: { condicaoPagamento: f.condicaoPagamento || null, limiteCredito: f.limiteCredito, tabelaPreco: f.tabelaPreco || null, vendedorPadrao: f.vendedorPadrao || null, origem: f.origem || null, bloquearVenda: f.bloquearVenda, permiteFiado: f.permiteFiado },
     };
     this.savingCustomer.set(true); this.customerMessage.set('');

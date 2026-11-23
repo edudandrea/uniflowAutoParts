@@ -1064,6 +1064,30 @@ namespace UniflowAutoParts.Api.Migrations
                     b.ToTable("Marcas");
                 });
 
+            modelBuilder.Entity("back.Models.MunicipioManual", b =>
+                {
+                    b.Property<int>("EmpresaId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CodigoIbge")
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
+
+                    b.Property<string>("Uf")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("character varying(2)");
+
+                    b.HasKey("EmpresaId", "CodigoIbge");
+
+                    b.ToTable("MunicipiosManuais");
+                });
+
             modelBuilder.Entity("back.Models.NotaFiscal", b =>
                 {
                     b.Property<long>("Id")
@@ -1521,6 +1545,15 @@ namespace UniflowAutoParts.Api.Migrations
                     b.Navigation("NotaFiscalItem");
 
                     b.Navigation("Produto");
+                });
+
+            modelBuilder.Entity("back.Models.MunicipioManual", b =>
+                {
+                    b.HasOne("back.Models.Empresas", null)
+                        .WithMany()
+                        .HasForeignKey("EmpresaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("back.Models.NotaFiscal", b =>

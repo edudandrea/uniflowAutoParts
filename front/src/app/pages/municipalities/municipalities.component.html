@@ -1,0 +1,74 @@
+<header class="page-hero">
+  <div class="title-row">
+    <app-icon class="title-icon" name="map-pin" />
+    <h1>Cadastro de Municípios</h1>
+  </div>
+  <button class="primary-action" type="button" (click)="abrir()" [disabled]="carregando() || !!erro()">
+    <app-icon name="plus" /> Novo município
+  </button>
+</header>
+
+<section class="municipios-panel" aria-label="Municípios cadastrados">
+  <div class="municipios-filtros">
+    <label>
+      <span>Buscar município</span>
+      <input type="search" placeholder="Nome ou código IBGE" [value]="busca()"
+        (input)="busca.set($any($event.target).value); pagina.set(1)" />
+    </label>
+    <label>
+      <span>UF</span>
+      <select [value]="uf()" (change)="uf.set($any($event.target).value); pagina.set(1)">
+        <option value="">Todas</option>
+        @for (estado of ufs(); track estado) { <option [value]="estado">{{ estado }}</option> }
+      </select>
+    </label>
+  </div>
+
+  @if (mensagem()) { <p class="feedback" role="status">{{ mensagem() }}</p> }
+  @if (carregando()) {
+    <p class="feedback" role="status">Carregando municípios…</p>
+  } @else if (erro()) {
+    <p class="feedback" role="alert">{{ erro() }} <button type="button" (click)="carregar()">Tentar novamente</button></p>
+  } @else {
+    <table>
+      <thead><tr><th scope="col">Município</th><th scope="col">UF</th><th scope="col">Código IBGE</th></tr></thead>
+      <tbody>
+        @for (municipio of visiveis(); track municipio.codigoIbge) {
+          <tr><td>{{ municipio.nome }}</td><td>{{ municipio.uf }}</td><td>{{ municipio.codigoIbge }}</td></tr>
+        } @empty {
+          <tr><td colspan="3">Nenhum município encontrado.</td></tr>
+        }
+      </tbody>
+    </table>
+    <footer>
+      <span>{{ filtrados().length }} municípios</span>
+      @if (totalPaginas() > 1) {
+        <nav aria-label="Páginas de municípios">
+          <button type="button" [disabled]="pagina() === 1" (click)="pagina.set(pagina() - 1)">Anterior</button>
+          <span>Página {{ pagina() }} de {{ totalPaginas() }}</span>
+          <button type="button" [disabled]="pagina() === totalPaginas()" (click)="pagina.set(pagina() + 1)">Próxima</button>
+        </nav>
+      }
+    </footer>
+  }
+</section>
+
+<dialog #municipioDialog aria-labelledby="novo-municipio" (cancel)="salvando() && $event.preventDefault()">
+  <form [formGroup]="form" (ngSubmit)="salvar()">
+    <h2 id="novo-municipio">Novo município</h2>
+    <label><span>Nome</span><input formControlName="nome" maxlength="120" required /></label>
+    <label>
+      <span>UF</span>
+      <select formControlName="uf" required>
+        <option value="">Selecione</option>
+        @for (estado of ufs(); track estado) { <option [value]="estado">{{ estado }}</option> }
+      </select>
+    </label>
+    <label><span>Código IBGE</span><input formControlName="codigoIbge" inputmode="numeric" maxlength="7" required /></label>
+    @if (erroCadastro()) { <p class="erro" role="alert">{{ erroCadastro() }}</p> }
+    <footer>
+      <button type="button" [disabled]="salvando()" (click)="municipioDialog.close()">Cancelar</button>
+      <button class="primary-action" type="submit" [disabled]="salvando()">{{ salvando() ? 'Salvando…' : 'Salvar município' }}</button>
+    </footer>
+  </form>
+</dialog>

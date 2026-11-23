@@ -64,6 +64,7 @@ export class CompanyShellComponent {
       path: '/app/configuracoes/enderecos',
       children: [
         { label: 'Cadastro de enderecos', icon: 'map-pin', path: '/app/configuracoes/enderecos' },
+        { label: 'Cadastro de Municípios', icon: 'map-pin', path: '/app/configuracoes/municipios' },
         { label: 'Categorias', icon: 'tags', path: '/app/configuracoes/categorias' },
         { label: 'Marcas', icon: 'badge', path: '/app/configuracoes/marcas' },
         { label: 'Certificado e Tributações', icon: 'lock', path: '/app/configuracoes/certificado-digital' },

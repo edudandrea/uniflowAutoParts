@@ -52,6 +52,12 @@ export interface NotaFiscalEventoResponse {
   sequencia: number;
 }
 
+export interface Municipio {
+  codigoIbge: string;
+  nome: string;
+  uf: string;
+}
+
 export interface CriarClientePayload {
   empresaId: number;
   tipoPessoa: number;
