@@ -1,77 +1,79 @@
 <section class="inventory-page">
-  <header class="inventory-hero page-hero">
+  <header class="inventory-hero">
     <div class="title-row">
-      <app-icon class="title-icon" name="boxes" />
+      <app-icon class="title-icon" name="package" [size]="25" />
       <div>
         <h1>Estoque</h1>
-        <p>Controle total das suas pecas, em tempo real.</p>
+        <p>Controle e valorização das peças em tempo real.</p>
       </div>
     </div>
-
-
     <div class="hero-actions">
-      <button class="secondary-action" type="button" (click)="abrirConferencias()">Conferir NF-e</button>
+      <button class="secondary-action" type="button" (click)="abrirConferencias()"><app-icon name="file-text" [size]="16" />Conferir NF-e</button>
       <button class="secondary-action" type="button" [disabled]="loading()" (click)="carregarEstoque()">
-        Atualizar estoque
+        <app-icon name="refresh-cw" [size]="16" />Atualizar estoque
       </button>
       <button class="secondary-action" type="button" (click)="abrirImportacaoNfe()">
-        <app-icon name="file-up" />
+        <app-icon name="file-up" [size]="16" />
         Importar XML NF-e
       </button>
       <button class="primary-action" type="button" (click)="abrirNovoProduto()">
-        <app-icon name="plus" />
+        <app-icon name="plus" [size]="17" />
         Novo produto
       </button>
       <button class="secondary-action" type="button">
-        Mais acoes
-        <app-icon name="chevron-down" />
+        Mais ações
+        <app-icon name="chevron-down" [size]="14" />
       </button>
     </div>
   </header>
 
   @if (!loading() && !loadError()) {
-  <section class="metrics-grid" aria-label="Resumo do estoque">
-    @for (metric of metrics(); track metric.label) {
-      <article class="metric-card" [class.danger]="metric.tone === 'danger'">
-        <app-icon class="metric-icon " [name]="metric.icon" [size]="24" />
-        <div>
-          <p>{{ metric.label }}</p>
-          <strong>{{ metric.value }}</strong>
-          <small [class.down]="metric.tone === 'danger'">
-            <app-icon [name]="metric.tone === 'danger' ? 'arrow-down' : 'arrow-up'" [size]="14" [strokeWidth]="2" />
-            {{ metric.delta }} <span>{{ metric.caption }}</span>
-          </small>
-        </div>
-      </article>
-    }
-
-  </section>
+    <section class="metrics-grid" aria-label="Resumo do estoque">
+      @for (metric of metrics(); track metric.label) {
+        <article class="metric-card" [class.warning]="metric.tone === 'warning'" [class.danger]="metric.tone === 'danger'">
+          <app-icon class="metric-icon" [name]="metric.icon" [size]="21" />
+          <div class="metric-copy">
+            <p>{{ metric.label }}</p>
+            <strong>{{ metric.value }}</strong>
+            <small>Base atual</small>
+          </div>
+        </article>
+      }
+    </section>
   }
 
   <section class="global-pricing" aria-labelledby="pricing-heading" [attr.aria-busy]="savingMargin() || loadingMargin()">
-    <div><h2 id="pricing-heading"><app-icon name="tags" [size]="22" />Margem de preço do estoque</h2><p>Uma única margem para todos os produtos, inclusive novos cadastros.</p><small>Preço de venda = custo × (1 + margem ÷ 100). A aplicação independe dos filtros abaixo.</small></div>
+    <div class="pricing-intro">
+      <span class="pricing-icon"><app-icon name="tags" [size]="19" /></span>
+      <div>
+        <h2 id="pricing-heading">Margem de preço do estoque</h2>
+        <p>Aplicada a todos os produtos, inclusive novos cadastros.</p>
+        @if (!marginError()) {
+          <p>{{ savedMargin() === null ? 'Nenhuma margem geral definida. Os preços atuais serão mantidos até a primeira aplicação.' : 'Margem atual: ' + savedMargin() + '%' }}</p>
+        }
+      </div>
+    </div>
     <div class="global-pricing-controls"><label for="global-margin">Margem geral (%)<input id="global-margin" type="number" min="0" max="99999.9999" step="0.0001" placeholder="Definir margem" [ngModel]="globalMargin()" (ngModelChange)="globalMargin.set($event)" [disabled]="loadingMargin() || savingMargin() || !!marginError()" /></label><button class="primary-action" type="button" (click)="salvarMargem()" [disabled]="loadingMargin() || savingMargin() || !!marginError()"><app-icon name="save" [size]="18" />{{ savingMargin() ? 'Aplicando...' : 'Aplicar a todo o estoque' }}</button></div>
     @if (marginError()) { <p role="alert">{{ marginError() }} <button type="button" (click)="carregarMargem()">Tentar novamente</button></p> }
-    @else { <p class="pricing-current">{{ savedMargin() === null ? 'Nenhuma margem geral definida. Os preços atuais serão mantidos até a primeira aplicação.' : 'Margem atual: ' + savedMargin() + '%' }}</p> }
     @if (marginMessage()) { <p class="pricing-feedback" role="status">{{ marginMessage() }}</p> }
   </section>
   <nav class="inventory-tabs" aria-label="Cadastro de estoque">
-    <button type="button" [class.active]="activeTab() === 'conferences'" (click)="abrirConferencias()">Notas importadas</button>
     <button type="button" [class.active]="activeTab() === 'search'" (click)="activeTab.set('search')">
-      <app-icon name="search" />
-      Pesquisa de itens
+      <app-icon name="package" [size]="17" />
+      Pesquisa de itens <span class="tab-count">{{ filteredProducts().length }}</span>
     </button>
+    <button type="button" [class.active]="activeTab() === 'conferences'" (click)="abrirConferencias()"><app-icon name="receipt-text" [size]="17" />Notas importadas</button>
     <button type="button" [disabled]="!selectedProduct()" [class.active]="activeTab() === 'details'" (click)="activeTab.set('details')">
-      <app-icon name="package" />
+      <app-icon name="file-text" [size]="17" />
       Dados do item
     </button>
   </nav>
 
   @if (loadError()) {
-    <p role="alert">{{ loadError() }} <button type="button" (click)="carregarEstoque()">Tentar novamente</button></p>
+    <p class="stock-notice error" role="alert">{{ loadError() }} <button type="button" (click)="carregarEstoque()">Tentar novamente</button></p>
   }
   @if (loading()) {
-    <p role="status">Carregando estoque...</p>
+    <p class="stock-notice" role="status">Carregando estoque...</p>
   }
 
   @if (activeTab() === 'conferences') {
@@ -101,50 +103,54 @@
 
   @if (activeTab() === 'search') {
     <section class="inventory-search-tab">
-      <article class="stock-panel">
-        <header class="panel-title">
-          <div>
-            <h2>Pesquisar estoque</h2>
-            <p>Busque por codigo, descricao, marca ou codigo do fabricante.</p>
-          </div>
-          <strong>{{ filteredProducts().length }} item(ns)</strong>
-        </header>
+      <article class="stock-panel stock-list" aria-labelledby="stock-search-heading">
+        <h2 id="stock-search-heading" class="sr-only">Pesquisar estoque</h2>
 
       <div class="filters-bar">
         <label class="search-control">
           <app-icon name="search" />
           <input
             type="search"
-            placeholder="Buscar por codigo, descricao ou marca..."
+            aria-label="Buscar itens do estoque"
+            placeholder="Buscar por código, descrição, marca ou fabricante…"
             [ngModel]="searchTerm()"
             (ngModelChange)="searchTerm.set($event)"
           />
         </label>
-        <select aria-label="Categoria" [ngModel]="categoryFilter()" (ngModelChange)="categoryFilter.set($event)">
-          <option>Todas</option>
-          @for (category of categoryOptions(); track category) {
-            <option>{{ category }}</option>
-          }
-        </select>
-        <select aria-label="Marca" [ngModel]="brandFilter()" (ngModelChange)="brandFilter.set($event)">
-          <option>Todas</option>
-          @for (brand of brandOptions(); track brand) {
-            <option>{{ brand }}</option>
-          }
-        </select>
-        <select aria-label="Status" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
-          <option>Todas</option>
-          <option>Em estoque</option>
-          <option>Estoque baixo</option>
-          <option>Sem estoque</option>
-        </select>
+        <label class="stock-filter">
+          <span>Categoria</span>
+          <select aria-label="Categoria" [ngModel]="categoryFilter()" (ngModelChange)="categoryFilter.set($event)">
+            <option>Todas</option>
+            @for (category of categoryOptions(); track category) {
+              <option>{{ category }}</option>
+            }
+          </select>
+        </label>
+        <label class="stock-filter">
+          <span>Marca</span>
+          <select aria-label="Marca" [ngModel]="brandFilter()" (ngModelChange)="brandFilter.set($event)">
+            <option>Todas</option>
+            @for (brand of brandOptions(); track brand) {
+              <option>{{ brand }}</option>
+            }
+          </select>
+        </label>
+        <label class="stock-filter">
+          <span>Situação</span>
+          <select aria-label="Status" [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+            <option>Todas</option>
+            <option>Em estoque</option>
+            <option>Estoque baixo</option>
+            <option>Sem estoque</option>
+          </select>
+        </label>
         <button class="filter-button" type="button" (click)="limparFiltros()">
           <app-icon name="sliders-horizontal" />
           Limpar filtros
         </button>
       </div>
-      <div class="table-wrap">
-        <table>
+      <div class="table-wrap stock-table-wrap" tabindex="0" role="region" aria-label="Lista de itens do estoque">
+        <table class="stock-table">
           <thead>
             <tr>
               <th class="selection-cell" scope="col">
@@ -155,17 +161,17 @@
                     (change)="marcarTodosVisiveis($any($event.target).checked)" />
                 </label>
               </th>
-              <th>Codigo</th>
-              <th></th>
-              <th>Descricao</th>
-              <th>Marca</th>
-              <th>Categoria</th>
-              <th>Localizacao</th>
-              <th>Estoque</th>
-              <th>Est. min.</th>
-              <th>Preço de custo (R$)</th><th>Preço de venda (R$)</th>
-              <th>Status</th>
-              <th>Acoes</th>
+              <th class="stock-code-column" scope="col">Código</th>
+              <th scope="col">Produto</th>
+              <th class="stock-brand-column" scope="col">Marca</th>
+              <th class="stock-category-column" scope="col">Categoria</th>
+              <th class="stock-location-column" scope="col">Localização</th>
+              <th class="stock-quantity-column" scope="col">Estoque</th>
+              <th class="stock-quantity-column" scope="col">Est. min.</th>
+              <th class="stock-price-column" scope="col">Custo (R$)</th>
+              <th class="stock-price-column" scope="col">Venda (R$)</th>
+              <th class="stock-status-column" scope="col">Situação</th>
+              <th class="stock-action-column" scope="col">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -178,30 +184,35 @@
                       (change)="marcarProduto(product.codigo, $any($event.target).checked)" />
                   </label>
                 </td>
-                <td>{{ product.codigo }}</td>
+                <td class="stock-code">{{ product.codigo }}</td>
                 <td>
-                  <span class="thumb">
-                    @if (product.imagemUrl) {
-                      <img [src]="product.imagemUrl" [alt]="product.descricao" />
-                    } @else {
-                      <app-icon name="eye" />
-                    }
-                  </span>
+                  <div class="stock-product">
+                    <span class="thumb">
+                      @if (product.imagemUrl) {
+                        <img [src]="product.imagemUrl" alt="" />
+                      } @else {
+                        <app-icon name="package" [size]="16" />
+                      }
+                    </span>
+                    <div>
+                      <strong>{{ product.descricao }}</strong>
+                      @if (product.fabricante) { <small [title]="product.fabricante">Cód. fab. {{ product.fabricante }}</small> }
+                    </div>
+                  </div>
                 </td>
-                <td>{{ product.descricao }}</td>
-                <td>{{ product.marca }}</td>
-                <td>{{ product.categoria }}</td>
-                <td>{{ product.localizacao || 'Nao informada' }}</td>
+                <td class="stock-cell-label" [title]="product.marca">{{ product.marca }}</td>
+                <td class="stock-cell-label" [title]="product.categoria">{{ product.categoria }}</td>
+                <td class="stock-cell-label" [title]="product.localizacao || 'Não informada'">{{ product.localizacao || 'Não informada' }}</td>
                 <td [class.zero-stock]="product.estoque === 0">{{ product.estoque }}</td>
                 <td>{{ product.minimo }}</td>
                 <td class="price-cell">{{ formatCurrency(product.custo) }}</td>
                 <td class="price-cell sale-price">{{ formatCurrency(product.valor) }}</td>
                 <td><span class="status-pill" [class]="statusClass(product)">{{ statusFor(product) }}</span></td>
-                <td><button class="row-action" type="button" aria-label="Acoes">...</button></td>
+                <td><button class="row-action" type="button" [attr.aria-label]="'Ações do item ' + product.codigo"><app-icon name="ellipsis" [size]="18" /></button></td>
               </tr>
             } @empty {
               <tr>
-                <td colspan="13">
+                <td colspan="12">
                   <div class="empty-list">
                     <app-icon name="boxes" />
                     <strong>{{ loading() ? 'Carregando estoque...' : loadError() ? 'Estoque indisponivel' : 'Nenhum item encontrado' }}</strong>

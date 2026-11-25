@@ -31,4 +31,23 @@ describe('CompanyLogoComponent', () => {
     expect(fixture.nativeElement.querySelector('img')).toBeNull();
     expect(fixture.nativeElement.textContent).toContain('Empresa de teste');
   });
+
+  it('shows the company name alongside the logo in the sidebar variant', async () => {
+    const session = sessionStub();
+    session.session.set({ ...TEST_SESSION, empresa: { ...TEST_SESSION.empresa!, logoUrl: '/company.png' } });
+    await TestBed.configureTestingModule({ imports: [CompanyLogoComponent], providers: [{ provide: SessionService, useValue: session }] }).compileComponents();
+    const fixture = TestBed.createComponent(CompanyLogoComponent);
+    fixture.componentRef.setInput('showName', true);
+    fixture.detectChanges();
+
+    const img = fixture.nativeElement.querySelector('img') as HTMLImageElement;
+    expect(img.getAttribute('src')).toBe('/company.png');
+    expect(img.alt).toBe('');
+    expect(fixture.nativeElement.textContent.trim()).toBe('Empresa de teste');
+
+    img.dispatchEvent(new Event('error'));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('img')).toBeNull();
+    expect(fixture.nativeElement.textContent.trim()).toBe('Empresa de teste');
+  });
 });

@@ -12,11 +12,9 @@ import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
 interface InventoryMetric {
   icon: string;
-  tone: 'success' | 'danger';
+  tone: 'success' | 'warning' | 'danger';
   label: string;
   value: string;
-  delta: string;
-  caption: string;
 }
 
 interface InventoryCategory {
@@ -150,10 +148,10 @@ export class InventoryComponent implements OnInit {
     const noStock = products.filter((product) => product.estoque <= 0).length;
 
     return [
-      { icon: 'boxes', tone: 'success', label: 'Total de itens', value: this.formatNumber(totalItems), delta: 'base atual', caption: '' },
-      { icon: 'circle-dollar-sign', tone: 'success', label: 'Valor em estoque', value: this.formatCurrency(stockValue), delta: 'base atual', caption: '' },
-      { icon: 'info', tone: 'danger', label: 'Itens com estoque baixo', value: String(lowStock), delta: 'base atual', caption: '' },
-      { icon: 'x', tone: 'danger', label: 'Itens sem estoque', value: String(noStock), delta: 'base atual', caption: '' },
+      { icon: 'package', tone: 'success', label: 'Total de itens', value: this.formatNumber(totalItems) },
+      { icon: 'coins', tone: 'success', label: 'Valor em estoque', value: this.formatCurrency(stockValue) },
+      { icon: 'triangle-alert', tone: 'warning', label: 'Itens com estoque baixo', value: String(lowStock) },
+      { icon: 'boxes', tone: 'danger', label: 'Itens sem estoque', value: String(noStock) },
     ];
   });
 

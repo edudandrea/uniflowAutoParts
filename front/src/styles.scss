@@ -1,3 +1,5 @@
+@use 'workspace';
+
 :root {
   --brand-green: #0a9254;
   --brand-green-dark: #087338;
@@ -10,20 +12,24 @@
   --muted: #526175;
   --muted-strong: #45536a;
   --surface: #ffffff;
-  --surface-muted: #f4f8f7;
-  --surface-raised: linear-gradient(157deg, #fff 40%, #f7fbfa);
-  --surface-green: #daf6e7;
-  --border: #dce6e6;
-  --border-soft: #e7eeee;
+  --surface-muted: #f5f8fa;
+  --surface-raised: linear-gradient(155deg, #fff 54%, #f8fafb);
+  --surface-green: #ddf6e8;
+  --surface-hover: #eff9f3;
+  --surface-chrome: #f8fafc;
+  --table-heading: #ebf0f5;
+  --border: #d9e2e9;
+  --border-soft: #e6ecf1;
   --focus-ring: #09965726;
-  --radius-panel: 12px;
+  --radius-panel: 10px;
+  --radius-control: 7px;
   --warning: #8a5b08;
   --danger: #b42318;
   --brand-gradient: linear-gradient(135deg, var(--brand-green-dark), #085e3d);
   --app-bg:
-    radial-gradient(ellipse at 0 100%, #e7f6f0, transparent 48%),
-    linear-gradient(150deg, #f7f9fa, #eef4f4);
-  --shadow-sm: 0 2px 4px #173e3b08, 0 6px 16px #173e3b08;
+    radial-gradient(ellipse at 50% 115%, #e1f3ef, transparent 57%),
+    linear-gradient(150deg, #f6f8fa, #edf3f5);
+  --shadow-sm: 0 1px 3px #12344308, 0 4px 13px #12344307;
   --shadow-lg: 0 18px 48px #173e3b25;
 }
 

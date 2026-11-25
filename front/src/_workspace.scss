@@ -1,0 +1,112 @@
+// Shared appearance for the authenticated workspace and the existing page layouts.
+#conteudo {
+  :is(.page-hero, .invoice-hero, .fiscal-page > .page-heading, .sales-page > .hero) {
+    min-height: 0;
+    padding: 2px 0;
+    border: 0;
+    margin-bottom: 12px;
+    background: transparent;
+    box-shadow: none;
+
+    &::before, &::after { content: none; }
+    h1 { color: var(--ink); font-size: clamp(1.38rem, 2.15vw, 1.84rem); line-height: 1.15; letter-spacing: -.04em; }
+    p { margin-top: 3px; color: var(--muted); font-size: .82rem; font-weight: 500; }
+
+    :is(.title-icon, .hero-icon, .heading-icon) {
+      width: 45px;
+      height: 45px;
+      border-radius: var(--radius-panel);
+      color: var(--brand-green-dark);
+      background: var(--surface-green);
+      box-shadow: none;
+    }
+  }
+
+  :is(.customers-panel, .catalog-panel, .orders-panel, .suppliers-panel, .invoices-panel,
+      .addresses-panel, .municipios-panel, .brands-panel, .categories-panel,
+      .applications-panel, .filters-panel, .financial-page .panel, .sales-page .panel,
+      .fiscal-page .card, .addresses-topbar) {
+    border-color: var(--border-soft);
+    border-radius: var(--radius-panel);
+    background: var(--surface-raised);
+    box-shadow: var(--shadow-sm);
+  }
+
+  :is(.customers-page, .products-page, .purchases-page, .suppliers-page, .invoices-page,
+      .financial-page, .addresses-page, .categories-page, .brands-page, .applications-page) {
+    :is(.metric-card, .metric, .category-card) {
+      border-color: var(--border-soft);
+      border-radius: var(--radius-panel);
+      box-shadow: var(--shadow-sm);
+    }
+  }
+
+  :is(.purchase-tabs, .address-tabs, .client-main-tabs, .supplier-main-tabs, .applications-page .tabs, .fiscal-page .section-tabs) {
+    border-color: var(--border);
+    border-radius: var(--radius-control);
+
+    button.active {
+      color: var(--brand-green-dark);
+      border-color: var(--border-soft);
+      border-bottom-color: var(--brand-green);
+      background: var(--surface-green);
+    }
+  }
+
+  thead th {
+    color: var(--ink-soft);
+    border-bottom-color: var(--border);
+    background: var(--table-heading);
+    font-weight: 700;
+  }
+
+  tbody td { border-bottom-color: var(--border-soft); }
+
+  :is(.table-wrap, .table-scroll) table tbody tr:hover {
+    background: var(--surface-hover);
+  }
+
+  :is(.table-wrap, .table-scroll):focus-visible { outline-offset: 1px; }
+
+  :is(dialog, [role='dialog']) {
+    border-color: var(--border);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-lg);
+  }
+
+  :is(.table-footer, .pagination, .panel-header) { border-color: var(--border-soft); }
+
+  .stock-table {
+    min-width: 853px;
+    table-layout: fixed;
+
+    :is(th, td) { padding-inline: 6px; }
+    td { height: 36px; overflow-wrap: break-word; }
+    td.price-cell { white-space: normal; }
+    :is(.stock-cell-label, .stock-product small) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .selection-cell { width: 34px; padding-inline: 0; }
+    .stock-code-column { width: 50px; }
+    .stock-brand-column { width: 82px; }
+    .stock-category-column { width: 91px; }
+    .stock-location-column { width: 84px; }
+    .stock-quantity-column { width: 55px; }
+    .stock-price-column { width: 77px; }
+    .stock-status-column { width: 98px; }
+    .stock-action-column { width: 45px; }
+  }
+}
+
+@media (min-width: 890px) and (max-width: 1080px) {
+  #conteudo .inventory-hero {
+    flex-wrap: nowrap;
+    .title-row { flex-basis: 230px; }
+    .hero-actions { flex: 0 0 auto; gap: 5px; }
+    .hero-actions button { min-height: 34px; padding-inline: 8px; font-size: .72rem; white-space: nowrap; }
+  }
+}
+
+@media (max-width: 640px) {
+  #conteudo :is(.page-hero, .invoice-hero, .fiscal-page > .page-heading, .sales-page > .hero) {
+    :is(.title-icon, .hero-icon, .heading-icon) { width: 40px; height: 40px; }
+  }
+}

@@ -28,7 +28,12 @@ export class CompanyShellComponent {
   protected readonly searchTerm = signal('');
   protected readonly expandedMenus = signal<Record<string, boolean>>({});
   protected readonly mobileMenuOpen = signal(false);
-  protected readonly companyInitial = computed(() => this.session.session()?.empresa?.nome.trim().charAt(0).toUpperCase() || 'U');
+  protected readonly userInitials = computed(() => {
+    const names = this.session.session()?.usuario?.nome.trim().split(/\s+/) ?? [];
+    const first = names[0]?.charAt(0) || 'U';
+    const last = names.length > 1 ? names.at(-1)?.charAt(0) ?? '' : '';
+    return (first + last).toUpperCase();
+  });
 
   protected readonly menuItems: CompanyMenuItem[] = [
     { label: 'Dashboard', icon: 'layout-dashboard', path: '/app/dashboard' },
