@@ -16,7 +16,7 @@
   justify-content: space-between;
   gap: 20px;
   overflow: hidden;
-  border: 1px solid rgba(11, 36, 56, 0.08);
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   margin-bottom: 14px;
   padding: 18px;
@@ -62,13 +62,13 @@ p {
 }
 
 .title-row h1 {
-  color: #07192a;
+  color: var(--ink);
   font-size: 1.65rem;
 }
 
 .title-row p {
   margin-top: 6px;
-  color: #607789;
+  color: var(--muted);
   font-weight: 700;
 }
 
@@ -85,8 +85,8 @@ p {
 
 .primary-action {
   color: #fff;
-  background: linear-gradient(135deg, var(--brand-green), var(--brand-green-dark));
-  box-shadow: 0 14px 28px rgba(19, 168, 106, 0.2);
+  background: var(--brand-gradient);
+  box-shadow: var(--shadow-sm);
 }
 
 .filter-button {
@@ -105,7 +105,7 @@ p {
 .metric-card,
 .orders-panel,
 .side-card {
-  border: 1px solid rgba(11, 36, 56, 0.08);
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: var(--shadow-sm);
@@ -123,7 +123,7 @@ p {
 }
 
 .metric-card p {
-  color: #607789;
+  color: var(--muted);
   font-size: 0.84rem;
   font-weight: 600;
 }
@@ -131,7 +131,7 @@ p {
 .metric-card strong {
   display: block;
   margin-top: 6px;
-  color: #07192a;
+  color: var(--ink);
   font-size: 1.36rem;
 }
 
@@ -156,14 +156,14 @@ p {
   display: flex;
   gap: 20px;
   padding: 0 14px;
-  border-bottom: 1px solid rgba(11, 36, 56, 0.08);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .purchase-tabs button {
   min-height: 52px;
   border-radius: 0;
   padding: 0;
-  color: #526c80;
+  color: var(--muted);
   background: transparent;
   font-size: 0.9rem;
 }
@@ -223,7 +223,7 @@ table {
   width: 100%;
   min-width: 940px;
   border-collapse: collapse;
-  color: #22394d;
+  color: var(--ink-soft);
   font-size: 0.82rem;
 }
 
@@ -236,8 +236,8 @@ td {
 }
 
 th {
-  color: #365267;
-  background: #eef4f6;
+  color: var(--muted-strong);
+  background: var(--surface-muted);
   font-weight: 600;
 }
 
@@ -281,7 +281,7 @@ th {
 
 .status-pill.received,
 .status-pill.done {
-  color: #057747;
+  color: var(--brand-green-dark);
   background: rgba(19, 168, 106, 0.16);
 }
 
@@ -291,14 +291,14 @@ th {
 }
 
 .status-pill.canceled {
-  color: #607789;
-  background: #eaf1f4;
+  color: var(--muted);
+  background: var(--border-soft);
 }
 
 .row-action {
   min-height: 30px;
   padding: 0 10px;
-  color: #102842;
+  color: var(--ink);
   background: transparent;
 }
 
@@ -308,7 +308,7 @@ th {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 14px;
-  color: #607789;
+  color: var(--muted);
   font-size: 0.84rem;
   font-weight: 700;
 }
@@ -323,7 +323,7 @@ th {
   min-width: 34px;
   min-height: 34px;
   padding: 0 8px;
-  color: #254154;
+  color: var(--ink-soft);
   border: 1px solid rgba(11, 36, 56, 0.1);
   background: #fff;
 }
@@ -348,7 +348,7 @@ th {
 }
 
 .side-card h2 {
-  color: #07192a;
+  color: var(--ink);
   font-size: 1rem;
 }
 
@@ -365,7 +365,7 @@ th {
   gap: 10px;
   border: 0;
   color: #1c374d;
-  background: #f8fbfc;
+  background: var(--surface-muted);
   text-align: left;
 }
 
@@ -386,7 +386,7 @@ th {
 
 .quick-card small,
 .receipt-row small {
-  color: #607789;
+  color: var(--muted);
   font-weight: 700;
 }
 
@@ -414,7 +414,7 @@ th {
 
 .donut span {
   display: block;
-  color: #607789;
+  color: var(--muted);
   font-size: 0.72rem;
   font-weight: 600;
 }
@@ -425,7 +425,7 @@ th {
   margin: 0;
   padding: 0;
   list-style: none;
-  color: #526c80;
+  color: var(--muted);
   font-size: 0.82rem;
   font-weight: 600;
 }
@@ -482,7 +482,7 @@ i.canceled {
 .receipt-row {
   gap: 10px;
   padding: 12px 0;
-  border-top: 1px solid rgba(11, 36, 56, 0.08);
+  border-top: 1px solid var(--border-soft);
 }
 
 .receipt-row:first-child {
@@ -495,7 +495,7 @@ i.canceled {
   display: grid;
   place-items: center;
   border-radius: 8px;
-  color: #102842;
+  color: var(--ink);
   background: #f0f5f7;
 }
 

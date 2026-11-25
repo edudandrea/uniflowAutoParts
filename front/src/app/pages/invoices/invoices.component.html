@@ -2,10 +2,10 @@
   <header class="invoice-hero">
     <div class="hero-heading">
       <span class="hero-icon"><app-icon name="file-text" [size]="32" /></span>
-      <div><span class="eyebrow">GESTÃO FISCAL</span><h1>Notas Fiscais (NF-e / NFC-e)</h1>
+      <div><h1>Notas Fiscais (NF-e / NFC-e)</h1>
         <p>Acompanhe, consulte e baixe as notas fiscais eletrônicas emitidas.</p></div>
     </div>
-    <div class="hero-document" aria-hidden="true"><b>NF-e</b><i></i><i></i><i></i><span><app-icon name="check" [size]="26" /></span></div>
+
   </header>
 
   @if (message()) { <div class="notice" role="status"><app-icon name="info" /><span>{{ message() }}</span><button type="button" aria-label="Fechar mensagem" (click)="message.set('')"><app-icon name="x" [size]="16" /></button></div> }

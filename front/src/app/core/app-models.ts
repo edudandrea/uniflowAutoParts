@@ -1,3 +1,17 @@
+export interface DashboardResumo {
+  faturamento: number;
+  total: number;
+  margem: number | null;
+  comparacao: { valor: number; quantidade: number } | null;
+  serie: { dia: string; valor: number; quantidade: number }[];
+  produtos: { id: number; descricao: string; sku: number; quantidade: number }[];
+  notas: Pick<NotaFiscal, 'numero' | 'emissao' | 'cliente' | 'situacao' | 'valor' | 'tipo'>[];
+  entradas: { numeroNfe: string; importadoEm: string; status: string }[];
+  pendentes: number;
+  rejeitadas: number;
+  estoqueBaixo: number;
+}
+
 export interface NotaFiscal {
   id: number;
   numero: string;
@@ -386,7 +400,8 @@ export interface EmitirNfePayload {
   csosn?: string;
   modalidadeFrete?: number; indicadorPresenca?: number;
   destinatario?: DestinatarioFiscalData;
-  solicitacaoId: string; clienteId: number; ambiente: number; serie: number; natureza: string; cfop: string; modelo: string;
+  solicitacaoId: string; clienteId: number; ambiente: number; serie: number; natureza: string; modelo: string;
+  cfop?: string; retiradaNoEstabelecimento?: boolean;
   desconto: number; frete: number; despesas: number; observacoes: string;
   itens: Array<{ produtoId: number; quantidade: number; precoUnitario: number; descontoPercentual: number; origem: string; ncm: string; unidade: string }>;
   pagamentos: Array<{ forma: string; valor: number }>;
@@ -394,5 +409,6 @@ export interface EmitirNfePayload {
 export interface EmissaoNfeResponse {
   id: number; numero: string; serie: string; chaveAcesso: string; ambiente: number;
   situacao: 'Autorizada' | 'Cancelada' | 'Processando' | 'Rejeitada'; codigo: string; motivo: string; protocolo: string; podeReenviar: boolean;
+  cfop?: string | null;
 }
 export interface NotaFiscalEventoHistorico { id: number; tipo: string; sequencia: number; situacao: string; codigo: string; motivo: string; protocolo: string; texto: string; criadoEm: string }

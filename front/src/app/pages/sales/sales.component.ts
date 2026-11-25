@@ -12,12 +12,17 @@ import { FiscalCertificateService, FiscalEnvironment } from '../../core/fiscal-c
 
 interface SaleItem { produto: Produto; quantidade: number; preco: number; desconto: number; precoEditado?: boolean; origem?: string; ncm?: string; unidade?: string }
 interface Payment { id: number; forma: string; valor: number }
+const UF_NFE_EMITENTE = 'RS';
+const UFS_BRASIL = new Set('AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO'.split(' '));
+const NATUREZA_REVENDA = 'Venda de mercadoria adquirida ou recebida de terceiros';
+
 interface SaleDraft {
   cliente: ClienteResumoResponse | null; itens: SaleItem[]; pagamentos: Payment[];
   tipo: string; vendedor: string; emitir: boolean; modelo: string; finalidade: string;
-  natureza: string; cfop: string; serie: string; desconto: number; frete: number;
+  natureza: string; serie: string; desconto: number; frete: number;
+  cfop?: string;
   despesas: number; observacoes: string; csosn?: string; destinatario?: DestinatarioFiscalData; destinatarioClienteId?: number; destinatarioCadastro?: DestinatarioFiscalData;
-  vehicleName?: string; vehiclePlate?: string; modalidadeFrete?: number; indicadorPresenca?: number;
+  vehicleName?: string; vehiclePlate?: string; modalidadeFrete?: number; indicadorPresenca?: number; retiradaNoEstabelecimento?: boolean;
   vendaOrigemId?: number; emissionRequestId?: string; emissionPayload?: EmitirNfePayload | null; emittedNote?: EmissaoNfeResponse | null; emissionAttempted?: boolean;
 }
 
@@ -36,10 +41,12 @@ export class SalesComponent {
   private readonly session = inject(SessionService);
   private readonly certificateStore = inject(FiscalCertificateService);
   private readonly reviewDialog = viewChild<ElementRef<HTMLDialogElement>>('reviewDialog');
+  private readonly fiscalOptions = viewChild<ElementRef<HTMLDetailsElement>>('fiscalOptions');
   private readonly productSearchInput = viewChild<ElementRef<HTMLInputElement>>('productSearchInput');
   protected readonly fiscalMessage = signal('');
   protected readonly fiscalEnvironment = signal<FiscalEnvironment | null>(null);
   protected readonly environmentError = signal('');
+  protected readonly fiscalRegime = signal<string | null>(null);
 
   protected readonly emissionBusy = signal(false);
   protected readonly emissionAttempted = signal(false);
@@ -60,6 +67,48 @@ export class SalesComponent {
   private destinationBaseline: DestinatarioFiscalData | null = null;
   private emissionRequestId: string = crypto.randomUUID();
   private emissionPayload: EmitirNfePayload | null = null;
+  private seriePadrao = '1';
+  private legacyCfop?: string;
+  protected retiradaNoEstabelecimento = false;
+  protected readonly issuerUf = UF_NFE_EMITENTE;
+
+  protected destinationUf(): string {
+    if (!this.cliente() || this.destinationId !== this.cliente()?.id) return '';
+    const uf = this.destination?.uf?.trim().toUpperCase() ?? '';
+    return UFS_BRASIL.has(uf) ? uf : '';
+  }
+
+  protected canSelectLocalPickup(): boolean {
+    const uf = this.destinationUf();
+    return !!uf && uf !== this.issuerUf && this.cliente()?.cpfCnpj.replace(/\D/g, '').length === 11 &&
+      this.destination?.indicadorIe === 9 && this.destination.consumidorFinal &&
+      this.indicadorPresenca === 1 && this.modalidadeFrete === 9 && !this.frete;
+  }
+
+  protected localPickup(): boolean {
+    return this.emissionPayload ? !!this.emissionPayload.retiradaNoEstabelecimento :
+      this.retiradaNoEstabelecimento && this.canSelectLocalPickup();
+  }
+
+  protected fiscalCfop(): string | null {
+    const registered = this.emittedNote()?.cfop ?? this.emissionPayload?.cfop;
+    if (registered) return registered;
+    const destination = this.destinationUf();
+    if (!destination) return null;
+    if (destination === this.issuerUf || this.localPickup()) return '5102';
+    if (this.destination?.indicadorIe === 1 || this.destination?.indicadorIe === 2 || this.fiscalRegime() === '4') return '6102';
+    return this.destination?.indicadorIe === 9 && this.fiscalRegime() === '1' ? '6108' : null;
+  }
+
+  protected interstateOperation(): boolean {
+    const cfop = this.emittedNote()?.cfop ?? this.emissionPayload?.cfop;
+    return cfop ? cfop.startsWith('6') : !!this.destinationUf() && this.destinationUf() !== this.issuerUf && !this.localPickup();
+  }
+
+  protected legacyCfopWarning(): string {
+    return this.legacyCfop && !['5102', '6102', '6108'].includes(this.legacyCfop) ?
+      `O rascunho anterior tinha o CFOP ${this.legacyCfop}, fora da revenda padrão. Inicie uma nova venda para esta emissão.` : '';
+  }
 
   protected requestInvoice(): void {
     if (this.emissionBusy() || this.emittedNote() || this.destinationBusy()) return;
@@ -67,6 +116,7 @@ export class SalesComponent {
     if (!this.cliente() || !this.itens().length || this.balance() !== 0) { this.notify('Revise cliente, itens e pagamentos antes de emitir.', 'info', true); return; }
     if (!this.emissionPayload && this.destinationError()) { this.notify('Atualize os dados do cadastro antes de emitir: ' + this.destinationError(), 'info', true); return; }
     if (!this.destination && !this.emissionPayload) { this.notify('Carregue e revise o endereço fiscal do destinatário antes de emitir.', 'info', true); return; }
+    if (!this.emissionPayload && this.legacyCfopWarning()) { this.notify(this.legacyCfopWarning(), 'info', true); return; }
     if (!this.fiscalEnvironment()) { this.notify('Carregue o ambiente fiscal antes de emitir.', 'info', true); return; }
     try {
       const cert = this.certificateStore.load();
@@ -74,7 +124,8 @@ export class SalesComponent {
       this.emissionPayload ??= {
         solicitacaoId: this.emissionRequestId, vendaOrigemId: this.vendaOrigemId, clienteId: this.cliente()!.id, ambiente: this.fiscalEnvironment() === 'producao' ? 1 : 2,
         modalidadeFrete: this.modalidadeFrete, indicadorPresenca: this.indicadorPresenca,
-        serie: Number(this.serie), natureza: this.natureza, cfop: this.cfop, modelo: this.modelo,
+        serie: Number(this.serie), natureza: this.natureza, modelo: this.modelo,
+        retiradaNoEstabelecimento: this.localPickup() || undefined,
         desconto: this.desconto || 0, frete: this.frete || 0, despesas: this.despesas || 0, observacoes: this.observacoes,
         itens: this.itens().map(i => ({ produtoId: i.produto.id, quantidade: i.quantidade, precoUnitario: i.preco, descontoPercentual: i.desconto,
           origem: i.origem ?? i.produto.origemMercadoria ?? '', ncm: i.ncm ?? (i.produto.ncm ? String(i.produto.ncm).padStart(8, '0') : ''), unidade: i.unidade ?? i.produto.unidadeComercial ?? 'UN' })),
@@ -118,6 +169,7 @@ export class SalesComponent {
   protected goToReviewSection(index: number): void {
     const section = this.reviewDialog()?.nativeElement.querySelector<HTMLElement>('#' + this.reviewSteps[index]?.id);
     if (!section) return;
+    if (section instanceof HTMLDetailsElement) section.open = true;
     this.reviewStep.set(index); section.scrollIntoView({ block: 'start', behavior: 'instant' }); section.focus({ preventScroll: true });
   }
   protected editReviewCustomer(): void {
@@ -125,8 +177,9 @@ export class SalesComponent {
     setTimeout(() => document.querySelector<HTMLInputElement>('[aria-label="Buscar cliente"]')?.focus());
   }
   protected editReviewOperation(): void {
-    this.closeReview(); this.showOptions = true;
-    setTimeout(() => document.querySelector<HTMLElement>('.fiscal-fields input')?.focus());
+    this.closeReview();
+    const options = this.fiscalOptions()?.nativeElement;
+    if (options) { options.open = true; options.querySelector('input')?.focus(); }
   }
   protected loadDestination(force = false): void {
     const customer = this.cliente();
@@ -192,11 +245,10 @@ export class SalesComponent {
   protected emitir = true;
   protected modelo = '55';
   protected finalidade = 'Normal';
-  protected natureza = 'Venda de mercadoria adquirida ou recebida de terceiros';
-  protected cfop = '5102';
+  protected natureza = NATUREZA_REVENDA;
   protected modalidadeFrete = 9;
   protected indicadorPresenca = 1;
-  protected serie = '1';
+  protected serie = '';
   protected desconto = 0;
   protected frete = 0;
   protected despesas = 0;
@@ -214,7 +266,13 @@ export class SalesComponent {
 
   private loadEnvironment(): void {
     this.api.carregarAmbienteFiscal().subscribe({
-      next: settings => { if (!this.itens().length && this.serie === '1') this.serie = String(settings.seriePadrao ?? 1); this.fiscalEnvironment.set(settings.environment); this.environmentError.set(''); },
+      next: settings => {
+        this.seriePadrao = String(settings.seriePadrao ?? 1);
+        this.serie ||= this.seriePadrao;
+        this.fiscalEnvironment.set(settings.environment);
+        this.fiscalRegime.set(settings.regime ?? null);
+        this.environmentError.set('');
+      },
       error: () => { this.fiscalEnvironment.set(null); this.environmentError.set('Não foi possível carregar o ambiente fiscal da empresa.'); },
     });
   }
@@ -242,7 +300,7 @@ export class SalesComponent {
       error: () => { this.loading.set(false); this.loadError.set('Não foi possível carregar clientes e produtos. Verifique se o backend está disponível e tente novamente.'); },
     });
   }
-  protected selectCustomer(c: ClienteResumoResponse): void { this.csosn = ''; this.cliente.set(c); this.customerSearch.set(''); this.editingCustomer = false; this.destination = null; this.destinationId = null; this.destinationBaseline = null; this.destinationLoadingId = null; this.destinationBusy.set(false); this.destinationError.set(''); }
+  protected selectCustomer(c: ClienteResumoResponse): void { this.csosn = ''; this.retiradaNoEstabelecimento = false; this.cliente.set(c); this.customerSearch.set(''); this.editingCustomer = false; this.destination = null; this.destinationId = null; this.destinationBaseline = null; this.destinationLoadingId = null; this.destinationBusy.set(false); this.destinationError.set(''); }
   protected focusProductSearch(): void { this.productSearchInput()?.nativeElement.focus(); }
 
   @HostListener('document:keydown', ['$event'])
@@ -299,7 +357,7 @@ export class SalesComponent {
   protected currency(value: number): string { return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
   private round(value: number): number { return Math.round((value + Number.EPSILON) * 100) / 100; }
   private draft(): SaleDraft {
-    return { cliente: this.cliente(), itens: this.itens(), pagamentos: this.pagamentos(), tipo: this.tipo, vendedor: this.vendedor, emitir: this.emitir, modelo: this.modelo, finalidade: this.finalidade, natureza: this.natureza, cfop: this.cfop, serie: this.serie, desconto: this.desconto, frete: this.frete, despesas: this.despesas, observacoes: this.observacoes, csosn: this.csosn, destinatario: this.destination ?? undefined, destinatarioClienteId: this.destinationId ?? undefined, destinatarioCadastro: this.destinationBaseline ?? undefined, vehicleName: this.vehicleName, vehiclePlate: this.vehiclePlate, modalidadeFrete: this.modalidadeFrete, indicadorPresenca: this.indicadorPresenca, vendaOrigemId: this.vendaOrigemId, emissionRequestId: this.emissionRequestId, emissionPayload: this.emissionPayload, emittedNote: this.emittedNote(), emissionAttempted: this.emissionAttempted() };
+    return { cliente: this.cliente(), itens: this.itens(), pagamentos: this.pagamentos(), tipo: this.tipo, vendedor: this.vendedor, emitir: this.emitir, modelo: this.modelo, finalidade: this.finalidade, natureza: this.natureza, serie: this.serie, cfop: this.legacyCfop, desconto: this.desconto, frete: this.frete, despesas: this.despesas, observacoes: this.observacoes, csosn: this.csosn, destinatario: this.destination ?? undefined, destinatarioClienteId: this.destinationId ?? undefined, destinatarioCadastro: this.destinationBaseline ?? undefined, vehicleName: this.vehicleName, vehiclePlate: this.vehiclePlate, modalidadeFrete: this.modalidadeFrete, indicadorPresenca: this.indicadorPresenca, retiradaNoEstabelecimento: this.retiradaNoEstabelecimento, vendaOrigemId: this.vendaOrigemId, emissionRequestId: this.emissionRequestId, emissionPayload: this.emissionPayload, emittedNote: this.emittedNote(), emissionAttempted: this.emissionAttempted() };
   }
   protected saveDraft(showAlert = false): boolean {
     try { localStorage.setItem(this.draftKey, JSON.stringify(this.draft())); this.message.set('Rascunho salvo neste navegador. Você pode continuar depois.'); if (showAlert) this.alerts.notify(this.message(), 'success'); return true; }
@@ -314,9 +372,11 @@ export class SalesComponent {
       this.tipo = draft.tipo; this.vendedor = draft.vendedor; this.emitir = draft.emitir;
       this.modelo = draft.modelo; this.finalidade = draft.finalidade; this.natureza = draft.natureza;
       this.csosn = draft.csosn ?? '';
-      this.cfop = draft.cfop; this.serie = draft.serie; this.desconto = draft.desconto;
+      this.legacyCfop = draft.cfop;
+      this.serie = draft.serie; this.desconto = draft.desconto;
       this.frete = draft.frete; this.despesas = draft.despesas; this.observacoes = draft.observacoes;
       this.modalidadeFrete = draft.modalidadeFrete ?? 9; this.indicadorPresenca = draft.indicadorPresenca ?? 1;
+      this.retiradaNoEstabelecimento = draft.retiradaNoEstabelecimento ?? false;
       this.vendaOrigemId = draft.vendaOrigemId;
       this.emissionRequestId = draft.emissionRequestId ?? crypto.randomUUID(); this.emissionPayload = draft.emissionPayload ?? null; this.emittedNote.set(draft.emittedNote ?? null); this.emissionAttempted.set(draft.emissionAttempted ?? false);
       this.destination = this.emissionPayload?.destinatario ?? (draft.destinatarioClienteId === draft.cliente?.id ? draft.destinatario ?? null : null);
@@ -341,7 +401,9 @@ export class SalesComponent {
     this.closeReview(); this.vendaOrigemId = undefined; this.showOptions = false; this.reviewStep.set(0);
     this.emissionAttempted.set(false); this.emissionPayload = null; this.emittedNote.set(null); this.emissionRequestId = crypto.randomUUID(); this.fiscalMessage.set('');
     this.cliente.set(null); this.itens.set([]); this.pagamentos.set([{ id: 1, forma: 'Pix', valor: 0 }]);
-    this.csosn = ''; this.destination = null; this.destinationId = null; this.destinationBaseline = null; this.destinationLoadingId = null; this.destinationBusy.set(false); this.destinationError.set('');
+    this.csosn = ''; this.retiradaNoEstabelecimento = false; this.destination = null; this.destinationId = null; this.destinationBaseline = null; this.destinationLoadingId = null; this.destinationBusy.set(false); this.destinationError.set('');
+    this.legacyCfop = undefined; this.serie = this.seriePadrao; this.natureza = NATUREZA_REVENDA;
+    this.indicadorPresenca = 1; this.modalidadeFrete = 9;
     this.desconto = 0; this.frete = 0; this.despesas = 0; this.observacoes = ''; this.vendedor = '';
     this.vehicleName = ''; this.vehiclePlate = ''; this.editingVehicle = false; this.editingCustomer = false;
     this.customerSearch.set(''); this.productSearch.set(''); this.message.set('');
@@ -352,7 +414,7 @@ export class SalesComponent {
     if (!this.itens().length) { this.notify('Adicione pelo menos um produto à venda.', 'info', false); return; }
     if (this.desconto < 0 || this.frete < 0 || this.despesas < 0 || this.desconto > this.subtotal() - this.itemDiscount()) { this.notify('Revise os descontos, frete e despesas da venda.', 'info', false); return; }
     if (this.balance() !== 0) { this.notify('O valor dos pagamentos deve ser igual ao total da venda.', 'info', false); return; }
-    if (this.emitir && (!/^\d{4}$/.test(this.cfop) || !/^\d{1,3}$/.test(this.serie) || !this.natureza.trim())) { this.notify('Preencha a natureza da operação, um CFOP de 4 dígitos e uma série válida.', 'info', false); return; }
+    if (this.emitir && (!/^\d{1,3}$/.test(this.serie) || Number(this.serie) > 889 || !this.natureza.trim())) { this.notify('Informe a natureza da operação e uma série entre 0 e 889.', 'info', false); return; }
     if (this.saveDraft()) {
       this.message.set('');
       this.fiscalMessage.set('');

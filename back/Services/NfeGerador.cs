@@ -24,14 +24,14 @@ public static class NfeGerador
     {
         Exigir(Digitos(empresa.Cnpj).Length == 14, "Cadastre o CNPJ do emitente.");
         Exigir(Texto(empresa.RazaoSocial, 2, 60) && Regex.IsMatch(Digitos(empresa.InscricaoEstadual), @"^\d{2,14}$"), "Cadastre a razao social e a inscricao estadual do emitente.");
-        Exigir(empresa.Estado?.ToUpperInvariant() == "RS", "A integracao direta de emissao atende emitentes do RS.");
+        Exigir(empresa.Estado?.Trim().ToUpperInvariant() == "RS", "A integracao direta de emissao atende emitentes do RS.");
         ValidarEndereco(empresa.Endereco, empresa.Numero, empresa.Bairro, empresa.Cidade, config.CodigoMunicipio, empresa.Estado, empresa.Cep, "emitente");
     }
 
     private static void ValidarEndereco(string? rua, string? numero, string? bairro, string? cidade, string? ibge, string? uf, string? cep, string tipo)
     {
         Exigir(Texto(rua, 2, 60) && Texto(numero, 1, 60) && Texto(bairro, 2, 60) && Texto(cidade, 2, 60), $"Complete logradouro, numero, bairro e municipio do {tipo}.");
-        Exigir(Regex.IsMatch(ibge ?? "", @"^\d{7}$") && ibge != "0000000" && ibge!.StartsWith("43") && uf?.ToUpperInvariant() == "RS", $"Informe um municipio IBGE valido do RS para o {tipo}. Vendas interestaduais exigem parametrizacao fiscal propria.");
+        Exigir(MunicipiosIbge.CodigoCorrespondeUf(ibge, uf?.Trim().ToUpperInvariant()), $"Informe um código IBGE de sete dígitos que corresponda à UF do {tipo}.");
         Exigir(Digitos(cep).Length == 8, $"Informe um CEP valido do {tipo}.");
     }
 
@@ -39,7 +39,7 @@ public static class NfeGerador
     {
         var endereco = E(name, new object[] { E("xLgr", rua.Trim()), E("nro", numero.Trim()) });
         if (!string.IsNullOrWhiteSpace(complemento)) endereco.Add(E("xCpl", complemento.Trim()));
-        endereco.Add(E("xBairro", bairro.Trim()), E("cMun", ibge), E("xMun", cidade.Trim()), E("UF", uf.ToUpperInvariant()), E("CEP", Digitos(cep)), E("cPais", "1058"), E("xPais", "BRASIL"));
+        endereco.Add(E("xBairro", bairro.Trim()), E("cMun", ibge), E("xMun", cidade.Trim()), E("UF", uf.Trim().ToUpperInvariant()), E("CEP", Digitos(cep)), E("cPais", "1058"), E("xPais", "BRASIL"));
         return endereco;
     }
 
@@ -75,9 +75,11 @@ public static class NfeGerador
         Exigir(request.Modelo == "55", "Este fluxo emite NF-e modelo 55. A NFC-e exige CSC e configuracao especifica.");
         Exigir(request.SolicitacaoId != Guid.Empty && request.Serie is >= 0 and <= 889 && numero is > 0 and <= 999999999, "Informe solicitacao, serie e numeracao validas para NF-e.");
         Exigir(config.Ambiente == request.Ambiente && config.Ambiente is 1 or 2, "O ambiente da empresa mudou. Recarregue a venda antes de emitir.");
-        Exigir(Texto(request.Natureza, 1, 60) && Regex.IsMatch(request.Cfop ?? "", @"^5\d{3}$"), "Informe natureza e CFOP de venda interna (iniciado por 5).");
+        Exigir(Texto(request.Natureza, 1, 60), "Informe a natureza da operação de venda.");
         Exigir(tax.Regime is "1" or "4", "A emissao automatica atual atende o Simples Nacional e MEI. Outros regimes exigem grupos tributarios adicionais, incluindo IBS/CBS.");
         Exigir(new[] { "101", "102", "103", "300", "400" }.Contains(icmsCode), "O CSOSN selecionado exige parametrizacao de ST ou tributacao adicional. Configure o codigo aplicavel a esta venda antes de emitir.");
+        Exigir(tax.Regime != "4" || icmsCode is "102" or "300" or "400",
+            "Para a revenda por MEI, selecione um CSOSN aplicável à operação (102, 300 ou 400).");
         foreach (var rate in new[] { tax.IcmsRate, tax.PisRate, tax.CofinsRate }) Exigir(rate is >= 0 and <= 100, "Defina as aliquotas fiscais (inclusive zero) na tributacao da empresa.");
         Exigir(cliente.Ativo && cliente.TenantId == empresa.Id && cliente.Relacionamento != RelacionamentoCadastro.Fornecedor, "Selecione um cliente ativo da empresa.");
         Exigir(icmsCode != "101" || cliente.IndicadorIe == IndicadorIe.Contribuinte && !cliente.ConsumidorFinal, "CSOSN 101 exige destinatario contribuinte com direito a credito. Na revisao da nota, selecione o CSOSN aplicavel a esta venda (102 para operacao tributada sem permissao de credito) ou corrija os dados fiscais do destinatario.");
@@ -93,6 +95,19 @@ public static class NfeGerador
         var uf = cadastro?.Uf ?? endereco?.Uf; var cep = cadastro?.Cep ?? endereco?.Cep;
         var complemento = cadastro?.Complemento ?? endereco?.Complemento;
         ValidarEndereco(rua, n, bairro, cidade, ibge, uf, cep, "destinatario");
+        var ufDiferente = !string.Equals(uf!.Trim(), empresa.Estado!.Trim(), StringComparison.OrdinalIgnoreCase);
+        var naoContribuinte = cliente.IndicadorIe == IndicadorIe.NaoContribuinte;
+        if (request.RetiradaNoEstabelecimento)
+            Exigir(ufDiferente && documento.Length == 11 && cliente.ConsumidorFinal && naoContribuinte &&
+                request.IndicadorPresenca == 1 && request.ModalidadeFrete == 9 && request.Frete == 0,
+                "A retirada no estabelecimento para cliente de outra UF exige venda presencial, sem transporte, a consumidor final pessoa física não contribuinte.");
+        var interestadual = ufDiferente && !request.RetiradaNoEstabelecimento;
+        Exigir(!interestadual || !naoContribuinte || cliente.ConsumidorFinal,
+            "Para venda interestadual a cliente não contribuinte do ICMS, confirme a condição de consumidor final nos dados fiscais.");
+        // A NT 2024.001 concentra a revenda interestadual do MEI no CFOP 6102.
+        var cfop = !interestadual ? "5102" : naoContribuinte && tax.Regime != "4" ? "6108" : "6102";
+        Exigir(string.IsNullOrEmpty(request.Cfop) || request.Cfop == cfop,
+            "O CFOP informado pela versão anterior diverge da revenda padrão. Revise a operação antes de emitir.");
         Exigir(request.Itens is { Count: > 0 and <= 990 } && request.Itens.Select(i => i.ProdutoId).Distinct().Count() == request.Itens.Count, "Informe de 1 a 990 produtos, sem repeticoes.");
         Exigir(request.Desconto >= 0 && request.Frete >= 0 && request.Despesas >= 0 && new[] { request.Desconto, request.Frete, request.Despesas }.All(v => Moeda(v) == v), "Informe descontos, frete e despesas validos em centavos.");
         Exigir(request.ModalidadeFrete is 0 or 1 or 2 or 3 or 4 or 9 && request.IndicadorPresenca is 1 or 2 or 3 or 9, "Informe modalidade de frete e presenca do comprador validas.");
@@ -121,7 +136,7 @@ public static class NfeGerador
         var codigo = RandomNumberGenerator.GetInt32(0, 100000000).ToString("D8");
         var chave = Chave(empresa.Cnpj!, emissao, request.Serie, numero, codigo);
         var inf = new XElement(Ns + "infNFe", new XAttribute("Id", "NFe" + chave), new XAttribute("versao", "4.00"),
-            E("ide", new object[] { E("cUF", "43"), E("cNF", codigo), E("natOp", request.Natureza.Trim()), E("mod", "55"), E("serie", request.Serie), E("nNF", numero), E("dhEmi", emissao.ToString("yyyy-MM-dd'T'HH:mm:sszzz")), E("tpNF", "1"), E("idDest", "1"), E("cMunFG", config.CodigoMunicipio), E("tpImp", "1"), E("tpEmis", "1"), E("cDV", chave[^1]), E("tpAmb", config.Ambiente), E("finNFe", "1"), E("indFinal", cliente.ConsumidorFinal ? "1" : "0"), E("indPres", request.IndicadorPresenca), E("procEmi", "0"), E("verProc", "UniflowAutoParts-1.0") }),
+            E("ide", new object[] { E("cUF", "43"), E("cNF", codigo), E("natOp", request.Natureza.Trim()), E("mod", "55"), E("serie", request.Serie), E("nNF", numero), E("dhEmi", emissao.ToString("yyyy-MM-dd'T'HH:mm:sszzz")), E("tpNF", "1"), E("idDest", interestadual ? "2" : "1"), E("cMunFG", config.CodigoMunicipio), E("tpImp", "1"), E("tpEmis", "1"), E("cDV", chave[^1]), E("tpAmb", config.Ambiente), E("finNFe", "1"), E("indFinal", cliente.ConsumidorFinal ? "1" : "0"), E("indPres", request.IndicadorPresenca), E("procEmi", "0"), E("verProc", "UniflowAutoParts-1.0") }),
             E("emit", new object[] { E("CNPJ", Digitos(empresa.Cnpj)), E("xNome", empresa.RazaoSocial.Trim()), EnderecoXml("enderEmit", empresa.Endereco!, empresa.Numero!, empresa.Complemento, empresa.Bairro!, empresa.Cidade!, config.CodigoMunicipio, "RS", empresa.Cep!), E("IE", Digitos(empresa.InscricaoEstadual)), E("CRT", tax.Regime) }));
         if (request.IndicadorPresenca is 2 or 3 or 9)
         {
@@ -137,7 +152,7 @@ public static class NfeGerador
             var baseFiscal = brutos[i] - desconto + fretes[i] + despesas[i];
             var prod = E("prod", new object[] { E("cProd", p.SKU), E("cEAN", p.Ean ?? "SEM GTIN"), E("xProd", p.Descricao.Trim()), E("NCM", item.Ncm ?? p.NCM.ToString("D8")) });
             if (p.CEST > 0) prod.Add(E("CEST", p.CEST.ToString("D7")));
-            prod.Add(E("CFOP", request.Cfop), E("uCom", item.Unidade ?? p.UnidadeComercial), E("qCom", F(item.Quantidade, 4)), E("vUnCom", F(item.PrecoUnitario, 10)), E("vProd", F(brutos[i])), E("cEANTrib", p.Ean ?? "SEM GTIN"), E("uTrib", item.Unidade ?? p.UnidadeComercial), E("qTrib", F(item.Quantidade, 4)), E("vUnTrib", F(item.PrecoUnitario, 10)));
+            prod.Add(E("CFOP", cfop), E("uCom", item.Unidade ?? p.UnidadeComercial), E("qCom", F(item.Quantidade, 4)), E("vUnCom", F(item.PrecoUnitario, 10)), E("vProd", F(brutos[i])), E("cEANTrib", p.Ean ?? "SEM GTIN"), E("uTrib", item.Unidade ?? p.UnidadeComercial), E("qTrib", F(item.Quantidade, 4)), E("vUnTrib", F(item.PrecoUnitario, 10)));
             if (fretes[i] > 0) prod.Add(E("vFrete", F(fretes[i]))); if (desconto > 0) prod.Add(E("vDesc", F(desconto))); if (despesas[i] > 0) prod.Add(E("vOutro", F(despesas[i]))); prod.Add(E("indTot", "1"));
             var icms = E(icmsCode == "101" ? "ICMSSN101" : "ICMSSN102", new object[] { E("orig", item.Origem ?? p.OrigemMercadoria), E("CSOSN", icmsCode) });
             if (icmsCode == "101") icms.Add(E("pCredSN", F(tax.IcmsRate!.Value, 4)), E("vCredICMSSN", F(Moeda(baseFiscal * tax.IcmsRate.Value / 100))));

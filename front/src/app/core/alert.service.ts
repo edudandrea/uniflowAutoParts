@@ -7,7 +7,7 @@ export class AlertService {
   private target(): HTMLElement { return document.querySelector<HTMLElement>('dialog[open]') ?? document.body; }
   notify(text: string, icon: SweetAlertIcon = 'info'): void {
     void this.swal().then(swal => swal.fire({ text, icon, target: this.target(),
-      confirmButtonText: 'Entendi', confirmButtonColor: '#009d63', heightAuto: false,
+      confirmButtonText: 'Entendi', confirmButtonColor: '#087338', heightAuto: false,
     })).catch(() => { /* A mensagem também permanece visível na página. */ });
   }
   async confirm(text: string, title = 'Limpar venda?'): Promise<boolean> {
@@ -15,7 +15,7 @@ export class AlertService {
       const swal = await this.swal();
       return (await swal.fire({ title, text, icon: 'question', target: this.target(),
         showCancelButton: true, confirmButtonText: 'Sim, continuar', cancelButtonText: 'Voltar',
-        confirmButtonColor: '#009d63', focusCancel: true, heightAuto: false,
+        confirmButtonColor: '#087338', focusCancel: true, heightAuto: false,
       })).isConfirmed;
     } catch { return false; }
   }

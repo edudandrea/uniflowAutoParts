@@ -133,4 +133,40 @@ foreach (var documento in new[] { "12345678909", "98765432000199" })
 var invalidCsosn = NfeFixtures.Request() with { Csosn = "999" };
 Reject(() => NfeGerador.Criar(NfeFixtures.Empresa(), NfeFixtures.Config(), NfeFixtures.Tax(), NfeFixtures.Cliente(),
     new Dictionary<int, CadastroItens> { [1] = NfeFixtures.Produto() }, invalidCsosn, 6, 1, emissionCertificate), "Aceitou CSOSN invalido.");
+
+// Exercise the actual signed XML without a CFOP from the caller.
+var autoRequest = NfeFixtures.Request() with { Cfop = null, Csosn = "102" };
+var autoProducts = new Dictionary<int, CadastroItens> { [1] = NfeFixtures.Produto() };
+XDocument ClassificarVenda(Cliente cliente, ConfiguracaoTributaria tax, back.Contracts.EmitirNfeRequest request) =>
+    XDocument.Parse(NfeGerador.Criar(NfeFixtures.Empresa(), NfeFixtures.Config(), tax, cliente,
+        autoProducts, request, 7, 1, emissionCertificate).XmlEnvioNfe);
+void VerificarOperacao(XDocument xml, string cfop, string destino)
+{
+    Check(xml.Descendants(ns + "CFOP").Single().Value == cfop, $"CFOP automático deveria ser {cfop}.");
+    Check(xml.Descendants(ns + "idDest").Single().Value == destino, $"idDest deveria ser {destino}.");
+}
+
+var fiscalCustomer = NfeFixtures.Cliente();
+var standardTax = NfeFixtures.Tax();
+VerificarOperacao(ClassificarVenda(fiscalCustomer, standardTax, autoRequest), "5102", "1");
+fiscalCustomer.CadastroEndereco!.Uf = " sc ";
+fiscalCustomer.CadastroEndereco.Municipio = "Florianópolis";
+fiscalCustomer.CadastroEndereco.CodigoIbgeMunicipio = "4205407";
+var interstate = ClassificarVenda(fiscalCustomer, standardTax, autoRequest);
+VerificarOperacao(interstate, "6102", "2");
+Check(interstate.Descendants(ns + "enderDest").Single().Element(ns + "UF")!.Value == "SC", "UF fiscal não foi normalizada.");
+fiscalCustomer.IndicadorIe = IndicadorIe.ContribuinteIsento;
+VerificarOperacao(ClassificarVenda(fiscalCustomer, standardTax, autoRequest), "6102", "2");
+fiscalCustomer.IndicadorIe = IndicadorIe.NaoContribuinte;
+Reject(() => ClassificarVenda(fiscalCustomer, standardTax, autoRequest), "Aceitou revenda interestadual a não contribuinte sem consumidor final.");
+fiscalCustomer.CpfCnpj = "12345678909";
+fiscalCustomer.ConsumidorFinal = true;
+VerificarOperacao(ClassificarVenda(fiscalCustomer, standardTax, autoRequest), "6108", "2");
+VerificarOperacao(ClassificarVenda(fiscalCustomer, standardTax, autoRequest with { RetiradaNoEstabelecimento = true }), "5102", "1");
+Reject(() => ClassificarVenda(fiscalCustomer, standardTax, autoRequest with { RetiradaNoEstabelecimento = true, IndicadorPresenca = 2 }), "Aceitou retirada não presencial.");
+Reject(() => ClassificarVenda(fiscalCustomer, standardTax, autoRequest with { Cfop = "5405" }), "Aceitou CFOP legado incompatível.");
+standardTax.Regime = "4";
+VerificarOperacao(ClassificarVenda(fiscalCustomer, standardTax, autoRequest), "6102", "2");
+fiscalCustomer.CadastroEndereco.CodigoIbgeMunicipio = "4314902";
+Reject(() => ClassificarVenda(fiscalCustomer, standardTax, autoRequest), "Aceitou código IBGE de outra UF.");
 Console.WriteLine($"Fiscal checks: {checks} passed. Nenhuma chamada externa realizada.");

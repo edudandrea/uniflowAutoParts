@@ -37,6 +37,22 @@ namespace back.Data
         public DbSet<NotaFiscalEvento> NotaFiscalEventos => Set<NotaFiscalEvento>();
         public DbSet<ConfiguracaoTributaria> ConfiguracoesTributarias => Set<ConfiguracaoTributaria>();
 
+        internal IQueryable<SaldoEstoque> SaldosEstoque(int empresaId) =>
+            Estoques.AsNoTracking().Where(m => m.EmpresaId == empresaId)
+                .GroupBy(m => m.ItemId)
+                .Select(g => new SaldoEstoque
+                {
+                    ItemId = g.Key,
+                    Quantidade = g.Sum(m => m.Tipo.Trim().ToLower() == "saida" ||
+                        m.Tipo.Trim().ToLower() == "saída" ? -Math.Abs(m.Quantidade) : m.Quantidade)
+                });
+
+        internal sealed class SaldoEstoque
+        {
+            public int ItemId { get; init; }
+            public decimal Quantidade { get; init; }
+        }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

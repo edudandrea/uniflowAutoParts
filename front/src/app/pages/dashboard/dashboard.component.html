@@ -1,246 +1,175 @@
-<section class="dashboard-page">
-  <header class="dashboard-topbar">
-    <label class="search-field" aria-label="Busca geral">
-      <app-icon name="search" />
-      <input type="search" placeholder="Buscar por produto, cliente, codigo, placa..." />
-      <kbd>Ctrl + K</kbd>
-    </label>
-
-    <div class="user-area">
-      <button type="button" class="icon-button alert-button" aria-label="Notificacoes">
-        <app-icon name="bell" />
-      </button>
-      <div class="avatar" aria-hidden="true">{{ initials('UniFlow') }}</div>
-      <div>
-        <strong>UniFlow AutoParts</strong>
-        <span>Sistema exposto</span>
-      </div>
-      <app-icon class="chevron" name="chevron-down" />
+<section class="dashboard-page" aria-labelledby="dashboard-title">
+  <header class="dashboard-heading">
+    <div>
+      <h1 id="dashboard-title">{{ greeting() }} <span aria-hidden="true">👋</span></h1>
+      <p>Aqui está o resumo da sua operação.</p>
     </div>
+    <label class="period-control">
+      <app-icon name="calendar" [size]="18" />
+      <span>Período</span>
+      <select #periodSelect aria-label="Período do painel" [value]="period()" (change)="setPeriod(periodSelect.value)">
+        @for (option of periods; track option.value) {
+          <option [value]="option.value">{{ option.value === period() ? periodLabel() : option.label }}</option>
+        }
+      </select>
+      <app-icon class="period-chevron" name="chevron-down" [size]="14" />
+    </label>
   </header>
 
-  <section class="dashboard-grid">
-    <div class="main-column">
-      <article class="hero-panel page-hero">
-        <div class="hero-copy">
-          <app-icon class="title-icon" name="layout-dashboard" />
-          <span>Bem-vindo ao UniFlow AutoParts</span>
-          <h1>Mais controle <strong>para cada movimento.</strong></h1>
-          <p>Estoque, vendas, clientes e resultados em um so lugar. Pecas que movem o seu negocio.</p>
-        </div>
+  @if (state().status === 'error') {
+    <div class="dashboard-error" role="alert">
+      <app-icon name="triangle-alert" />
+      <span>Não foi possível carregar o resumo da empresa.</span>
+      <button class="ghost-button" type="button" (click)="retry()">Tentar novamente</button>
+    </div>
+  }
+
+  <div class="dashboard-panels" [attr.aria-busy]="state().status === 'loading'">
+    <section class="metrics-grid" aria-label="Indicadores do período">
+      @for (metric of metrics(); track metric.label) {
+        <article class="metric-card" [class]="'metric-card ' + metric.tone">
+          <app-icon class="metric-icon" [name]="metric.icon" [size]="25" />
+          <div class="metric-copy">
+            <h2>{{ metric.label }}</h2>
+            <strong>{{ metric.value }}</strong>
+            @if (metric.delta; as delta) {
+              <small><b [class.negative]="delta.down"><app-icon [name]="delta.down ? 'arrow-down' : 'arrow-up'" [size]="13" />{{ delta.label }}</b> vs. período anterior</small>
+            } @else {
+              <small>{{ metric.detail }}</small>
+            }
+          </div>
+        </article>
+      }
+    </section>
+
+    <div class="analytics-grid">
+      <article class="panel chart-panel" aria-labelledby="chart-heading">
+        <header class="panel-heading">
+          <app-icon class="heading-icon" name="bar-chart-3" [size]="23" />
+          <div class="heading-copy">
+            <h2 id="chart-heading">{{ mode() === 'valor' ? 'Evolução do faturamento' : 'Evolução das vendas' }}</h2>
+            <p>{{ mode() === 'valor' ? 'Valor das notas autorizadas no período.' : 'Quantidade de notas autorizadas no período.' }}</p>
+          </div>
+          <div class="chart-tabs" role="group" aria-label="Indicador do gráfico">
+            <button type="button" [attr.aria-pressed]="mode() === 'valor'" (click)="mode.set('valor')">Faturamento</button>
+            <button type="button" [attr.aria-pressed]="mode() === 'quantidade'" (click)="mode.set('quantidade')">Vendas</button>
+          </div>
+        </header>
+
+        @if (data(); as summary) {
+          <div class="chart">
+            <div class="chart-ticks" aria-hidden="true">
+              @for (tick of chart().ticks; track $index) { <span>{{ tick }}</span> }
+            </div>
+            <div class="chart-plot">
+              <svg viewBox="0 0 620 152" preserveAspectRatio="none" role="img" aria-labelledby="chart-description">
+                <title id="chart-description">{{ summary.total ? chart().description : 'Nenhuma nota autorizada no período.' }}</title>
+                <defs>
+                  <linearGradient id="dashboard-area-fill" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+                    <stop offset="0%" stop-color="#20b678" stop-opacity=".38" />
+                    <stop offset="100%" stop-color="#20b678" stop-opacity=".05" />
+                  </linearGradient>
+                </defs>
+                @for (y of [6, 41, 76, 111, 146]; track y) {
+                  <line x1="0" x2="620" [attr.y1]="y" [attr.y2]="y" class="grid-line" />
+                }
+                <path [attr.d]="chart().area" fill="url(#dashboard-area-fill)" />
+                <path [attr.d]="chart().line" class="plot-line" />
+                @for (point of chart().points; track $index) {
+                  <circle [attr.cx]="point.x" [attr.cy]="point.y" r="3.2" class="plot-point">
+                    <title>{{ point.title }}</title>
+                  </circle>
+                }
+              </svg>
+              <div class="chart-labels" [class.single-label]="chart().labels.length === 1" aria-hidden="true">
+                @for (label of chart().labels; track label) { <span>{{ label }}</span> }
+              </div>
+              @if (!summary.total) { <p class="chart-empty">Nenhuma nota autorizada no período.</p> }
+            </div>
+          </div>
+        } @else {
+          <div class="panel-empty chart-placeholder">
+            <app-icon name="chart-no-axes-combined" [size]="24" />
+            <span>{{ state().status === 'loading' ? 'Carregando indicadores…' : 'Gráfico indisponível no momento.' }}</span>
+          </div>
+        }
       </article>
 
-      <section class="metrics-grid" aria-label="Indicadores">
-        @for (metric of metrics; track metric.label) {
-          <article class="metric-card">
-            <app-icon class="metric-icon " [name]="metric.icon" [size]="24" />
-            <div>
-              <p>{{ metric.label }}</p>
-              <strong>{{ metric.value }}</strong>
-              <small><app-icon name="arrow-up" [size]="14" [strokeWidth]="2" /> {{ metric.delta }} <span>vs. ontem</span></small>
+      <article class="panel alerts-panel" id="alertas" aria-labelledby="alerts-heading">
+        <header class="panel-heading">
+          <app-icon class="heading-icon alert-icon" name="triangle-alert" [size]="22" />
+          <h2 class="heading-copy" id="alerts-heading">Alertas e pendências</h2>
+          <a class="panel-link" routerLink="/app/notas">Ver notas <app-icon name="arrow-right" [size]="14" /></a>
+        </header>
+        <div class="alerts-list">
+          @for (alert of alerts(); track alert.title) {
+            <a class="alert-row" [class]="'alert-row ' + alert.tone" [routerLink]="alert.path">
+              <app-icon [name]="alert.icon" [size]="21" />
+              <span><strong>{{ alert.count }} {{ alert.title }}</strong><small>{{ alert.detail }}</small></span>
+              <app-icon name="chevron-right" [size]="16" />
+            </a>
+          } @empty {
+            <div class="panel-empty">
+              <app-icon [name]="data() ? 'check' : 'bell'" [size]="21" />
+              <span>{{ data() ? 'Nenhum alerta para acompanhar.' : 'Alertas indisponíveis enquanto o resumo não carrega.' }}</span>
             </div>
-          </article>
-        } @empty {
-          <article class="metric-card">
-            <app-icon class="metric-icon" name="chart-no-axes-combined" />
-            <div>
-              <p>Indicadores</p>
-              <strong>0</strong>
-              <small>Sem dados para exibir</small>
-            </div>
-          </article>
-        }
-      </section>
-
-      <section class="analytics-row">
-        <article class="panel sales-chart">
-          <div class="panel-header">
-            <h2>Vendas dos ultimos 30 dias</h2>
-            <div class="segmented">
-              <button type="button" class="active">Vendas (R$)</button>
-              <button type="button">Quantidade</button>
-              <button type="button">Ticket medio</button>
-            </div>
-          </div>
-
-          <div class="chart-area">
-            @if (!chartPoints.length) {
-              <div class="empty-list compact">
-                <app-icon name="chart-no-axes-combined" />
-                <strong>Nenhuma venda registrada</strong>
-                <small>Os dados do grafico aparecerao apos movimentacoes.</small>
-              </div>
-            }
-            <div class="chart-line">
-              @for (point of chartPoints; track $index) {
-                <span [style.height.%]="point"></span>
-              }
-            </div>
-            <div class="chart-axis">
-              <span>01/09</span>
-              <span>05/09</span>
-              <span>10/09</span>
-              <span>15/09</span>
-              <span>20/09</span>
-              <span>25/09</span>
-              <span>30/09</span>
-            </div>
-          </div>
-        </article>
-
-        <article class="panel categories-panel">
-          <div class="panel-header">
-            <h2>Top categorias</h2>
-            <button type="button" class="filter-button">Por faturamento <app-icon name="chevron-down" /></button>
-          </div>
-
-          <div class="category-list">
-            @for (category of categories; track category.label) {
-              <div class="category-row">
-                <app-icon class=" " [name]="category.icon" [size]="22" />
-                <strong>{{ category.label }}</strong>
-                <div class="progress"><i [style.width.%]="category.percent * 3.4"></i></div>
-                <small>{{ category.percent }}%</small>
-              </div>
-            } @empty {
-              <div class="empty-list compact">
-                <app-icon name="tags" />
-                <strong>Nenhuma categoria</strong>
-                <small>As categorias aparecerao conforme houver vendas.</small>
-              </div>
-            }
-          </div>
-        </article>
-      </section>
-
-      <section class="tables-row">
-        <article class="panel table-panel">
-          <div class="panel-header">
-            <h2>Ultimas vendas</h2>
-            <a href="#">Ver todas</a>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Cliente</th>
-                <th>Itens</th>
-                <th>Total</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (sale of latestSales; track sale.id) {
-                <tr>
-                  <td>{{ sale.id }}</td>
-                  <td>{{ sale.cliente }}</td>
-                  <td>{{ sale.itens }}</td>
-                  <td>{{ sale.total }}</td>
-                  <td><span class="status-pill">{{ sale.status }}</span></td>
-                </tr>
-              } @empty {
-                <tr>
-                  <td colspan="5">
-                    <div class="empty-list compact">
-                      <app-icon name="receipt-text" />
-                      <strong>Nenhuma venda</strong>
-                    </div>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </article>
-
-        <article class="panel table-panel">
-          <div class="panel-header">
-            <h2>Produtos mais vendidos</h2>
-            <a href="#">Ver todos</a>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Produto</th>
-                <th>Qtd.</th>
-                <th>Receita</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (product of topProducts; track product.posicao) {
-                <tr>
-                  <td>{{ product.posicao }}</td>
-                  <td>{{ product.produto }}</td>
-                  <td>{{ product.qtd }}</td>
-                  <td>{{ product.receita }}</td>
-                </tr>
-              } @empty {
-                <tr>
-                  <td colspan="4">
-                    <div class="empty-list compact">
-                      <app-icon name="package" />
-                      <strong>Nenhum produto vendido</strong>
-                    </div>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </article>
-      </section>
+          }
+        </div>
+      </article>
     </div>
 
-    <aside class="side-column">
-      <article class="panel today-card">
-        <app-icon class="calendar-icon" name="calendar" />
-        <div>
-          <span>{{ today.toLocaleDateString('pt-BR', { weekday: 'long' }) }}</span>
-          <strong>{{ today.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) }}</strong>
-        </div>
-        <hr />
-        <p><app-icon name="map-pin" /> Dados locais indisponiveis</p>
-      </article>
-
-      <article class="panel quick-panel">
-        <h2>Acoes rapidas</h2>
-        <div class="quick-grid">
-          @for (action of quickActions; track action.label) {
-            <button type="button">
-              <app-icon class=" " [name]="action.icon" [size]="22" />
-              {{ action.label }}
-            </button>
-          }
-        </div>
-      </article>
-
-      <article class="panel alerts-panel">
-        <div class="panel-header">
-          <h2>Alertas</h2>
-          <a href="#">Ver todos</a>
-        </div>
-        <div class="alerts-list">
-          @for (alert of alerts; track alert.title) {
-            <div class="alert-row">
-              <app-icon
-                [class.danger]="alert.tone === 'danger'"
-                [class.warning]="alert.tone === 'warning'"
-                [class.info]="alert.tone === 'info'"
-                [class.success]="alert.tone === 'success'"
-                [name]="alert.icon"
-              />
-              <div>
-                <strong>{{ alert.title }}</strong>
-                <small>{{ alert.detail }}</small>
-              </div>
-            </div>
+    <div class="details-grid">
+      <article class="panel activities-panel" aria-labelledby="activity-heading">
+        <header class="panel-heading">
+          <app-icon class="heading-icon" name="clock" [size]="21" />
+          <h2 class="heading-copy" id="activity-heading">Atividades recentes</h2>
+          <a class="panel-link" routerLink="/app/notas">Ver notas <app-icon name="arrow-right" [size]="14" /></a>
+        </header>
+        <ul class="activity-list">
+          @for (item of activity(); track $index) {
+            <li>
+              <a class="activity-row" [routerLink]="item.path">
+                <app-icon class="row-icon" [name]="item.icon" [size]="16" />
+                <span><strong [title]="item.title">{{ item.title }}</strong><small [title]="item.detail">{{ item.detail }}</small></span>
+                <time [attr.datetime]="item.time">{{ item.label }}</time>
+              </a>
+            </li>
           } @empty {
-            <div class="empty-list compact">
-              <app-icon name="bell" />
-              <strong>Nenhum alerta</strong>
-            </div>
+            <li class="panel-empty">
+              <app-icon name="clock" [size]="21" />
+              <span>{{ data() ? 'Nenhuma atividade no período.' : 'Atividades indisponíveis enquanto o resumo não carrega.' }}</span>
+            </li>
           }
-        </div>
+        </ul>
       </article>
-    </aside>
-  </section>
+
+      <article class="panel products-panel" aria-labelledby="products-heading">
+        <header class="panel-heading">
+          <app-icon class="heading-icon" name="trophy" [size]="21" />
+          <h2 class="heading-copy" id="products-heading">Produtos mais vendidos</h2>
+        </header>
+        <ol class="product-list">
+          @for (product of products(); track product.id) {
+            <li class="product-row">
+              <span class="rank">{{ $index + 1 }}</span>
+              <app-icon class="product-icon" name="package" [size]="17" />
+              <span><strong [title]="product.descricao">{{ product.descricao }}</strong><small>SKU {{ product.sku }}</small></span>
+              <b>{{ product.units }} un</b>
+            </li>
+          } @empty {
+            <li class="panel-empty">
+              <app-icon name="package" [size]="21" />
+              <span>{{ data() ? 'Nenhum produto vinculado às notas do período.' : 'Produtos indisponíveis enquanto o resumo não carrega.' }}</span>
+            </li>
+          }
+        </ol>
+      </article>
+
+      <article class="stock-card" aria-labelledby="stock-heading">
+        <h2 id="stock-heading">Mantenha seu estoque sempre em dia</h2>
+        <p>Confira os saldos e planeje a reposição de peças.</p>
+        <a routerLink="/app/estoque">Abrir estoque <app-icon name="arrow-right" [size]="15" /></a>
+      </article>
+    </div>
+  </div>
 </section>

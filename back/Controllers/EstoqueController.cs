@@ -19,18 +19,7 @@ public class EstoqueController(AppDbContext db) : ControllerBase
             return BadRequest("EmpresaId e obrigatorio.");
         }
 
-        var saldos = db.Estoques.AsNoTracking()
-            .Where(movimento => movimento.EmpresaId == empresaId)
-            .GroupBy(movimento => movimento.ItemId)
-            .Select(grupo => new
-            {
-                ItemId = grupo.Key,
-                Quantidade = grupo.Sum(movimento =>
-                    movimento.Tipo.Trim().ToLower() == "saida" ||
-                    movimento.Tipo.Trim().ToLower() == "saída"
-                        ? -Math.Abs(movimento.Quantidade)
-                        : movimento.Quantidade)
-            });
+        var saldos = db.SaldosEstoque(empresaId);
 
         var produtos = await (
             from produto in db.CadastroItens.AsNoTracking()

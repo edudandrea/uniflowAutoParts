@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { SessionService } from './session.service';
 
 export type FiscalEnvironment = 'homologacao' | 'producao';
-export interface FiscalEnvironmentSettings { environment: FiscalEnvironment; emissaoDisponivel: boolean; seriePadrao?: number }
+export interface FiscalEnvironmentSettings { environment: FiscalEnvironment; emissaoDisponivel: boolean; seriePadrao?: number; regime?: string | null }
 
 export interface FiscalCertificate {
   validUntil?: string;

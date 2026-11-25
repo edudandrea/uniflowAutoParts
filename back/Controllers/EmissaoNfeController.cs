@@ -23,7 +23,14 @@ public sealed class EmissaoNfeController(AppDbContext db, TenantContext tenant, 
         if (tenant.EmpresaId <= 0) return Unauthorized();
         await using var gate = await FiscalLock.AdquirirAsync(db, tenant.EmpresaId, token);
         if (gate is null) return Conflict("Existe uma emissao em andamento para esta empresa.");
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { request.ClienteId, request.Ambiente, request.Serie, request.Natureza, request.Cfop, request.Modelo, request.Desconto, request.Frete, request.Despesas, request.Observacoes, request.Itens, request.Pagamentos, request.Destinatario, request.ModalidadeFrete, request.IndicadorPresenca }) + (request.Csosn is null ? "" : "|CSOSN:" + request.Csosn) + (request.VendaOrigemId is null ? "" : "|VENDA:" + request.VendaOrigemId))));
+        // Preserve o formato anterior para recuperar tentativas já registradas.
+        var dados = JsonSerializer.Serialize(new { request.ClienteId, request.Ambiente, request.Serie, request.Natureza,
+            request.Cfop, request.Modelo, request.Desconto, request.Frete, request.Despesas, request.Observacoes,
+            request.Itens, request.Pagamentos, request.Destinatario, request.ModalidadeFrete, request.IndicadorPresenca });
+        if (request.Csosn is not null) dados += "|CSOSN:" + request.Csosn;
+        if (request.VendaOrigemId is not null) dados += "|VENDA:" + request.VendaOrigemId;
+        if (request.RetiradaNoEstabelecimento) dados += "|RETIRADA";
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(dados)));
         var existing = await db.NotasFiscais.SingleOrDefaultAsync(n => n.EmpresaId == tenant.EmpresaId && n.SolicitacaoId == request.SolicitacaoId, token);
         if (existing is not null)
             return existing.HashSolicitacao == hash ? Ok(ToResponse(existing)) : Conflict("Esta solicitacao ja esta vinculada a outra nota. Consulte a nota antes de alterar a venda.");
@@ -147,7 +154,16 @@ public sealed class EmissaoNfeController(AppDbContext db, TenantContext tenant, 
         }
         await db.SaveChangesAsync(CancellationToken.None);
     }
-    public static EmissaoNfeResponse ToResponse(NotaFiscal n) => new(n.Id, n.Numero, n.Serie, n.ChaveAcesso, n.Ambiente, n.Situacao, n.CodigoAutorizacao, n.MotivoAutorizacao, n.Protocolo, PodeReenviar(n.Tipo, n.Situacao, n.CodigoAutorizacao, n.XmlEnvioNfe.Length > 0, n.Recibo.Length > 0));
+    public static EmissaoNfeResponse ToResponse(NotaFiscal n) => new(n.Id, n.Numero, n.Serie, n.ChaveAcesso, n.Ambiente,
+        n.Situacao, n.CodigoAutorizacao, n.MotivoAutorizacao, n.Protocolo,
+        PodeReenviar(n.Tipo, n.Situacao, n.CodigoAutorizacao, n.XmlEnvioNfe.Length > 0, n.Recibo.Length > 0), LerCfop(n.XmlEnvioNfe));
+
+    private static string? LerCfop(string xml)
+    {
+        if (xml.Length == 0) return null;
+        try { return NotaFiscalXml.Ler(xml).Descendants(NotaFiscalXml.Ns + "CFOP").FirstOrDefault()?.Value; }
+        catch (XmlException) { return null; }
+    }
     public static bool PodeReenviar(string tipo, string situacao, string codigo, bool temXml, bool temRecibo)
         => tipo == "NFe" && temXml && !temRecibo && (situacao == "Rejeitada" || situacao == "Processando" && codigo == "217");
 }

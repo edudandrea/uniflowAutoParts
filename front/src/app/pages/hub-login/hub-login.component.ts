@@ -9,7 +9,6 @@ import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
   template: `
     <main class="login-page"><section class="login-card">
       <img src="/logo-uniflow-autoparts.png" alt="UniFlow AutoParts" />
-      <span class="eyebrow">ACESSO INTEGRADO UNIFLOW</span>
       <h1>{{ starting() ? 'Conectando ao HUB...' : 'Entre com sua conta UniFlow' }}</h1>
       <p>Use sua conta do HUB para acessar a empresa e os sistemas contratados.</p>
       @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
@@ -19,10 +18,10 @@ import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
     </section></main>
   `,
   styles: [`
-    .login-page { min-height:100dvh;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 80% 15%,#caf1e3,transparent 60%),#f2f8fc; }
-    .login-card { display:grid;gap:20px;justify-items:center;width:min(100%,460px);padding:40px;text-align:center;border-radius:18px;background:#fff;box-shadow:0 20px 80px #123b5810; }
-    img { width:110px;height:95px;object-fit:contain; }.eyebrow { font-size:.65rem;letter-spacing:.16em;color:#07976b;font-weight:700; }
-    h1 { margin:0;font-size:1.6rem;letter-spacing:-.035em; }p { margin:0;color:#647c91;font-size:.9rem;line-height:1.6; }button { display:flex;align-items:center;justify-content:center;gap:10px;width:100%; }small { color:#8b9eae;line-height:1.7;font-size:.75rem; }.error { color:#b83348;background:#fff1f4;padding:12px;border-radius:8px; }
+    .login-page { min-height:100dvh;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 12% 100%,#c3eedc,transparent 56%),var(--app-bg); }
+    .login-card { display:grid;gap:20px;justify-items:center;width:min(100%,460px);padding:40px;text-align:center;border-radius:var(--radius-panel);background:var(--surface-raised);box-shadow:var(--shadow-lg); }
+    img { width:110px;height:95px;object-fit:contain; }
+    h1 { margin:0;font-size:1.6rem;letter-spacing:-.035em; }p { margin:0;color:var(--muted-strong);font-size:.9rem;line-height:1.6; }button { display:flex;align-items:center;justify-content:center;gap:10px;width:100%; }small { color:var(--muted);line-height:1.7;font-size:.75rem; }.error { color:#b83348;background:#fff1f4;padding:12px;border-radius:8px; }
   `],
 })
 export class HubLoginComponent implements OnInit {

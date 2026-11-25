@@ -1,75 +1,118 @@
-<main class="company-shell">
+<div class="company-shell">
   <aside class="company-sidebar" [class.mobile-open]="mobileMenuOpen()">
-    <div class="mobile-shell-bar">
-      <div class="mobile-brand">
-        <app-company-logo />
-      </div>
-      <button
-        class="mobile-menu-button"
-        type="button"
-        aria-label="Abrir menu"
-        [attr.aria-expanded]="mobileMenuOpen()"
-        (click)="toggleMobileMenu()"
-      >
-        <app-icon [name]="mobileMenuOpen() ? 'x' : 'menu'" [size]="20" [strokeWidth]="2" />
+    <div class="sidebar-heading">
+      <a class="brand" routerLink="/app/dashboard" (click)="closeMobileMenu()" aria-label="UniFlow AutoParts">
+        <span class="brand-mark"><app-icon name="settings" [size]="31" [strokeWidth]="3.5" /></span>
+        <span>UniFlow <strong>AutoParts</strong></span>
+      </a>
+      <button class="mobile-menu-button utility-button" type="button" aria-label="Menu principal"
+        aria-controls="company-navigation" [attr.aria-expanded]="mobileMenuOpen()" (click)="toggleMobileMenu()">
+        <app-icon [name]="mobileMenuOpen() ? 'x' : 'menu'" [size]="22" />
       </button>
     </div>
 
-    <div class="sidebar-brand">
-      <app-company-logo />
-    </div>
-
-    <nav aria-label="Menu principal">
+    <nav id="company-navigation" aria-label="Menu principal">
       @for (item of menuItems; track item.label) {
-        <div class="nav-group" [class.expanded]="isExpanded(item.label)">
-          @if (item.children?.length) {
-            <button
-              class="nav-item nav-toggle"
-              type="button"
-              [class.active]="isExpanded(item.label)"
-              [attr.aria-expanded]="isExpanded(item.label)"
-              (click)="toggleMenu(item.label)"
-            >
-              <app-icon [name]="item.icon" [size]="20" [strokeWidth]="1.8" />
+        @if (item.children; as children) {
+          <div routerLinkActive="active-group" #group="routerLinkActive">
+            <button class="nav-item nav-toggle" type="button" [class.active]="group.isActive"
+              [attr.aria-expanded]="isExpanded(item.label, group.isActive)" (click)="toggleMenu(item.label, group.isActive)">
+              <app-icon [name]="item.icon" [size]="18" />
               <span>{{ item.label }}</span>
-              <app-icon class="expand-icon" name="chevron-down" [size]="16" [strokeWidth]="2" />
+              <app-icon class="expand-icon" name="chevron-down" [size]="14" />
             </button>
-            <div class="nav-children" [class.open]="isExpanded(item.label)">
-              @for (child of item.children; track child.label) {
-                <a class="nav-child" [routerLink]="child.path" routerLinkActive="active" (click)="closeMobileMenu()">
-                  <app-icon [name]="child.icon" [size]="18" [strokeWidth]="1.8" />
+            <div class="nav-children" [hidden]="!isExpanded(item.label, group.isActive)">
+              @for (child of children; track child.path) {
+                <a class="nav-child" [routerLink]="child.path" routerLinkActive="active"
+                  ariaCurrentWhenActive="page" (click)="closeMobileMenu()">
+                  <app-icon [name]="child.icon" [size]="15" />
                   <span>{{ child.label }}</span>
                 </a>
               }
             </div>
-          } @else {
-            <a class="nav-item" [routerLink]="item.path" routerLinkActive="active" (click)="closeMobileMenu()">
-              <app-icon [name]="item.icon" [size]="20" [strokeWidth]="1.8" />
-              <span>{{ item.label }}</span>
-            </a>
-          }
-        </div>
+          </div>
+        } @else {
+          <a class="nav-item" [routerLink]="item.path" routerLinkActive="active"
+            ariaCurrentWhenActive="page" (click)="closeMobileMenu()">
+            <app-icon [name]="item.icon" [size]="18" />
+            <span>{{ item.label }}</span>
+          </a>
+        }
       }
     </nav>
 
     <section class="support-card" aria-label="Suporte">
-      <app-icon name="headphones" [size]="28" [strokeWidth]="1.5" />
+      <app-icon name="headphones" [size]="23" />
       <strong>Precisa de ajuda?</strong>
-      <small>Nossa equipe esta pronta para te atender.</small>
-      <button type="button">Abrir suporte</button>
+      <small>Consulte as opções de suporte da sua empresa.</small>
+      <button type="button" (click)="support.showModal()">Abrir suporte <app-icon name="arrow-right" [size]="14" /></button>
     </section>
   </aside>
 
-  <section class="company-content">
-    @if (session.session(); as identity) {
-      <header class="session-bar">
-        <div class="session-company"><span class="session-label">EMPRESA</span><strong>{{ identity.empresa?.nome || 'Empresa vinculada ao HUB' }}</strong><small>{{ identity.empresa?.cnpj || 'Dados cadastrais pendentes' }}</small></div>
-        <div class="session-user"><app-icon name="user" [size]="20" /><div><strong>{{ identity.usuario?.nome }}</strong><small>{{ identity.usuario?.email }}</small></div></div>
-        <div class="session-actions">@if (identity.portalUrl) { <a [href]="identity.portalUrl">Minhas aplica&#231;&#245;es</a> }<button type="button" [disabled]="signingOut()" (click)="logout()">{{ signingOut() ? 'Saindo...' : 'Sair do sistema' }}</button></div>
-      </header>
-      @if (sessionError()) { <p role="alert">{{ sessionError() }}</p> }
-    }
+  <div class="workspace">
+    <header class="workspace-bar">
+      <div class="workspace-search" (focusout)="closeSearchOnBlur($event)" (keydown.escape)="closeSearch()">
+        <label for="workspace-search"><app-icon name="search" [size]="18" /><span class="sr-only">Buscar telas</span></label>
+        <input id="workspace-search" #searchInput type="search" autocomplete="off" [value]="searchTerm()"
+          placeholder="Buscar em Vendas, Estoque, Clientes, NF-e..."
+          (input)="searchTerm.set(searchInput.value)" (focus)="searchOpen.set(true)" (keydown.enter)="openFirstResult()" />
+        <kbd aria-hidden="true">Ctrl + K</kbd>
+        @if (searchOpen()) {
+          <div class="search-results" role="region" aria-label="Telas encontradas">
+            @for (item of searchResults(); track item.path) {
+              <a [routerLink]="item.path" (click)="closeSearch()">
+                <app-icon [name]="item.icon" [size]="17" /> {{ item.label }}
+              </a>
+            } @empty {
+              <p>Nenhuma tela encontrada.</p>
+            }
+          </div>
+        }
+      </div>
+      <div class="workspace-tools">
+        <a class="utility-button" aria-label="Alertas e pendências" routerLink="/app/dashboard" fragment="alertas">
+          <app-icon name="bell" [size]="19" />
+        </a>
+        <button class="utility-button" type="button" aria-label="Suporte" (click)="support.showModal()">
+          <app-icon name="circle-help" [size]="19" />
+        </button>
+        @if (session.session(); as identity) {
+          <details class="account" #account (focusout)="closeAccountOnBlur(account, $event)"
+            (keydown.escape)="account.open = false; accountSummary.focus()">
+            <summary #accountSummary aria-label="Menu da conta">
+              <span class="account-avatar" aria-hidden="true">{{ companyInitial() }}</span>
+              <span class="account-label"><strong>UniFlow AutoParts</strong><small>{{ identity.empresa?.nome || 'Empresa vinculada ao HUB' }}</small></span>
+              <app-icon name="chevron-down" [size]="15" />
+            </summary>
+            <div class="account-menu">
+              @if (identity.empresa?.logoUrl) { <app-company-logo /> }
+              <strong>{{ identity.empresa?.nome }}</strong>
+              @if (identity.empresa?.cnpj) { <small>{{ identity.empresa?.cnpj }}</small> }
+              <div class="account-user"><strong>{{ identity.usuario?.nome }}</strong><small>{{ identity.usuario?.email }}</small></div>
+              @if (identity.portalUrl) { <a [href]="identity.portalUrl">Minhas aplicações</a> }
+              <button type="button" [disabled]="signingOut()" (click)="logout()">{{ signingOut() ? 'Saindo…' : 'Sair do sistema' }}</button>
+            </div>
+          </details>
+        }
+      </div>
+    </header>
+    <main class="company-content" id="conteudo">
+      @if (sessionError()) { <p class="session-error" role="alert">{{ sessionError() }}</p> }
+      <router-outlet />
+    </main>
+  </div>
 
-    <router-outlet />
-  </section>
-</main>
+  <dialog #support class="support-dialog" aria-labelledby="support-title">
+    <header>
+      <app-icon name="headphones" [size]="24" />
+      <h2 id="support-title">Suporte</h2>
+      <button class="utility-button" type="button" aria-label="Fechar" (click)="support.close()">
+        <app-icon name="x" [size]="20" />
+      </button>
+    </header>
+    <p>Para ajuda com o AutoParts ou com o acesso, entre em contato com o administrador da sua empresa.</p>
+    @if (session.session()?.portalUrl; as url) {
+      <a [href]="url">Abrir minhas aplicações no HUB <app-icon name="arrow-right" [size]="15" /></a>
+    }
+  </dialog>
+</div>

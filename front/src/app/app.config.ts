@@ -1,7 +1,7 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { sessionInterceptor } from './core/session.service';
-import { provideRouter } from '@angular/router';
+import { provideRouter, withInMemoryScrolling } from '@angular/router';
 import {
   LucideArrowDown,
   LucideArrowLeft,
@@ -25,6 +25,8 @@ import {
   LucideChevronLeft,
   LucideChevronRight,
   LucideCircleDollarSign,
+  LucideCircleHelp,
+  LucideClock,
   LucideDownload,
   LucideEllipsis,
   LucideEye,
@@ -63,6 +65,8 @@ import {
   LucideTags,
   LucideTrash2,
   LucideTruck,
+  LucideTriangleAlert,
+  LucideTrophy,
   LucideUpload,
   LucideUser,
   LucideUserSearch,
@@ -78,7 +82,7 @@ import { routes } from './app.routes';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes),
+    provideRouter(routes, withInMemoryScrolling({ anchorScrolling: 'enabled', scrollPositionRestoration: 'enabled' })),
     provideHttpClient(withInterceptors([sessionInterceptor])),
     provideLucideConfig({ strokeWidth: 1.8, size: 20 }),
     provideLucideIcons(
@@ -104,6 +108,8 @@ export const appConfig: ApplicationConfig = {
       LucideChevronLeft,
       LucideChevronRight,
       LucideCircleDollarSign,
+      LucideCircleHelp,
+      LucideClock,
       LucideDownload,
       LucideEllipsis,
       LucideEye,
@@ -142,6 +148,8 @@ export const appConfig: ApplicationConfig = {
       LucideTags,
       LucideTrash2,
       LucideTruck,
+      LucideTriangleAlert,
+      LucideTrophy,
       LucideUpload,
       LucideUser,
       LucideUserSearch,

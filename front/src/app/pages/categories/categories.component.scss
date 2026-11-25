@@ -57,7 +57,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #607789;
+  color: var(--muted);
   font-size: 0.76rem;
   font-weight: 700;
 }
@@ -70,7 +70,7 @@ p {
 }
 
 h1 {
-  color: #07192a;
+  color: var(--ink);
   font-size: 2rem;
   line-height: 1.05;
 }
@@ -78,7 +78,7 @@ h1 {
 .categories-hero p,
 .modal-titlebar p {
   margin-top: 5px;
-  color: #607789;
+  color: var(--muted);
   font-weight: 500;
 }
 
@@ -97,15 +97,15 @@ h1 {
 
 .primary-action {
   color: #fff;
-  background: linear-gradient(135deg, var(--brand-green), var(--brand-green-dark));
-  box-shadow: 0 14px 28px rgba(19, 168, 106, 0.2);
+  background: var(--brand-gradient);
+  box-shadow: var(--shadow-sm);
 }
 
 .filter-button,
 .cancel-button,
 .close-button {
   border: 1px solid rgba(11, 36, 56, 0.12);
-  color: #253e52;
+  color: var(--ink-soft);
   background: #fff;
 }
 
@@ -120,7 +120,7 @@ h1 {
 .categories-panel,
 .category-card,
 .category-modal {
-  border: 1px solid rgba(11, 36, 56, 0.08);
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: var(--shadow-sm);
@@ -142,7 +142,7 @@ h1 {
 }
 
 .metric-card p {
-  color: #607789;
+  color: var(--muted);
   font-size: 0.8rem;
   font-weight: 600;
 }
@@ -150,7 +150,7 @@ h1 {
 .metric-card strong {
   display: block;
   margin-top: 5px;
-  color: #07192a;
+  color: var(--ink);
   font-size: 1.28rem;
 }
 
@@ -183,12 +183,12 @@ h1 {
 }
 
 .category-card strong {
-  color: #07192a;
+  color: var(--ink);
   font-size: 1rem;
 }
 
 .category-card small {
-  color: #607789;
+  color: var(--muted);
   font-weight: 500;
 }
 
@@ -235,7 +235,7 @@ table {
   width: 100%;
   min-width: 920px;
   border-collapse: collapse;
-  color: #22394d;
+  color: var(--ink-soft);
   font-size: 0.82rem;
 }
 
@@ -248,8 +248,8 @@ td {
 }
 
 th {
-  color: #365267;
-  background: #eef4f6;
+  color: var(--muted-strong);
+  background: var(--surface-muted);
   font-weight: 600;
 }
 
@@ -273,21 +273,21 @@ th {
   min-height: 24px;
   border-radius: 99px;
   padding: 0 12px;
-  color: #057747;
+  color: var(--brand-green-dark);
   background: rgba(19, 168, 106, 0.16);
   font-size: 0.74rem;
   font-weight: 700;
 }
 
 .status-pill.inactive {
-  color: #607789;
-  background: #eaf1f4;
+  color: var(--muted);
+  background: var(--border-soft);
 }
 
 .row-action {
   min-height: 30px;
   padding: 0 10px;
-  color: #102842;
+  color: var(--ink);
   background: transparent;
 }
 
@@ -314,7 +314,7 @@ th {
   align-items: center;
   gap: 14px;
   padding: 18px 22px 16px;
-  border-bottom: 1px solid rgba(11, 36, 56, 0.08);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .modal-title-icon {
@@ -325,7 +325,7 @@ th {
 }
 
 .modal-titlebar h2 {
-  color: #07192a;
+  color: var(--ink);
   font-size: 1.24rem;
 }
 
@@ -356,7 +356,7 @@ th {
 
 .category-form label > span,
 .icon-picker > span {
-  color: #607789;
+  color: var(--muted);
   font-size: 0.78rem;
   font-weight: 700;
 }

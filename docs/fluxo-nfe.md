@@ -11,7 +11,7 @@ O certificado A1 é carregado na aplicação e enviado somente para assinar e au
 ## Autorizar uma venda
 
 1. Selecione cliente, produtos, preços de venda e pagamentos que fechem o total.
-2. Prepare a venda e revise origem, NCM e unidade dos itens, endereço fiscal, indicador de IE e consumidor final do destinatário.
+2. Clique em **Revisar NF-e**. Confira o endereço fiscal, a operação, os itens e o total. Abra os dados fiscais dos itens ou do destinatário quando precisar corrigir informações.
 3. Confirme **Emitir NF-e em produção** para transmitir uma nota real, ou use homologação para testes.
 4. Aguarde a autorização e o protocolo. O XML autorizado pode ser baixado na revisão ou na lista de notas.
 
@@ -33,9 +33,11 @@ Eventos são persistidos antes do envio. Em resposta indeterminada, novos evento
 
 ## Cobertura e limites
 
-Esta entrega atende **NF-e modelo 55, saída normal, operação interna no RS, Simples Nacional/MEI (CRT 1/4), CSOSN 101/102/103/300/400**, com PIS/COFINS por alíquota ou grupos não tributados. CSOSN 101 requer destinatário contribuinte com direito a crédito. A alíquota de ICMS configurada nesse caso representa o crédito do Simples.
+O fluxo atende **NF-e modelo 55 de revenda normal por emitentes do RS**. Aceita CSOSN 101/102/103/300/400 para o Simples Nacional (CRT 1) e 102/300/400 para MEI (CRT 4), com PIS/COFINS por alíquota ou grupos não tributados. CSOSN 101 requer destinatário contribuinte com direito a crédito.
 
-NFC-e, contingência, operações interestaduais/exterior, substituição tributária, IPI, regimes com grupos IBS/CBS e outras finalidades fiscais exigem implementação adicional e são bloqueados neste fluxo. Não há inutilização de numeração ou cancelamento extemporâneo. Validar o schema não substitui a autorização da SEFAZ nem a revisão do enquadramento tributário.
+O CFOP é calculado no backend a partir da UF do endereço fiscal efetivo, da condição de ICMS do destinatário e do regime do emitente. A revenda estadual usa 5.102. A interestadual usa 6.102 para contribuinte, isento ou emitente MEI e 6.108 para destinatário não contribuinte em revenda por emitente do Simples Nacional (CRT 1). Para consumidor final pessoa física não contribuinte de outra UF, a retirada presencial imediata no estabelecimento do RS pode ser indicada na revisão e usa 5.102.
+
+Substituição tributária, IPI, operações com exterior, regimes com grupos IBS/CBS, outras finalidades fiscais, NFC-e e contingência exigem implementação adicional. Não há inutilização de numeração ou cancelamento extemporâneo. Validar o schema não substitui a autorização da SEFAZ nem a revisão do enquadramento tributário.
 
 Os testes automatizados usam certificados sintéticos e transporte SEFAZ simulado. Nenhuma nota real foi emitida durante a implementação. Para operar, publique o backend e o frontend atualizados, aplique as migrações e configure os dados reais da empresa, o certificado e a numeração.
 
@@ -45,6 +47,9 @@ Os testes automatizados usam certificados sintéticos e transporte SEFAZ simulad
 - [Documentos técnicos e schemas](https://dfe-portal.svrs.rs.gov.br/Nfe/Documentos).
 - [Condições e prazo de cancelamento no RS](https://atendimento.receita.rs.gov.br/quais-sao-as-condicoes-e-prazos-para-o-cancelamento-de-uma-nf-e).
 - [Manual de Orientação do Contribuinte, leiaute e regras](https://www.confaz.fazenda.gov.br/legislacao/arquivo-manuais/moc7-anexo-i-leiaute-e-rv.pdf).
+- [Tabela de CFOP da Receita Federal](https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/facilitacao/anexo-ecf-cfop).
+- [Nota Técnica 2024.001 sobre NF-e do MEI](https://www.nfe.fazenda.gov.br/portal/exibirArquivo.aspx?AspxAutoDetectCookieSupport=1&conteudo=6luq3tpmg08%3D).
+- [Orientação da Receita Estadual do RS sobre retirada presencial](https://atendimento.receita.rs.gov.br/na-venda-presencial-realizada-em-estabelecimento-gaucho-a-consumidor-final-nao-contribuinte-de-outro-estado-qual-cfop-deve-ser).
 
 A revisão da venda permite escolher o CSOSN apenas para a nota atual, sem alterar a configuração tributária da empresa. Para operação tributada sem permissão de crédito, pode-se selecionar 102, inclusive para CPF ou CNPJ não contribuinte. O código deve corresponder à operação e à orientação contábil. Sem escolha, mantém-se o código da empresa. A validação de 101 para destinatário contribuinte com direito a crédito permanece ativa.
 

@@ -118,7 +118,7 @@ h1 {
 
 .metric-card,
 .panel {
-  border: 1px solid rgba(11, 36, 56, 0.08);
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: var(--shadow-sm);
@@ -307,7 +307,7 @@ h1 {
   display: grid;
   grid-template-columns: 70px minmax(0, 1fr);
   min-height: 240px;
-  border-top: 1px solid rgba(11, 36, 56, 0.08);
+  border-top: 1px solid var(--border-soft);
 }
 
 .axis {
@@ -327,7 +327,7 @@ h1 {
   overflow-x: auto;
   padding: 14px 4px 0;
   background:
-    repeating-linear-gradient(to top, rgba(11, 36, 56, 0.08) 0 1px, transparent 1px 25%),
+    repeating-linear-gradient(to top, var(--border-soft) 0 1px, transparent 1px 25%),
     repeating-linear-gradient(to right, transparent 0 16.2%, rgba(11, 36, 56, 0.05) 16.4%);
 }
 

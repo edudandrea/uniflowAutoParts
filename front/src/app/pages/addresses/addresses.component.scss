@@ -14,7 +14,7 @@
   gap: 18px;
   margin: -18px -18px 18px;
   padding: 14px 18px;
-  border-bottom: 1px solid rgba(11, 36, 56, 0.08);
+  border-bottom: 1px solid var(--border-soft);
   background: rgba(255, 255, 255, 0.82);
   box-shadow: 0 10px 34px rgba(12, 45, 65, 0.06);
 }
@@ -58,7 +58,7 @@ kbd {
   width: 40px;
   min-height: 40px;
   padding: 0;
-  color: #07192a;
+  color: var(--ink);
   background: transparent;
 }
 
@@ -69,7 +69,7 @@ kbd {
   place-items: center;
   border-radius: 50%;
   color: #fff;
-  background: linear-gradient(135deg, var(--brand-green), var(--brand-blue));
+  background: var(--brand-gradient);
   font-weight: 700;
 }
 
@@ -79,12 +79,12 @@ kbd {
 }
 
 .user-summary strong {
-  color: #07192a;
+  color: var(--ink);
   font-size: 0.9rem;
 }
 
 .user-summary span:not(.material-symbol) {
-  color: #607789;
+  color: var(--muted);
   font-size: 0.78rem;
   font-weight: 500;
 }
@@ -98,7 +98,7 @@ kbd {
 .metric-card,
 .addresses-panel,
 .address-modal {
-  border: 1px solid rgba(11, 36, 56, 0.08);
+  border: 1px solid var(--border-soft);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.94);
   box-shadow: var(--shadow-sm);
@@ -142,7 +142,7 @@ kbd {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #607789;
+  color: var(--muted);
   font-size: 0.76rem;
   font-weight: 700;
 }
@@ -150,7 +150,7 @@ kbd {
 h1,
 h2 {
   margin: 0;
-  color: #07192a;
+  color: var(--ink);
 }
 
 h1 {
@@ -162,7 +162,7 @@ h1 {
 .modal-titlebar p,
 .register-copy p {
   margin: 4px 0 0;
-  color: #607789;
+  color: var(--muted);
   font-weight: 700;
 }
 
@@ -181,15 +181,15 @@ h1 {
 
 .primary-action {
   color: #fff;
-  background: linear-gradient(135deg, var(--brand-green), var(--brand-green-dark));
-  box-shadow: 0 14px 28px rgba(19, 168, 106, 0.2);
+  background: var(--brand-gradient);
+  box-shadow: var(--shadow-sm);
 }
 
 .filter-button,
 .cancel-button,
 .close-button {
   border: 1px solid rgba(11, 36, 56, 0.12);
-  color: #253e52;
+  color: var(--ink-soft);
   background: #fff;
 }
 
@@ -218,7 +218,7 @@ h1 {
 
 .metric-card p {
   margin: 0;
-  color: #607789;
+  color: var(--muted);
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -226,7 +226,7 @@ h1 {
 .metric-card strong {
   display: block;
   margin-top: 5px;
-  color: #07192a;
+  color: var(--ink);
   font-size: 1.28rem;
 }
 
@@ -254,8 +254,8 @@ h1 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   padding: 10px 14px 0;
-  border-bottom: 1px solid rgba(11, 36, 56, 0.08);
-  background: #f8fbfc;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface-muted);
 }
 
 .address-tabs button {
@@ -265,7 +265,7 @@ h1 {
   justify-content: center;
   gap: 8px;
   border-radius: 8px 8px 0 0;
-  color: #31495a;
+  color: var(--muted-strong);
   background: transparent;
   font-weight: 700;
 }
@@ -291,7 +291,7 @@ h1 {
 .filters-bar label > span,
 .address-form label > span,
 .usage-section > span {
-  color: #607789;
+  color: var(--muted);
   font-size: 0.76rem;
   font-weight: 700;
 }
@@ -384,7 +384,7 @@ table {
   width: 100%;
   min-width: 1080px;
   border-collapse: collapse;
-  color: #22394d;
+  color: var(--ink-soft);
   font-size: 0.82rem;
 }
 
@@ -397,8 +397,8 @@ td {
 }
 
 th {
-  color: #365267;
-  background: #eef4f6;
+  color: var(--muted-strong);
+  background: var(--surface-muted);
   font-weight: 600;
 }
 
@@ -427,12 +427,12 @@ td > small {
 }
 
 .supplier-cell strong {
-  color: #07192a;
+  color: var(--ink);
   font-size: 0.72rem;
 }
 
 .supplier-cell small {
-  color: #607789;
+  color: var(--muted);
   font-weight: 600;
 }
 
@@ -474,21 +474,21 @@ td > small {
   min-height: 24px;
   border-radius: 99px;
   padding: 0 12px;
-  color: #057747;
+  color: var(--brand-green-dark);
   background: rgba(19, 168, 106, 0.16);
   font-size: 0.74rem;
   font-weight: 700;
 }
 
 .status-pill.inactive {
-  color: #607789;
-  background: #eaf1f4;
+  color: var(--muted);
+  background: var(--border-soft);
 }
 
 .row-action {
   min-height: 30px;
   padding: 0 10px;
-  color: #102842;
+  color: var(--ink);
   background: transparent;
 }
 
@@ -498,7 +498,7 @@ td > small {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 14px;
-  color: #607789;
+  color: var(--muted);
   font-size: 0.84rem;
   font-weight: 700;
 }
@@ -513,7 +513,7 @@ td > small {
   min-width: 34px;
   min-height: 34px;
   padding: 0 8px;
-  color: #254154;
+  color: var(--ink-soft);
   border: 1px solid rgba(11, 36, 56, 0.1);
   background: #fff;
 }
@@ -543,7 +543,7 @@ td > small {
   justify-items: center;
   gap: 6px;
   padding: 32px;
-  color: #607789;
+  color: var(--muted);
   text-align: center;
 }
 
@@ -558,7 +558,7 @@ td > small {
 }
 
 .empty-list strong {
-  color: #07192a;
+  color: var(--ink);
 }
 
 .modal-backdrop {
@@ -590,7 +590,7 @@ td > small {
   align-items: center;
   gap: 14px;
   padding: 18px 24px 16px;
-  border-bottom: 1px solid rgba(11, 36, 56, 0.08);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .modal-titlebar .title-icon {
@@ -697,7 +697,7 @@ textarea {
   padding: 0;
   border-radius: 0;
   color: #19364d;
-  background: #f8fbfc;
+  background: var(--surface-muted);
 }
 
 .input-action button .material-symbol {
@@ -723,7 +723,7 @@ textarea {
   display: flex !important;
   align-items: center;
   gap: 7px;
-  color: #31495a;
+  color: var(--muted-strong);
   font-size: 0.78rem;
   font-weight: 600;
 }
@@ -748,7 +748,7 @@ textarea {
   position: absolute;
   right: 12px;
   bottom: 7px;
-  color: #607789;
+  color: var(--muted);
   font-size: 0.68rem;
   font-weight: 600;
 }
@@ -766,7 +766,7 @@ textarea {
   align-items: center;
   gap: 7px;
   margin-right: auto;
-  color: #31495a;
+  color: var(--muted-strong);
   font-size: 0.76rem;
   font-weight: 600;
 }
@@ -959,7 +959,7 @@ textarea {
 :host ::ng-deep .addresses-page .addresses-panel {
   display: block !important;
   overflow: hidden !important;
-  border: 1px solid rgba(11, 36, 56, 0.08) !important;
+  border: 1px solid var(--border-soft) !important;
   border-radius: 8px !important;
   background: rgba(255, 255, 255, 0.94) !important;
   box-shadow: var(--shadow-sm) !important;
@@ -1020,7 +1020,7 @@ textarea {
 }
 
 :host ::ng-deep .addresses-page th {
-  background: #eef4f6 !important;
+  background: var(--surface-muted) !important;
 }
 
 @media (max-width: 900px) {

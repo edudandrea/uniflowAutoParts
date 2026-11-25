@@ -12,11 +12,6 @@ namespace back.Controllers;
 [Route("api/municipios")]
 public sealed class MunicipiosController(AppDbContext db, TenantContext tenant) : ControllerBase
 {
-    private static readonly IReadOnlyDictionary<string, MunicipioResponse> MunicipiosIbge = LerMunicipiosIbge();
-    private static readonly IReadOnlyDictionary<string, string> PrefixosPorUf = MunicipiosIbge.Values
-        .GroupBy(municipio => municipio.Uf)
-        .ToDictionary(grupo => grupo.Key, grupo => grupo.First().CodigoIbge[..2]);
-
     [HttpGet]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public async Task<ActionResult<IReadOnlyList<MunicipioResponse>>> Listar(CancellationToken cancellationToken)
@@ -24,7 +19,7 @@ public sealed class MunicipiosController(AppDbContext db, TenantContext tenant) 
         var manuais = await db.MunicipiosManuais.AsNoTracking()
             .Select(m => new MunicipioResponse(m.CodigoIbge, m.Nome, m.Uf))
             .ToListAsync(cancellationToken);
-        return Ok(MunicipiosIbge.Values.Concat(manuais)
+        return Ok(MunicipiosIbge.PorCodigo.Values.Select(m => new MunicipioResponse(m.CodigoIbge, m.Nome, m.Uf)).Concat(manuais)
             .OrderBy(m => m.Nome, StringComparer.Create(CultureInfo.GetCultureInfo("pt-BR"), true))
             .ThenBy(m => m.Uf, StringComparer.Ordinal)
             .ThenBy(m => m.CodigoIbge, StringComparer.Ordinal)
@@ -39,12 +34,11 @@ public sealed class MunicipiosController(AppDbContext db, TenantContext tenant) 
         var codigo = request.CodigoIbge?.Trim();
         if (string.IsNullOrEmpty(nome) || nome.Length > 120)
             return BadRequest("Informe um nome de município com até 120 caracteres.");
-        if (uf is null || !PrefixosPorUf.TryGetValue(uf, out var prefixo))
+        if (uf is null || !MunicipiosIbge.UfValida(uf))
             return BadRequest("Selecione uma unidade federativa válida.");
-        if (codigo is null || codigo.Length != 7 || !codigo.All(char.IsAsciiDigit) ||
-            !codigo.StartsWith(prefixo, StringComparison.Ordinal))
+        if (codigo is null || !MunicipiosIbge.CodigoCorrespondeUf(codigo, uf))
             return BadRequest("Informe um código IBGE de sete dígitos que corresponda à UF selecionada.");
-        if (MunicipiosIbge.ContainsKey(codigo) ||
+        if (MunicipiosIbge.PorCodigo.ContainsKey(codigo) ||
             await db.MunicipiosManuais.AnyAsync(m => m.CodigoIbge == codigo, cancellationToken))
             return Conflict("Já existe um município com esse código IBGE.");
 
@@ -62,20 +56,6 @@ public sealed class MunicipiosController(AppDbContext db, TenantContext tenant) 
         return Created("/api/municipios", new MunicipioResponse(codigo, nome, uf));
     }
 
-    private static Dictionary<string, MunicipioResponse> LerMunicipiosIbge()
-    {
-        // Fonte: https://servicodados.ibge.gov.br/api/v1/localidades/municipios?view=nivelado
-        using var stream = typeof(MunicipiosController).Assembly.GetManifestResourceStream("municipios-ibge.csv")
-            ?? throw new InvalidOperationException("Base de municípios do IBGE não encontrada.");
-        using var reader = new StreamReader(stream);
-        var municipios = new Dictionary<string, MunicipioResponse>(StringComparer.Ordinal);
-        while (reader.ReadLine() is { } linha)
-        {
-            var campos = linha.Split(';', 3);
-            municipios.Add(campos[0], new MunicipioResponse(campos[0], campos[2], campos[1]));
-        }
-        return municipios;
-    }
 }
 
 public sealed record MunicipioResponse(string CodigoIbge, string Nome, string Uf);

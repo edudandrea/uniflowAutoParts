@@ -19,7 +19,7 @@ import { SalesComponent } from './sales.component';
   const draftKey = sessionStub().storageKey('venda:rascunho');
 
   function catalog(products = [product], fiscalEnvironment: 'homologacao' | 'producao' = 'homologacao') {
-    http.expectOne(`${environment.apiUrl}/fiscal/ambiente`).flush({ environment: fiscalEnvironment, emissaoDisponivel: true });
+    http.expectOne(`${environment.apiUrl}/fiscal/ambiente`).flush({ environment: fiscalEnvironment, emissaoDisponivel: true, regime: '1' });
     http.expectOne(req => req.url === `${environment.apiUrl}/clientes`).flush([customer]);
     http.expectOne(req => req.url === `${environment.apiUrl}/produtos`).flush({ produtos: products, total: products.length });
     fixture.detectChanges();
@@ -60,7 +60,7 @@ import { SalesComponent } from './sales.component';
 
   const destination = { inscricaoEstadual: '2243658790', indicadorIe: 1, consumidorFinal: false, logradouro: 'Rua de teste', numero: '10', complemento: '', bairro: 'Centro', municipio: 'Porto Alegre', codigoMunicipio: '4314902', uf: 'RS', cep: '90000000' };
   const authorized = { id: 37, numero: '2', serie: '1', chaveAcesso: '43' + '1'.repeat(42), ambiente: 1, situacao: 'Autorizada', codigo: '100', motivo: 'Autorizado o uso da NF-e', protocolo: '143260000000001', podeReenviar: false };
-  async function prepareEmission() {
+  async function prepareEmission(address = destination) {
     fixture.destroy(); fixture = TestBed.createComponent(SalesComponent); element = fixture.nativeElement; fixture.detectChanges(); catalog([product], 'producao');
     TestBed.inject(FiscalCertificateService).save({ fileName: 'fixture.pfx', base64: 'fixture-only', password: 'fixture-only', uf: 'RS', environment: 'producao' });
     await input('[aria-label="Buscar cliente"]', 'Cliente');
@@ -68,7 +68,7 @@ import { SalesComponent } from './sales.component';
     await addProduct(); element.querySelector<HTMLButtonElement>('.full-payment')!.click(); fixture.detectChanges();
     Object.defineProperty(element.querySelector('dialog')!, 'showModal', { value: vi.fn() });
     element.querySelector<HTMLButtonElement>('.finish-button')!.click(); fixture.detectChanges();
-    http.expectOne(`${environment.apiUrl}/fiscal/destinatario/7`).flush(destination); fixture.detectChanges(); await fixture.whenStable();
+    http.expectOne(`${environment.apiUrl}/fiscal/destinatario/7`).flush(address); fixture.detectChanges(); await fixture.whenStable();
   }
 
   it('automatically fills the recipient address from the customer registry and sends the reviewed values', async () => {
@@ -81,7 +81,21 @@ import { SalesComponent } from './sales.component';
     element.querySelector<HTMLButtonElement>('.invoice-button')!.click();
     const request = http.expectOne(`${environment.apiUrl}/notas-fiscais/emitir`);
     expect(request.request.body.destinatario).toEqual({ ...destination, numero: '27' });
+    expect(request.request.body).not.toHaveProperty('cfop');
+    expect(element.querySelector('.cfop-value')?.textContent).toContain('5102');
     request.flush(authorized); fixture.detectChanges();
+  });
+
+  it('shows the interstate CFOP for the registered non-contributor and updates it when the fiscal UF changes', async () => {
+    await prepareEmission({ ...destination, uf: 'SC', municipio: 'Florianópolis', codigoMunicipio: '4205407',
+      indicadorIe: 9, consumidorFinal: true, inscricaoEstadual: '' });
+    expect(element.querySelector('.operation-route')?.textContent).toContain('Venda interestadual');
+    expect(element.querySelector('.cfop-value')?.textContent).toContain('6108');
+    await input('[aria-label="UF do destinatário"]', 'RS');
+    await input('[aria-label="Código IBGE do destinatário"]', '4314902');
+    expect(element.querySelector('.operation-route')?.textContent).toContain('Venda estadual');
+    expect(element.querySelector('.cfop-value')?.textContent).toContain('5102');
+    expect(element.querySelector('input[aria-label="CFOP"]')).toBeNull();
   });
 
   it('reloads the address from the customer registry and disables emission during loading', async () => {

@@ -18,7 +18,9 @@ public sealed class AmbienteFiscalController(AppDbContext db, TenantContext tena
         var ambiente = await db.ConfiguracoesFiscais.AsNoTracking().Where(c => c.EmpresaId == tenant.EmpresaId)
             .Select(c => (int?)c.Ambiente).SingleOrDefaultAsync(cancellationToken) ?? 2;
         var serie = await db.ConfiguracoesFiscais.Where(c => c.EmpresaId == tenant.EmpresaId).Select(c => (int?)c.SeriePadrao).SingleOrDefaultAsync(cancellationToken) ?? 1;
-        return Ok(new AmbienteFiscalResponse(SefazAmbientes.Nome(ambiente), SeriePadrao: serie));
+        var regime = await db.ConfiguracoesTributarias.AsNoTracking().Where(c => c.EmpresaId == tenant.EmpresaId)
+            .Select(c => c.Regime).SingleOrDefaultAsync(cancellationToken);
+        return Ok(new AmbienteFiscalResponse(SefazAmbientes.Nome(ambiente), SeriePadrao: serie, Regime: regime));
     }
 
     [HttpPut]

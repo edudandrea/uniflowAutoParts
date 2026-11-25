@@ -6,6 +6,7 @@ import { FiscalCertificate, FiscalTaxSettings, FiscalEnvironment, FiscalEnvironm
 import {
   DestinatarioFiscalData, EmitenteFiscalData, EmitenteFiscalResponse, EmitirNfePayload, EmissaoNfeResponse, NotaFiscalEventoHistorico,
   Categoria,
+  DashboardResumo,
   EstoqueProduto,
   EntradaCompraResumo,
   CadastroEndereco,
@@ -32,6 +33,10 @@ import {
 export class ApiService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = environment.apiUrl;
+
+  carregarDashboard(empresaId: number, de: string, ate: string) {
+    return this.http.get<DashboardResumo>(`${this.apiUrl}/dashboard`, { params: { empresaId, de, ate } });
+  }
 
   listarNotasFiscais(empresaId: number, pagina: number, filtros: NotaFiscalFiltros) {
     const params: Record<string, string | number> = { empresaId, pagina };

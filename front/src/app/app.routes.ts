@@ -2,18 +2,7 @@ import { companySessionGuard } from './core/session.service';
 import { Routes } from '@angular/router';
 
 import { CompanyShellComponent } from './layouts/company-shell/company-shell.component';
-import { AddressesComponent } from './pages/addresses/addresses.component';
-import { ApplicationsComponent } from './pages/applications/applications.component';
-import { BrandsComponent } from './pages/brands/brands.component';
-import { CategoriesComponent } from './pages/categories/categories.component';
-import { CustomersComponent } from './pages/customers/customers.component';
 import { DashboardComponent } from './pages/dashboard/dashboard.component';
-import { FinancialComponent } from './pages/financial/financial.component';
-import { InventoryComponent } from './pages/inventory/inventory.component';
-import { ProductsComponent } from './pages/products/products.component';
-import { PurchasesComponent } from './pages/purchases/purchases.component';
-import { SuppliersComponent } from './pages/suppliers/suppliers.component';
-import { FiscalSettingsComponent } from './pages/fiscal-settings/fiscal-settings.component';
 
 export const routes: Routes = [
   { path: 'sso', loadComponent: () => import('./pages/hub-login/hub-login.component').then(m => m.HubLoginComponent) },
@@ -25,26 +14,26 @@ export const routes: Routes = [
     component: CompanyShellComponent,
     children: [
       { path: 'dashboard', component: DashboardComponent },
-      { path: 'estoque', component: InventoryComponent },
-      { path: 'clientes', component: CustomersComponent },
-      { path: 'produtos', component: ProductsComponent },
-      { path: 'aplicacoes', component: ApplicationsComponent },
-      { path: 'compras', component: PurchasesComponent },
+      { path: 'estoque', loadComponent: () => import('./pages/inventory/inventory.component').then(m => m.InventoryComponent) },
+      { path: 'clientes', loadComponent: () => import('./pages/customers/customers.component').then(m => m.CustomersComponent) },
+      { path: 'produtos', loadComponent: () => import('./pages/products/products.component').then(m => m.ProductsComponent) },
+      { path: 'aplicacoes', loadComponent: () => import('./pages/applications/applications.component').then(m => m.ApplicationsComponent) },
+      { path: 'compras', loadComponent: () => import('./pages/purchases/purchases.component').then(m => m.PurchasesComponent) },
       { path: 'vendas', loadComponent: () => import('./pages/sales/sales.component').then(m => m.SalesComponent) },
       { path: 'notas', loadComponent: () => import('./pages/invoices/invoices.component').then(m => m.InvoicesComponent) },
-      { path: 'fornecedores', component: SuppliersComponent },
+      { path: 'fornecedores', loadComponent: () => import('./pages/suppliers/suppliers.component').then(m => m.SuppliersComponent) },
       { path: 'financeiro', redirectTo: 'financeiro/visao-geral', pathMatch: 'full' },
-      { path: 'financeiro/visao-geral', component: FinancialComponent },
-      { path: 'financeiro/contas-a-receber', component: FinancialComponent },
-      { path: 'financeiro/contas-a-pagar', component: FinancialComponent },
-      { path: 'financeiro/caixa', component: FinancialComponent },
-      { path: 'financeiro/movimentacoes', component: FinancialComponent },
-      { path: 'financeiro/conciliacao', component: FinancialComponent },
-      { path: 'configuracoes/enderecos', component: AddressesComponent },
+      { path: 'financeiro/visao-geral', loadComponent: () => import('./pages/financial/financial.component').then(m => m.FinancialComponent) },
+      { path: 'financeiro/contas-a-receber', loadComponent: () => import('./pages/financial/financial.component').then(m => m.FinancialComponent) },
+      { path: 'financeiro/contas-a-pagar', loadComponent: () => import('./pages/financial/financial.component').then(m => m.FinancialComponent) },
+      { path: 'financeiro/caixa', loadComponent: () => import('./pages/financial/financial.component').then(m => m.FinancialComponent) },
+      { path: 'financeiro/movimentacoes', loadComponent: () => import('./pages/financial/financial.component').then(m => m.FinancialComponent) },
+      { path: 'financeiro/conciliacao', loadComponent: () => import('./pages/financial/financial.component').then(m => m.FinancialComponent) },
+      { path: 'configuracoes/enderecos', loadComponent: () => import('./pages/addresses/addresses.component').then(m => m.AddressesComponent) },
       { path: 'configuracoes/municipios', loadComponent: () => import('./pages/municipalities/municipalities.component').then(m => m.MunicipalitiesComponent) },
-      { path: 'configuracoes/categorias', component: CategoriesComponent },
-      { path: 'configuracoes/marcas', component: BrandsComponent },
-      { path: 'configuracoes/certificado-digital', component: FiscalSettingsComponent },
+      { path: 'configuracoes/categorias', loadComponent: () => import('./pages/categories/categories.component').then(m => m.CategoriesComponent) },
+      { path: 'configuracoes/marcas', loadComponent: () => import('./pages/brands/brands.component').then(m => m.BrandsComponent) },
+      { path: 'configuracoes/certificado-digital', loadComponent: () => import('./pages/fiscal-settings/fiscal-settings.component').then(m => m.FiscalSettingsComponent) },
       { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
       { path: '**', redirectTo: 'dashboard' },
     ],

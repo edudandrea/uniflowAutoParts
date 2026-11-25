@@ -40,7 +40,7 @@ public sealed class EmitenteFiscalController(AppDbContext db, TenantContext tena
         return Ok(new DestinatarioFiscalRequest(cliente.InscricaoEstadual ?? "", (int)cliente.IndicadorIe, cliente.ConsumidorFinal,
             cadastro?.Logradouro ?? endereco?.Logradouro ?? "", cadastro?.Numero ?? endereco?.Numero ?? "", cadastro?.Complemento ?? endereco?.Complemento,
             cadastro?.Bairro ?? endereco?.Bairro ?? "", cadastro?.Municipio ?? endereco?.Municipio ?? "", cadastro?.CodigoIbgeMunicipio ?? endereco?.CodigoIbgeMunicipio ?? "",
-            cadastro?.Uf ?? endereco?.Uf ?? "RS", cadastro?.Cep ?? endereco?.Cep ?? ""));
+            cadastro?.Uf ?? endereco?.Uf ?? "", cadastro?.Cep ?? endereco?.Cep ?? ""));
     }
     [HttpPut]
     public async Task<IActionResult> Salvar(EmitenteFiscalRequest request, CancellationToken token)

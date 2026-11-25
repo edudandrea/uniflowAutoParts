@@ -203,6 +203,27 @@ internal static class NfeEmissionChecks
             await eventos.Consultar(aprovada.Id, 1, credentials, default);
             Check(Net() == baseline, "Consulta repetida duplicou o estorno da venda revisada.");
         }
+        await using (var db = new AppDbContext(options, Tenant(1)))
+        {
+            var cadastro = (await db.Clientes.Include(c => c.CadastroEndereco).SingleAsync()).CadastroEndereco!;
+            cadastro.Uf = "SC";
+            cadastro.Municipio = "Florianópolis";
+            cadastro.CodigoIbgeMunicipio = "4205407";
+            await db.SaveChangesAsync();
+
+            var automatic = Request() with { Cfop = null };
+            var emitted = Result(await Controller(db).Emitir(automatic, default));
+            Check(emitted.Situacao == "Autorizada" && emitted.Cfop == "6102", "Emissão não inferiu o CFOP pelo cadastro.");
+            var beforeRetry = transport.Authorizations;
+            cadastro.Uf = "RS";
+            cadastro.Municipio = "Porto Alegre";
+            cadastro.CodigoIbgeMunicipio = "4314902";
+            await db.SaveChangesAsync();
+
+            var replay = Result(await Controller(db).Emitir(automatic, default));
+            Check(replay.Id == emitted.Id && replay.Cfop == "6102" && transport.Authorizations == beforeRetry,
+                "Alteração do cadastro mudou o XML ou gerou outra emissão na recuperação.");
+        }
         Check(transport.Events.All(e => e.Environment == 1), "Eventos de producao foram enviados para homologacao.");
         Console.WriteLine($"NF-e authorization lifecycle: {checks} passed; certificado e transporte simulados, nenhuma transmissao externa.");
     }
