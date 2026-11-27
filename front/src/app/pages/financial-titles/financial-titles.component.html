@@ -1,0 +1,165 @@
+<section class="financial-titles" aria-labelledby="financial-titles-heading">
+  <header class="page-heading">
+    <div class="heading-copy">
+      <app-icon class="heading-icon tile green" [name]="receivable ? 'hand-coins' : 'file-text'" [size]="25" />
+      <div>
+        <h1 id="financial-titles-heading">{{ receivable ? 'Contas a receber' : 'Contas a pagar' }}</h1>
+        <p>{{ receivable ? 'Consulte os títulos informados nas NF-e de saída autorizadas.' : 'Consulte os títulos informados nas NF-e de compra conferidas.' }}</p>
+      </div>
+    </div>
+    <div class="heading-actions">
+      @if (receivable) {
+        <button class="export-action" type="button" (click)="exportCsv()" [disabled]="!filtered().length"
+          aria-label="Exportar títulos filtrados em CSV"><app-icon name="download" [size]="17" />Exportar CSV</button>
+        <a class="primary-action" routerLink="/app/notas"><app-icon name="file-text" [size]="17" />Ver notas fiscais</a>
+      } @else {
+        <a class="primary-action" routerLink="/app/estoque"><app-icon name="file-up" [size]="17" />Ir para NF-e no estoque</a>
+      }
+    </div>
+  </header>
+
+  <section class="metrics" aria-label="Resumo dos títulos no período">
+    @for (metric of metrics(); track metric.label) {
+      <article class="metric surface">
+        <app-icon class="tile" [class]="metric.tone" [name]="metric.icon" [size]="21" />
+        <div>
+          <h2>{{ metric.label }}</h2>
+          <strong>{{ metric.value }}</strong>
+          <small>{{ metric.detail }}</small>
+        </div>
+      </article>
+    }
+  </section>
+
+  <div class="filters surface" role="group" aria-label="Filtros da listagem">
+    <div class="filter">
+      <app-icon class="tile green" name="calendar" [size]="17" />
+      <div class="filter-field">
+        <span id="due-period-label">Período de vencimento</span>
+        <details #periodDisclosure>
+          <summary aria-labelledby="due-period-label due-period-value">
+            <span id="due-period-value">{{ periodLabel() }}</span><app-icon name="chevron-down" [size]="14" />
+          </summary>
+          <form class="period-panel surface" (submit)="applyPeriod($event, dateStart.value, dateEnd.value, periodDisclosure)">
+            <label>De <input #dateStart type="date" [value]="period().de" /></label>
+            <label>Até <input #dateEnd type="date" [value]="period().ate" /></label>
+            @if (periodError()) { <small role="alert">{{ periodError() }}</small> }
+            <button class="primary-action" type="submit">Aplicar período</button>
+          </form>
+        </details>
+      </div>
+    </div>
+
+    <label class="filter">
+      <app-icon class="tile green" [name]="receivable ? 'users' : 'store'" [size]="17" />
+      <span class="filter-field">{{ personLabel }}
+        <select #personSelect [value]="person()" (change)="person.set(personSelect.value); page.set(1)" [disabled]="state().status !== 'ready'">
+          <option value="" [selected]="!person()">Todos</option>
+          @for (item of people(); track item.id) { <option [value]="item.id" [selected]="item.id.toString() === person()">{{ item.nome }}</option> }
+        </select>
+      </span>
+    </label>
+
+    <label class="filter">
+      <app-icon class="tile green" name="clock" [size]="17" />
+      <span class="filter-field">Faixa de vencimento
+        <select #dueSelect [value]="due()" (change)="due.set(dueSelect.value); page.set(1)">
+          <option value="">Todas</option>
+          <option value="today">Hoje</option>
+          <option value="earlier">Datas anteriores</option>
+          <option value="upcoming">Datas futuras</option>
+        </select>
+      </span>
+    </label>
+
+    <label class="filter">
+      <app-icon class="tile green" name="tags" [size]="17" />
+      <span class="filter-field">Natureza da operação
+        <select #natureSelect [value]="nature()" (change)="nature.set(natureSelect.value); page.set(1)" [disabled]="state().status !== 'ready'">
+          <option value="" [selected]="!nature()">Todas</option>
+          @for (item of natures(); track item) { <option [value]="item" [selected]="item === nature()">{{ item }}</option> }
+        </select>
+      </span>
+    </label>
+    <button class="clear" type="button" (click)="periodDisclosure.open = false; dateStart.value = ''; dateEnd.value = ''; clear()"><app-icon name="sliders-horizontal" [size]="16" />Limpar filtros</button>
+  </div>
+
+  <section class="listing surface" [attr.aria-label]="receivable ? 'Títulos a receber' : 'Títulos a pagar'" [attr.aria-busy]="state().status === 'loading'">
+    <div class="table-wrap" tabindex="0" role="region" aria-label="Tabela de títulos">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col" [attr.aria-sort]="sortDirection('vencimento')"><button type="button" (click)="sort('vencimento')">Vencimento <app-icon [name]="sortDirection('vencimento') === 'descending' ? 'arrow-down' : 'arrow-up'" [size]="13" /></button></th>
+            <th scope="col" [attr.aria-sort]="sortDirection('pessoa')"><button type="button" (click)="sort('pessoa')">{{ personLabel }} <app-icon [name]="sortDirection('pessoa') === 'descending' ? 'arrow-down' : 'arrow-up'" [size]="13" /></button></th>
+            <th scope="col">Documento</th>
+            <th scope="col">Natureza da operação</th>
+            <th scope="col" class="amount" [attr.aria-sort]="sortDirection('valor')"><button type="button" (click)="sort('valor')">Valor <app-icon [name]="sortDirection('valor') === 'descending' ? 'arrow-down' : 'arrow-up'" [size]="13" /></button></th>
+            <th scope="col">Faixa de vencimento</th>
+            <th scope="col" class="actions">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (state().status === 'loading') {
+            <tr><td colspan="7" class="table-message"><p role="status">Carregando títulos…</p></td></tr>
+          } @else if (state().status === 'error') {
+            <tr><td colspan="7" class="table-message"><p role="alert">Não foi possível carregar os títulos.</p><button class="clear" type="button" (click)="retry()">Tentar novamente</button></td></tr>
+          } @else {
+            @for (row of rows(); track row.documentoId + '-' + row.indice) {
+              <tr>
+                <td><time [attr.datetime]="row.vencimento">{{ formatDate(row.vencimento) }}</time></td>
+                <td>{{ row.pessoa || '—' }}</td>
+                <td class="document">NF-e {{ row.nota }} <small>Parcela {{ row.parcela || row.indice }}</small></td>
+                <td>@if (row.natureza) { <span class="nature">{{ row.natureza }}</span> } @else { — }</td>
+                <td class="amount">{{ formatCurrency(row.valor) }}</td>
+                <td><span class="date-chip" [class]="dueStatus(row.vencimento)">{{ dueLabels[dueStatus(row.vencimento)] }}</span></td>
+                <td class="actions"><button class="icon-button" type="button" (click)="showDetails(detailsDialog, row)"
+                  [attr.aria-label]="'Ver parcela ' + (row.parcela || row.indice) + ' da NF-e ' + row.nota"><app-icon name="eye" [size]="17" /></button></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="7" class="table-message"><app-icon class="tile green" name="file-text" [size]="20" /><p>Nenhum título encontrado para os filtros selecionados.</p><small>As parcelas aparecem quando o XML da NF-e informa valor e vencimento.</small></td></tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (state().status === 'ready') {
+      <footer class="table-footer">
+        <p aria-live="polite">
+          @if (rows().length) { Exibindo {{ firstIndex() + 1 }}–{{ firstIndex() + rows().length }} de {{ countLabel(filtered().length) }} }
+          @else { {{ countLabel(filtered().length) }} }
+        </p>
+        <div class="pagination">
+          <label>Itens por página
+            <select #sizeSelect [value]="pageSize()" (change)="pageSize.set(+sizeSelect.value); page.set(1)">
+              <option value="10">10</option><option value="25">25</option><option value="50">50</option>
+            </select>
+          </label>
+          <button class="icon-button" type="button" aria-label="Página anterior" [disabled]="currentPage() <= 1" (click)="page.set(currentPage() - 1)"><app-icon name="chevron-left" [size]="17" /></button>
+          <span class="page-number">{{ currentPage() }} / {{ pageCount() }}</span>
+          <button class="icon-button" type="button" aria-label="Próxima página" [disabled]="currentPage() >= pageCount()" (click)="page.set(currentPage() + 1)"><app-icon name="chevron-right" [size]="17" /></button>
+        </div>
+      </footer>
+    }
+  </section>
+
+  <p class="source"><app-icon name="info" [size]="15" /> A faixa de vencimento compara a data do título com a data de hoje. {{ receivable ? 'O XML não confirma o recebimento.' : 'O pagamento não é verificado pelo XML.' }}</p>
+
+  <dialog #detailsDialog aria-labelledby="payable-detail-title" (close)="selected.set(null)">
+    <header class="dialog-heading">
+      <h2 id="payable-detail-title">Detalhes do título</h2>
+      <button class="icon-button" type="button" aria-label="Fechar detalhes" (click)="detailsDialog.close()" autofocus><app-icon name="x" [size]="20" /></button>
+    </header>
+    @if (selected(); as title) {
+      <p>NF-e {{ title.nota }}{{ title.serie ? ' · Série ' + title.serie : '' }}</p>
+      <dl>
+        <div><dt>{{ personLabel }}</dt><dd>{{ title.pessoa || '—' }}</dd></div>
+        <div><dt>Natureza da operação</dt><dd>{{ title.natureza || '—' }}</dd></div>
+        <div><dt>Parcela</dt><dd>{{ title.parcela || title.indice }}</dd></div>
+        <div><dt>Vencimento</dt><dd>{{ formatDate(title.vencimento) }}</dd></div>
+        <div><dt>Valor informado</dt><dd>{{ formatCurrency(title.valor) }}</dd></div>
+        <div><dt>{{ receivable ? 'Recebimento' : 'Pagamento' }}</dt><dd>Sem registro</dd></div>
+      </dl>
+    }
+  </dialog>
+</section>

@@ -286,6 +286,188 @@ Check(HubAuthentication.ValidProjectClaims(validPrincipal, 2), "Rejeitou claims 
 Check(!HubAuthentication.ValidProjectClaims(validPrincipal, 3), "Aceitou token destinado a outro projeto.");
 ((ClaimsIdentity)validPrincipal.Identity!).RemoveClaim(validPrincipal.FindFirst("tenant_id")!);
 Check(!HubAuthentication.ValidProjectClaims(validPrincipal, 2), "Aceitou identidade sem empresa.");
+// Virada do mês em São Paulo, exclusão de rascunhos e isolamento entre empresas.
+var limiteFinanceiro = new DateTime(2026, 1, 1, 3, 0, 0, DateTimeKind.Utc);
+foreach (var empresaId in new[] { 1, 2 })
+{
+    await using var db = new AppDbContext(options, Tenant(empresaId));
+    db.NotasFiscais.AddRange(
+        new NotaFiscal { EmpresaId = empresaId, Ambiente = 1, Numero = "100", Emissao = limiteFinanceiro,
+            Valor = empresaId * 100, Situacao = "Autorizada" },
+        new NotaFiscal { EmpresaId = empresaId, Ambiente = 1, Numero = "101", Emissao = limiteFinanceiro.AddSeconds(-1),
+            Valor = empresaId * 20, Situacao = "Autorizada" },
+        new NotaFiscal { EmpresaId = empresaId, Ambiente = 1, Numero = "102", Emissao = limiteFinanceiro,
+            Valor = 900, Situacao = "Cancelada" },
+        new NotaFiscal { EmpresaId = empresaId, Ambiente = 2, Numero = "103", Emissao = limiteFinanceiro, Valor = 900 });
+    db.EntradasCompra.AddRange(
+        new EntradaCompra { TenantId = empresaId, FornecedorId = empresaId, NumeroNfe = "200", DataEmissao = limiteFinanceiro.AddHours(1),
+            Status = "Conferida", ValorTotal = empresaId * 35 },
+        new EntradaCompra { TenantId = empresaId, NumeroNfe = "201", DataEmissao = limiteFinanceiro, ValorTotal = 900 });
+    await db.SaveChangesAsync();
+}
+foreach (var empresaId in new[] { 1, 2 })
+{
+    client.DefaultRequestHeaders.Remove("Test-Company");
+    client.DefaultRequestHeaders.Add("Test-Company", empresaId.ToString());
+    const string financeiroUrl = "/api/financeiro/resumo?mes=2026-01-01";
+    var financeiro = await client.GetFromJsonAsync<JsonElement>(financeiroUrl);
+    var serie = financeiro.GetProperty("serie");
+    var mes = serie[5];
+    Check(serie.GetArrayLength() == 6 && serie[4].GetProperty("saidas").GetDecimal() == empresaId * 20
+        && mes.GetProperty("saidas").GetDecimal() == empresaId * 100 && mes.GetProperty("totalSaidas").GetInt32() == 1
+        && mes.GetProperty("compras").GetDecimal() == empresaId * 35 && mes.GetProperty("totalCompras").GetInt32() == 1,
+        "Financeiro somou documentos de outro mês, empresa, situação ou ambiente.");
+    var documentos = financeiro.GetProperty("documentos");
+    Check(documentos.GetArrayLength() == 2 && documentos[0].GetProperty("numero").GetString() == "200"
+        && documentos[0].GetProperty("valor").GetDecimal() == empresaId * 35
+        && documentos[1].GetProperty("numero").GetString() == "100", "Documentos recentes fora da ordem ou do filtro fiscal.");
+    Check((await client.GetAsync($"{financeiroUrl}&empresaId={3 - empresaId}")).StatusCode == HttpStatusCode.Forbidden,
+        "Financeiro aceitou consultar outra empresa.");
+}
+
+foreach (var empresaId in new[] { 1, 2 })
+{
+    await using var db = new AppDbContext(options, Tenant(empresaId));
+    EntradaCompra CompraComDuplicatas(int numero, string status, int ambiente)
+    {
+        var chave = $"{empresaId}{numero}".PadLeft(44, '0');
+        return new EntradaCompra
+        {
+            TenantId = empresaId, FornecedorId = empresaId, ChaveNfe = chave, NumeroNfe = numero.ToString(),
+            Serie = "1", NaturezaOperacao = "Compra de mercadorias", Status = status,
+            XmlOriginal = $"""
+                <nfeProc xmlns="http://www.portalfiscal.inf.br/nfe"><NFe><infNFe Id="NFe{chave}">
+                  <ide><tpAmb>{ambiente}</tpAmb></ide>
+                  <cobr>
+                    <dup><nDup>001</nDup><dVenc>2026-12-05</dVenc><vDup>{empresaId}00.50</vDup></dup>
+                    <dup><nDup>002</nDup><dVenc>2027-01-05</dVenc><vDup>35.00</vDup></dup>
+                    <dup><nDup>003</nDup><vDup>35.00</vDup></dup>
+                  </cobr>
+                </infNFe></NFe><protNFe><infProt>
+                  <tpAmb>{ambiente}</tpAmb><chNFe>{chave}</chNFe><nProt>135260000000001</nProt><cStat>100</cStat>
+                </infProt></protNFe></nfeProc>
+                """
+        };
+    }
+    db.EntradasCompra.AddRange(CompraComDuplicatas(500, "Conferida", 1),
+        CompraComDuplicatas(501, "Conferida", 2), CompraComDuplicatas(502, "Conferencia", 1),
+        new EntradaCompra { TenantId = empresaId, Status = "Conferida", XmlOriginal = "<cobr><dVenc>" });
+    NotaFiscal SaidaComDuplicatas(int numero, string situacao, int ambiente)
+    {
+        var origem = CompraComDuplicatas(numero, "Conferida", ambiente);
+        return new NotaFiscal
+        {
+            EmpresaId = empresaId, Tipo = "NFe", Cliente = $"Cliente de teste {empresaId}",
+            DocumentoCliente = "12345678901", Numero = origem.NumeroNfe, Serie = origem.Serie,
+            ChaveAcesso = origem.ChaveNfe, Situacao = situacao, Ambiente = ambiente, Valor = 999,
+            Xml = origem.XmlOriginal.Replace("</ide>", "<natOp>Venda de mercadorias</natOp></ide>")
+        };
+    }
+    var semParcelas = SaidaComDuplicatas(604, "Autorizada", 1);
+    semParcelas.Xml = semParcelas.Xml.Replace("dVenc", "dataAusente");
+    db.NotasFiscais.AddRange(SaidaComDuplicatas(600, "Autorizada", 1), SaidaComDuplicatas(601, "Cancelada", 1),
+        SaidaComDuplicatas(602, "Autorizada", 2), SaidaComDuplicatas(603, "Processando", 1), semParcelas);
+    var inicioCaixa = new DateTime(2026, 11, 1, 3, 0, 0, DateTimeKind.Utc);
+    var detalheDinheiro = $"<detPag><tPag>01</tPag><vPag>{empresaId}0.50</vPag></detPag>";
+    const string detalhePix = "<detPag><tPag>20</tPag><vPag>57.90</vPag></detPag>";
+    string ComPagamento(string xml, string detalhes) =>
+        xml.Replace("dVenc", "dataAusente").Replace("</infNFe>", $"<pag>{detalhes}<vTroco>3.00</vTroco></pag></infNFe>");
+    NotaFiscal SaidaCaixa(int numero, string situacao, int ambiente, DateTime emissao, string detalhes)
+    {
+        var nota = SaidaComDuplicatas(numero, situacao, ambiente);
+        nota.Emissao = emissao;
+        nota.Xml = ComPagamento(nota.Xml, detalhes);
+        return nota;
+    }
+    var compraCaixa = CompraComDuplicatas(700, "Conferida", 1);
+    compraCaixa.DataEmissao = inicioCaixa.AddHours(2);
+    compraCaixa.ValorTotal = empresaId * 200.25m;
+    compraCaixa.XmlOriginal = ComPagamento(compraCaixa.XmlOriginal, detalheDinheiro + detalhePix);
+    db.EntradasCompra.Add(compraCaixa);
+    var compraHomologacao = CompraComDuplicatas(701, "Conferida", 2);
+    compraHomologacao.DataEmissao = inicioCaixa;
+    compraHomologacao.XmlOriginal = ComPagamento(compraHomologacao.XmlOriginal, detalheDinheiro);
+    db.EntradasCompra.Add(compraHomologacao);
+    var compraSemConferencia = CompraComDuplicatas(702, "Conferencia", 1);
+    compraSemConferencia.DataEmissao = inicioCaixa;
+    compraSemConferencia.XmlOriginal = ComPagamento(compraSemConferencia.XmlOriginal, detalheDinheiro);
+    db.EntradasCompra.Add(compraSemConferencia);
+    db.NotasFiscais.AddRange(
+        SaidaCaixa(710, "Autorizada", 1, inicioCaixa, detalheDinheiro + detalheDinheiro + detalhePix),
+        SaidaCaixa(711, "Autorizada", 1, inicioCaixa.AddSeconds(-1), detalheDinheiro),
+        SaidaCaixa(712, "Autorizada", 1, inicioCaixa, detalhePix),
+        SaidaCaixa(713, "Cancelada", 1, inicioCaixa, detalheDinheiro),
+        SaidaCaixa(714, "Autorizada", 2, inicioCaixa, detalheDinheiro),
+        SaidaCaixa(715, "Autorizada", 1, new DateTime(2019, 1, 15, 2, 30, 0, DateTimeKind.Utc), detalheDinheiro));
+    await db.SaveChangesAsync();
+}
+
+foreach (var empresaId in new[] { 1, 2 })
+{
+    client.DefaultRequestHeaders.Remove("Test-Company");
+    client.DefaultRequestHeaders.Add("Test-Company", empresaId.ToString());
+    const string url = "/api/financeiro/contas-a-pagar";
+    var resultado = await client.GetFromJsonAsync<JsonElement>(url);
+    Check(resultado.GetProperty("titulos").GetArrayLength() == 2, "Contas a pagar considerou parcelas sem data, de homologação, sem conferência ou de outra empresa.");
+    var dezembro = await client.GetFromJsonAsync<JsonElement>($"{url}?de=2026-12-05&ate=2026-12-05");
+    var parcelas = dezembro.GetProperty("titulos");
+    Check(parcelas.GetArrayLength() == 1 && parcelas[0].GetProperty("parcela").GetString() == "001"
+        && parcelas[0].GetProperty("valor").GetDecimal() == empresaId * 100 + 0.50m
+        && dezembro.GetProperty("fornecedores")[0].GetProperty("id").GetInt64() == empresaId,
+        "Consulta não preservou valor do XML, fornecedor ou vencimento inclusivo.");
+    Check((await client.GetAsync($"{url}?empresaId={3 - empresaId}")).StatusCode == HttpStatusCode.Forbidden,
+        "Contas a pagar aceitou consultar outra empresa.");
+    Check((await client.GetAsync($"{url}?de=2027-01-05&ate=2026-12-05")).StatusCode == HttpStatusCode.BadRequest,
+        "Contas a pagar aceitou período invertido.");
+
+    const string receberUrl = "/api/financeiro/contas-a-receber";
+    var receber = await client.GetFromJsonAsync<JsonElement>($"{receberUrl}?de=2026-12-05&ate=2026-12-05");
+    var aReceber = receber.GetProperty("titulos");
+    var cliente = receber.GetProperty("clientes")[0];
+    Check(aReceber.GetArrayLength() == 1 && aReceber[0].GetProperty("nota").GetString() == "600"
+        && aReceber[0].GetProperty("parcela").GetString() == "001" && aReceber[0].GetProperty("natureza").GetString() == "Venda de mercadorias"
+        && aReceber[0].GetProperty("valor").GetDecimal() == empresaId * 100 + 0.50m
+        && aReceber[0].GetProperty("clienteId").GetInt64() == cliente.GetProperty("id").GetInt64()
+        && cliente.GetProperty("nome").GetString() == $"Cliente de teste {empresaId}",
+        "Contas a receber expôs nota inelegível ou perdeu os valores e dados originais da parcela.");
+    var todasParcelas = await client.GetFromJsonAsync<JsonElement>(receberUrl);
+    Check(todasParcelas.GetProperty("titulos").GetArrayLength() == 2, "Contas a receber inferiu parcelas ou não leu os vencimentos.");
+    Check((await client.GetAsync($"{receberUrl}?empresaId={3 - empresaId}")).StatusCode == HttpStatusCode.Forbidden,
+        "Contas a receber aceitou consultar outra empresa.");
+
+    const string caixaUrl = "/api/financeiro/caixa/referencia-fiscal";
+    var caixa = await client.GetFromJsonAsync<JsonElement>($"{caixaUrl}?de=2026-11-01&ate=2026-11-01");
+    var referencia = caixa.GetProperty("documentos");
+    Check(referencia.GetArrayLength() == 2 && referencia[0].GetProperty("origem").GetString() == "compra"
+        && referencia[0].GetProperty("valor").GetDecimal() == empresaId * 10 + 0.50m
+        && referencia[1].GetProperty("origem").GetString() == "saida"
+        && referencia[1].GetProperty("valor").GetDecimal() == empresaId * 20 + 1m
+        && referencia[1].GetProperty("dia").GetString() == "2026-11-01",
+        "Caixa incluiu outro período, empresa, pagamento, situação ou ambiente na referência fiscal.");
+    Check((await client.GetAsync($"{caixaUrl}?de=2026-11-01&ate=2026-11-01&empresaId={3 - empresaId}")).StatusCode == HttpStatusCode.Forbidden,
+        "Caixa aceitou consultar outra empresa.");
+    Check((await client.GetAsync($"{caixaUrl}?de=2025-01-01&ate=2026-11-01")).StatusCode == HttpStatusCode.BadRequest,
+        "Caixa aceitou um período maior que 366 dias.");
+    var horarioVerao = await client.GetFromJsonAsync<JsonElement>($"{caixaUrl}?de=2019-01-15&ate=2019-01-15");
+    Check(horarioVerao.GetProperty("documentos").GetArrayLength() == 1
+        && horarioVerao.GetProperty("documentos")[0].GetProperty("dia").GetString() == "2019-01-15",
+        "Caixa deslocou um documento emitido durante o horário de verão para o dia anterior.");
+
+    const string movimentosUrl = "/api/financeiro/movimentacoes/referencia-fiscal";
+    var fiscal = await client.GetFromJsonAsync<JsonElement>($"{movimentosUrl}?de=2026-11-01&ate=2026-11-01");
+    var docsFiscais = fiscal.GetProperty("documentos");
+    Check(docsFiscais.GetArrayLength() == 3 && docsFiscais[0].GetProperty("numero").GetString() == "700"
+        && docsFiscais[0].GetProperty("valor").GetDecimal() == empresaId * 200.25m
+        && docsFiscais[1].GetProperty("valor").GetDecimal() == 999m
+        && docsFiscais[2].GetProperty("valor").GetDecimal() == 999m
+        && docsFiscais.EnumerateArray().Any(doc => doc.GetProperty("numero").GetString() == "712"),
+        "Movimentações não retornou os valores fiscais ou incluiu empresa, período, ambiente ou situação indevida.");
+    Check((await client.GetAsync($"{movimentosUrl}?de=2026-11-01&ate=2026-11-01&empresaId={3 - empresaId}")).StatusCode == HttpStatusCode.Forbidden,
+        "Movimentações aceitou consultar outra empresa.");
+    Check((await client.GetAsync($"{movimentosUrl}?de=2026-11-02&ate=2026-11-01")).StatusCode == HttpStatusCode.BadRequest,
+        "Movimentações aceitou período invertido.");
+}
+
 Console.WriteLine($"Tenant HTTP checks: {checks} passed. Banco descartavel; nenhum acesso ao HUB ou banco real.");
 
 sealed class ChecksAuthentication(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)

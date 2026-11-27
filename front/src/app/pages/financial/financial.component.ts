@@ -1,113 +1,141 @@
-import { Component } from '@angular/core';
+﻿import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { RouterLink } from '@angular/router';
+import { catchError, map, of, startWith, switchMap } from 'rxjs';
+import { ApiService } from '../../core/api.service';
+import { FinanceiroResumo } from '../../core/app-models';
+import { SessionService } from '../../core/session.service';
 import { AppIconComponent } from '../../shared/app-icon/app-icon.component';
 
-interface FinanceMetric {
-  icon: string;
-  label: string;
-  value: string;
-  detail: string;
-  delta: string;
-  tone: 'success' | 'danger' | 'info' | 'purple';
-}
+type FinanceiroState = { status: 'loading' | 'error' } | { status: 'ready'; data: FinanceiroResumo };
 
-interface FlowMonth {
-  label: string;
-  entradas: number;
-  saidas: number;
-  resultado: number;
-}
-
-interface DueTitle {
-  vencimento: string;
-  nome: string;
-  origem: string;
-  valor: string;
-  status: string;
-}
-
-interface Movement {
-  data: string;
-  descricao: string;
-  origem: string;
-  forma: string;
-  valor: string;
-  saldo: string;
-  type: 'in' | 'out';
-}
-
-interface FinanceAccount {
-  icon: string;
-  bank: string;
-  type: string;
-  balance: string;
-  tone: string;
-}
+const ZONE = 'America/Sao_Paulo';
+const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const axisCurrency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+const percent = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 1, signDisplay: 'exceptZero' });
+const monthShort = new Intl.DateTimeFormat('pt-BR', { month: 'short', year: '2-digit', timeZone: 'UTC' });
+const monthLong = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+const dateTime = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: ZONE });
 
 @Component({
   selector: 'app-financial',
-  imports: [AppIconComponent],
+  imports: [AppIconComponent, RouterLink],
   templateUrl: './financial.component.html',
   styleUrl: './financial.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FinancialComponent {
-  protected readonly metrics: FinanceMetric[] = [
-    { icon: 'hand-coins', label: 'A receber', value: 'R$ 48.920,00', detail: '32 titulos em aberto', delta: '+12%', tone: 'success' },
-    { icon: 'receipt', label: 'A pagar', value: 'R$ 31.450,00', detail: '18 titulos em aberto', delta: '+8%', tone: 'danger' },
-    { icon: 'receipt-text', label: 'Recebido no mes', value: 'R$ 126.840,00', detail: '214 recebimentos', delta: '+8,4%', tone: 'info' },
-    { icon: 'circle-dollar-sign', label: 'Saldo projetado (30 dias)', value: 'R$ 17.470,00', detail: 'Considerando entradas e saidas', delta: 'ver', tone: 'purple' },
+  private readonly api = inject(ApiService);
+  private readonly session = inject(SessionService);
+  private readonly refresh = signal(0);
+  protected readonly currentMonth = new Intl.DateTimeFormat('sv-SE', { timeZone: ZONE }).format(new Date()).slice(0, 7);
+  protected readonly month = signal(this.currentMonth);
+  protected readonly monthLabel = computed(() => monthLong.format(new Date(this.month() + '-01')));
+  private readonly request = computed(() => ({
+    month: this.month(),
+    empresaId: this.session.empresaId,
+    refresh: this.refresh(),
+  }));
+  protected readonly state = toSignal(toObservable(this.request).pipe(
+    switchMap(({ empresaId, month }) => this.api.carregarFinanceiro(empresaId, month + '-01').pipe(
+      map((data): FinanceiroState => ({ status: 'ready', data })),
+      startWith({ status: 'loading' } as const),
+      catchError(() => of({ status: 'error' } as const)),
+    )),
+  ), { initialValue: { status: 'loading' } as const });
+
+  protected readonly data = computed(() => {
+    const state = this.state();
+    return state.status === 'ready' ? state.data : null;
+  });
+  protected readonly summary = computed(() => this.data()?.serie.at(-1));
+  private readonly previous = computed(() => this.data()?.serie.at(-2));
+
+  protected readonly duePanels = [
+    { label: 'Contas a receber', icon: 'calendar-check', tone: 'green', detail: 'Parcelas informadas nas notas fiscais de saída.', route: '/app/financeiro/contas-a-receber' },
+    { label: 'Contas a pagar', icon: 'calendar-x', tone: 'rose', detail: 'Parcelas informadas nas notas fiscais de compra.', route: '/app/financeiro/contas-a-pagar' },
   ];
+  protected readonly metrics = computed(() => {
+    const month = this.summary();
+    const previous = this.previous();
+    const difference = month && month.saidas - month.compras;
+    return [
+      {
+        label: 'Notas de saída', icon: 'receipt-text', tone: 'green',
+        value: month && currency.format(month.saidas), detail: 'Notas autorizadas em produção',
+        delta: this.change(month?.saidas, previous?.saidas),
+      },
+      {
+        label: 'Compras conferidas', icon: 'shopping-cart', tone: 'rose',
+        value: month && currency.format(month.compras), detail: 'NF-e de compra conferidas',
+        delta: this.change(month?.compras, previous?.compras),
+      },
+      {
+        label: 'Diferença fiscal', icon: 'chart-no-axes-combined', tone: 'blue',
+        value: difference === undefined ? undefined : currency.format(difference),
+        detail: 'Total de saídas menos compras', delta: null,
+      },
+      {
+        label: 'Saldo projetado', icon: 'circle-dollar-sign', tone: 'purple',
+        value: 'Indisponível', detail: 'Sem dados de contas e vencimentos', delta: null, unavailable: true,
+      },
+    ];
+  });
 
-  protected readonly flow: FlowMonth[] = [
-    { label: 'Mai/26', entradas: 138000, saidas: 103000, resultado: 35000 },
-    { label: 'Jun/26', entradas: 122000, saidas: 96000, resultado: 26000 },
-    { label: 'Jul/26', entradas: 149000, saidas: 116000, resultado: 33000 },
-    { label: 'Ago/26', entradas: 133000, saidas: 109000, resultado: 24000 },
-    { label: 'Set/26', entradas: 121000, saidas: 94000, resultado: 27000 },
-    { label: 'Out/26', entradas: 126840, saidas: 91420, resultado: 35420 },
-  ];
+  protected readonly chart = computed(() => {
+    const months = this.data()?.serie;
+    if (!months?.some(month => month.totalSaidas || month.totalCompras)) return null;
+    const values = months.flatMap(month => [month.saidas, month.compras, month.saidas - month.compras]);
+    const peak = Math.max(1, ...values);
+    const low = Math.min(0, ...values);
+    const rough = (peak - low) / 4;
+    const power = 10 ** Math.floor(Math.log10(rough));
+    const step = Math.max(1, Math.ceil(rough / power) * power);
+    const top = Math.ceil(peak / step);
+    const bottom = Math.floor(low / step);
+    const position = (value: number) => (value / step - bottom) / (top - bottom) * 100;
+    const baseline = position(0);
+    const bar = (value: number) => ({
+      bottom: Math.min(position(value), baseline),
+      height: Math.abs(position(value) - baseline),
+    });
+    const points = months.map((month, index) => ({
+      month: month.mes,
+      label: monthShort.format(new Date(month.mes)).replace('.', '').replace(' de ', '/'),
+      x: (index + .5) / months.length * 100,
+      y: 100 - position(month.saidas - month.compras),
+      notes: bar(month.saidas),
+      purchases: bar(month.compras),
+      description: `${monthLong.format(new Date(month.mes))}. Notas de saída ${currency.format(month.saidas)}. Compras conferidas ${currency.format(month.compras)}. Diferença ${currency.format(month.saidas - month.compras)}.`,
+    }));
+    return {
+      baseline, points,
+      line: points.map(point => `${point.x},${point.y}`).join(' '),
+      description: points.map(point => point.description).join(' '),
+      ticks: Array.from({ length: top - bottom + 1 }, (_, i) => ({
+        label: axisCurrency.format((top - i) * step),
+        position: position((top - i) * step),
+      })),
+    };
+  });
 
-  protected readonly receivables: DueTitle[] = [
-    { vencimento: '05/10/2026', nome: 'Auto Center Silva', origem: 'Venda #1854 (1/3)', valor: 'R$ 500,00', status: 'Em aberto' },
-    { vencimento: '05/10/2026', nome: 'Oficina Avenida', origem: 'Venda #1852', valor: 'R$ 1.280,00', status: 'Em aberto' },
-    { vencimento: '07/10/2026', nome: 'Mecanica Sul', origem: 'Venda #1828 (2/3)', valor: 'R$ 720,00', status: 'Vencido' },
-    { vencimento: '08/10/2026', nome: 'CarTech Servicos', origem: 'Venda #1870 (1/2)', valor: 'R$ 950,00', status: 'Em aberto' },
-    { vencimento: '10/10/2026', nome: 'Posto Rodovia', origem: 'Venda #1865', valor: 'R$ 1.450,00', status: 'Em aberto' },
-  ];
+  protected readonly formatCurrency = (value: number) => currency.format(value);
+  protected readonly formatDateTime = (value: string) => dateTime.format(new Date(value));
 
-  protected readonly payables: DueTitle[] = [
-    { vencimento: '05/10/2026', nome: 'Distribuidora Bosch', origem: 'NF-e 45879 (1/3)', valor: 'R$ 4.280,00', status: 'Em aberto' },
-    { vencimento: '07/10/2026', nome: 'Cofap Autopecas', origem: 'NF-e 45210', valor: 'R$ 2.890,00', status: 'Em aberto' },
-    { vencimento: '10/10/2026', nome: 'Mann Filter', origem: 'NF-e 46123 (2/2)', valor: 'R$ 3.450,00', status: 'Vencido' },
-    { vencimento: '12/10/2026', nome: 'NGK do Brasil', origem: 'NF-e 46190', valor: 'R$ 1.980,00', status: 'Em aberto' },
-    { vencimento: '15/10/2026', nome: 'Mobil Lubrificantes', origem: 'NF-e 46233 (1/2)', valor: 'R$ 2.650,00', status: 'Em aberto' },
-  ];
-
-  protected readonly movements: Movement[] = [
-    { data: '02/10/2026 10:42', descricao: 'Recebimento de venda #1858', origem: 'Cliente: Auto Center Silva', forma: 'PIX', valor: 'R$ 489,90', saldo: 'R$ 18.520,00', type: 'in' },
-    { data: '02/10/2026 09:28', descricao: 'Pagamento fornecedor', origem: 'Distribuidora Bosch', forma: 'Transferencia', valor: '- R$ 2.850,00', saldo: 'R$ 18.030,10', type: 'out' },
-    { data: '01/10/2026 16:15', descricao: 'Recebimento de venda #1857', origem: 'Cliente: Oficina Avenida', forma: 'Cartao credito', valor: 'R$ 1.249,00', saldo: 'R$ 20.880,10', type: 'in' },
-    { data: '01/10/2026 14:32', descricao: 'Sangria de caixa', origem: 'Caixa Balcao 01', forma: 'Dinheiro', valor: '- R$ 500,00', saldo: 'R$ 19.631,10', type: 'out' },
-    { data: '01/10/2026 11:20', descricao: 'Pagamento fornecedor', origem: 'Cofap Autopecas', forma: 'PIX', valor: '- R$ 1.890,00', saldo: 'R$ 20.131,10', type: 'out' },
-  ];
-
-  protected readonly accounts: FinanceAccount[] = [
-    { icon: 'wallet-cards', bank: 'Caixa Balcao 01', type: 'Dinheiro', balance: 'R$ 5.420,00', tone: 'cash' },
-    { icon: 'circle-dollar-sign', bank: 'Banco Sicredi', type: 'Conta corrente', balance: 'R$ 18.030,10', tone: 'bank' },
-    { icon: 'wallet-cards', bank: 'Nubank PJ', type: 'Conta corrente', balance: 'R$ 12.845,90', tone: 'purple' },
-    { icon: 'circle-dollar-sign', bank: 'Banco do Brasil', type: 'Conta corrente', balance: 'R$ 4.250,00', tone: 'yellow' },
-  ];
-
-  protected readonly maxFlowValue = 160000;
-
-  protected barHeight(value: number): string {
-    return `${Math.max((value / this.maxFlowValue) * 100, 6)}%`;
+  protected setMonth(input: HTMLInputElement): void {
+    if (input.validity.valid && /^\d{4}-(0[1-9]|1[0-2])$/.test(input.value)) {
+      this.month.set(input.value);
+    } else {
+      input.value = this.month();
+    }
   }
 
-  protected resultPosition(value: number): string {
-    return `${Math.min(Math.max((value / 65000) * 100, 16), 86)}%`;
+  protected retry(): void {
+    this.refresh.update(value => value + 1);
   }
 
-  protected statusClass(status: string): string {
-    return status === 'Vencido' ? 'late' : 'open';
+  private change(current?: number, previous?: number): string | null {
+    if (current === undefined || !previous || current === previous) return null;
+    return percent.format((current - previous) / previous);
   }
 }

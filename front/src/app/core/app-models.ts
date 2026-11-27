@@ -1,3 +1,69 @@
+export interface ParcelaFiscal {
+  nota: string;
+  serie: string;
+  natureza: string;
+  indice: number;
+  parcela: string | null;
+  vencimento: string;
+  valor: number;
+}
+
+export interface TituloCompra extends ParcelaFiscal {
+  entradaId: number;
+  fornecedorId: number | null;
+  fornecedor: string | null;
+}
+
+export interface TituloVenda extends ParcelaFiscal {
+  notaId: number;
+  clienteId: number | null;
+  cliente: string;
+}
+
+export interface ContasPagarResumo {
+  hoje: string;
+  titulos: TituloCompra[];
+  fornecedores: { id: number; nome: string }[];
+  naturezas: string[];
+}
+
+export interface ContasReceberResumo {
+  hoje: string;
+  titulos: TituloVenda[];
+  clientes: { id: number; nome: string }[];
+  naturezas: string[];
+}
+
+export interface FinanceiroMes {
+  mes: string;
+  saidas: number;
+  totalSaidas: number;
+  compras: number;
+  totalCompras: number;
+}
+
+export interface FinanceiroResumo {
+  serie: FinanceiroMes[];
+  documentos: DocumentoFinanceiro[];
+}
+
+export interface DocumentoFinanceiro {
+  id: number;
+  origem: 'saida' | 'compra';
+  tipo: string;
+  numero: string;
+  serie: string;
+  emissao: string;
+  nome: string | null;
+  valor: number;
+}
+
+export type DocumentoReferenciaCaixa = DocumentoFinanceiro & { dia: string };
+
+export interface ReferenciaCaixa {
+  documentos: DocumentoReferenciaCaixa[];
+}
+
 export interface DashboardResumo {
   faturamento: number;
   total: number;

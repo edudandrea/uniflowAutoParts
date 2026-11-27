@@ -1,0 +1,150 @@
+<section class="movements" aria-labelledby="movements-title">
+  <header class="heading">
+    <app-icon class="tile green" name="refresh-cw" [size]="24" />
+    <div>
+      <h1 id="movements-title">Movimentações Financeiras</h1>
+      <p>Consulte os documentos fiscais de saída e as compras conferidas da empresa.</p>
+    </div>
+  </header>
+
+  <section class="metrics" aria-label="Indicadores do período">
+    @for (metric of metrics(); track metric.label) {
+      <article class="panel metric">
+        <app-icon class="tile" [class]="metric.tone" [name]="metric.icon" [size]="21" />
+        <div>
+          <h2>{{ metric.label }}</h2>
+          <strong>{{ metric.valor }}</strong>
+          <small>{{ metric.detail }}</small>
+        </div>
+      </article>
+    }
+  </section>
+
+  <p class="source"><app-icon name="info" [size]="16" /> Os valores das notas são uma referência fiscal. O sistema ainda não registra liquidações, contas de origem ou destino e transferências.</p>
+
+  <section class="panel filters" aria-label="Filtros dos documentos fiscais">
+    <div class="period-field">
+      <span>Período de emissão</span>
+      <details class="period" #disclosure>
+        <summary [attr.aria-label]="'Período de emissão: ' + periodLabel()">
+          <app-icon name="calendar" [size]="16" />
+          <span>{{ periodLabel() }}</span>
+          <app-icon name="chevron-down" [size]="14" />
+        </summary>
+        <form class="panel period-panel" (submit)="applyPeriod($event, start.value, end.value, disclosure)">
+          <label>Data inicial <input #start type="date" [value]="period().de" min="2000-01-01" max="2100-12-31" required /></label>
+          <label>Data final <input #end type="date" [value]="period().ate" min="2000-01-01" max="2100-12-31" required /></label>
+          @if (periodError()) { <p role="alert" class="error">{{ periodError() }}</p> }
+          <button class="action primary" type="submit">Aplicar período</button>
+        </form>
+      </details>
+    </div>
+
+    <label>Origem
+      <select #originSelect [value]="origin()" (change)="origin.set(originSelect.value); page.set(1)">
+        <option value="">Todas as origens</option>
+        <option value="saida">Notas de saída</option>
+        <option value="compra">Compras conferidas</option>
+      </select>
+    </label>
+
+    <label>Modelo fiscal
+      <select #modelSelect [value]="model()" (change)="model.set(modelSelect.value); page.set(1)" [disabled]="state().status !== 'ready'">
+        <option value="" [selected]="!model()">Todos os modelos</option>
+        @for (value of models(); track value) {
+          <option [value]="value" [selected]="model() === value">{{ modelLabel(value) }}</option>
+        }
+      </select>
+    </label>
+
+    <label>Documento, cliente ou fornecedor
+      <span class="search">
+        <app-icon name="search" [size]="16" />
+        <input #search type="search" placeholder="Buscar…" [value]="text()" (input)="text.set(search.value); page.set(1)" />
+      </span>
+    </label>
+  </section>
+
+  <section class="panel listing" aria-labelledby="documents-title" [attr.aria-busy]="state().status === 'loading'">
+    <header class="listing-heading">
+      <div>
+        <h2 id="documents-title">Documentos fiscais do período</h2>
+        @if (state().status === 'ready') { <p aria-live="polite">{{ documentCount(filtered().length) }}</p> }
+      </div>
+      <button class="action" type="button" (click)="exportCsv()" [disabled]="!filtered().length" aria-label="Exportar documentos filtrados em CSV">
+        <app-icon name="download" [size]="16" />Exportar CSV
+      </button>
+    </header>
+
+    <div class="table-scroll" role="region" aria-label="Tabela de documentos fiscais" tabindex="0">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col" [attr.aria-sort]="direction('emissao')">
+              <button class="sort" type="button" (click)="sort('emissao')">Emissão <app-icon [name]="direction('emissao') === 'ascending' ? 'arrow-up' : 'arrow-down'" [size]="13" /></button>
+            </th>
+            <th scope="col">Origem</th>
+            <th scope="col">Documento</th>
+            <th scope="col">Cliente ou fornecedor</th>
+            <th scope="col" class="amount" [attr.aria-sort]="direction('valor')">
+              <button class="sort" type="button" (click)="sort('valor')">Valor fiscal <app-icon [name]="direction('valor') === 'ascending' ? 'arrow-up' : 'arrow-down'" [size]="13" /></button>
+            </th>
+            <th scope="col">Situação fiscal</th>
+            <th scope="col" class="actions">Detalhes</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (state().status === 'loading') {
+            <tr><td class="message" colspan="7"><p role="status">Carregando documentos fiscais…</p></td></tr>
+          } @else if (state().status === 'error') {
+            <tr><td class="message" colspan="7"><p role="alert">Não foi possível carregar os documentos fiscais.</p>
+              <button class="action" type="button" (click)="retry()">Tentar novamente</button></td></tr>
+          } @else {
+            @for (doc of rows(); track doc.origem + doc.id) {
+              <tr>
+                <td><time [attr.datetime]="doc.emissao">{{ formatDateTime(doc.emissao) }}</time></td>
+                <td><span class="badge" [class.purchase]="doc.origem === 'compra'">
+                  <app-icon [name]="descriptions[doc.origem].icon" [size]="13" />{{ descriptions[doc.origem].origin }}
+                </span></td>
+                <td>{{ documentLabel(doc) }}@if (doc.serie) { <small>&nbsp;· Série {{ doc.serie }}</small> }</td>
+                <td>{{ doc.nome || '—' }}</td>
+                <td class="amount value">{{ formatCurrency(doc.valor) }}</td>
+                <td><span class="status"><app-icon name="check" [size]="13" />{{ descriptions[doc.origem].status }}</span></td>
+                <td class="actions"><button class="icon-button" type="button" (click)="openDetails(detailsDialog, doc)"
+                  [attr.aria-label]="'Ver detalhes de ' + documentLabel(doc)"><app-icon name="eye" [size]="17" /></button></td>
+              </tr>
+            } @empty {
+              <tr><td class="message" colspan="7">Nenhum documento fiscal encontrado para os filtros selecionados.</td></tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (pageCount() > 1) {
+      <nav class="pagination" aria-label="Páginas de documentos fiscais">
+        <button class="icon-button" type="button" aria-label="Página anterior" [disabled]="currentPage() === 1" (click)="page.set(currentPage() - 1)"><app-icon name="chevron-left" [size]="17" /></button>
+        <span>Página {{ currentPage() }} de {{ pageCount() }}</span>
+        <button class="icon-button" type="button" aria-label="Próxima página" [disabled]="currentPage() === pageCount()" (click)="page.set(currentPage() + 1)"><app-icon name="chevron-right" [size]="17" /></button>
+      </nav>
+    }
+  </section>
+
+  <dialog #detailsDialog aria-labelledby="fiscal-details-title" (close)="selected.set(null)">
+    <header class="listing-heading">
+      <h2 id="fiscal-details-title">Detalhes do documento</h2>
+      <button class="icon-button" type="button" aria-label="Fechar detalhes" (click)="detailsDialog.close()" autofocus><app-icon name="x" [size]="20" /></button>
+    </header>
+    @if (selected(); as doc) {
+      <p class="dialog-document">{{ documentLabel(doc) }}{{ doc.serie ? ' · Série ' + doc.serie : '' }}</p>
+      <dl>
+        <div><dt>Emissão</dt><dd>{{ formatDateTime(doc.emissao) }}</dd></div>
+        <div><dt>Origem</dt><dd>{{ descriptions[doc.origem].origin }}</dd></div>
+        <div><dt>{{ doc.origem === 'compra' ? 'Fornecedor' : 'Cliente' }}</dt><dd>{{ doc.nome || '—' }}</dd></div>
+        <div><dt>Valor fiscal</dt><dd>{{ formatCurrency(doc.valor) }}</dd></div>
+        <div><dt>Situação fiscal</dt><dd>{{ descriptions[doc.origem].status }}</dd></div>
+        <div><dt>Liquidação financeira</dt><dd>Sem registro</dd></div>
+      </dl>
+    }
+  </dialog>
+</section>

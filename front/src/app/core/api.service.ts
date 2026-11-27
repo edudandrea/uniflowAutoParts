@@ -7,6 +7,11 @@ import {
   DestinatarioFiscalData, EmitenteFiscalData, EmitenteFiscalResponse, EmitirNfePayload, EmissaoNfeResponse, NotaFiscalEventoHistorico,
   Categoria,
   DashboardResumo,
+  ContasPagarResumo,
+  ContasReceberResumo,
+  FinanceiroResumo,
+  ReferenciaCaixa,
+  DocumentoFinanceiro,
   EstoqueProduto,
   EntradaCompraResumo,
   CadastroEndereco,
@@ -36,6 +41,34 @@ export class ApiService {
 
   carregarDashboard(empresaId: number, de: string, ate: string) {
     return this.http.get<DashboardResumo>(`${this.apiUrl}/dashboard`, { params: { empresaId, de, ate } });
+  }
+
+  carregarFinanceiro(empresaId: number, mes: string) {
+    return this.http.get<FinanceiroResumo>(`${this.apiUrl}/financeiro/resumo`, { params: { empresaId, mes } });
+  }
+
+  carregarReferenciaCaixa(empresaId: number, de: string, ate: string) {
+    return this.http.get<ReferenciaCaixa>(`${this.apiUrl}/financeiro/caixa/referencia-fiscal`, { params: { empresaId, de, ate } });
+  }
+
+  carregarReferenciaMovimentacoes(empresaId: number, de: string, ate: string) {
+    return this.http.get<{ documentos: DocumentoFinanceiro[] }>(
+      `${this.apiUrl}/financeiro/movimentacoes/referencia-fiscal`, { params: { empresaId, de, ate } });
+  }
+
+  listarContasPagar(empresaId: number, de: string, ate: string) {
+    return this.http.get<ContasPagarResumo>(`${this.apiUrl}/financeiro/contas-a-pagar`, { params: this.filtrosTitulos(empresaId, de, ate) });
+  }
+
+  listarContasReceber(empresaId: number, de: string, ate: string) {
+    return this.http.get<ContasReceberResumo>(`${this.apiUrl}/financeiro/contas-a-receber`, { params: this.filtrosTitulos(empresaId, de, ate) });
+  }
+
+  private filtrosTitulos(empresaId: number, de: string, ate: string) {
+    const params: Record<string, string | number> = { empresaId };
+    if (de) params['de'] = de;
+    if (ate) params['ate'] = ate;
+    return params;
   }
 
   listarNotasFiscais(empresaId: number, pagina: number, filtros: NotaFiscalFiltros) {

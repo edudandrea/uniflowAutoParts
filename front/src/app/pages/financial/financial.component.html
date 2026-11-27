@@ -1,230 +1,189 @@
-<section class="financial-page">
-  <header class="financial-header page-hero">
+﻿<section class="financial-page" aria-labelledby="financial-title">
+  <header class="financial-header">
     <div class="title-area">
-      <app-icon class="title-icon" name="chart-no-axes-combined" />
+      <app-icon class="title-icon green" name="chart-no-axes-combined" [size]="26" />
       <div>
-        <h1>Financeiro</h1>
-        <p>Acompanhe recebimentos, pagamentos e o fluxo financeiro da sua empresa.</p>
+        <h1 id="financial-title">Financeiro</h1>
+        <p>Visão mensal dos documentos fiscais da sua empresa.</p>
       </div>
     </div>
 
-
-    <div class="hero-actions">
-      <button class="period-button" type="button">
-        <app-icon name="calendar" />
-        01/10/2026 - 31/10/2026
-        <app-icon name="chevron-down" />
-      </button>
-    </div>
+    <label class="period-control">
+      <app-icon name="calendar" [size]="17" />
+      <span>Mês de referência</span>
+      <input #monthInput type="month" [value]="month()" min="2000-01" [max]="currentMonth"
+        required (change)="setMonth(monthInput)" />
+    </label>
   </header>
 
-  <section class="metrics-grid" aria-label="Indicadores financeiros">
-    @for (metric of metrics; track metric.label) {
-      <article class="metric-card" [class]="metric.tone">
-        <app-icon class="metric-icon " [name]="metric.icon" [size]="24" />
-        <div>
-          <p>{{ metric.label }}</p>
-          <strong>{{ metric.value }}</strong>
-          <small>{{ metric.detail }}</small>
-        </div>
-        <em [class.view-action]="metric.delta === 'ver'">
-          @if (metric.delta === 'ver') {
-            <app-icon name="eye" />
-          } @else {
-            {{ metric.delta }} <span>vs. mes anterior</span>
-          }
-        </em>
-      </article>
-    }
-  </section>
+  @if (state().status === 'loading') {
+    <p class="notice" role="status">Carregando dados financeiros…</p>
+  }
+  @if (state().status === 'error') {
+    <div class="notice error" role="alert">
+      <app-icon name="triangle-alert" [size]="18" />
+      <span>Não foi possível carregar os dados financeiros.</span>
+      <button type="button" (click)="retry()">Tentar novamente</button>
+    </div>
+  }
 
-  <section class="overview-grid">
-    <article class="panel flow-panel">
-      <div class="panel-header">
-        <div>
-          <app-icon class="section-icon" name="file-text" />
-          <div>
-            <h2>Fluxo financeiro</h2>
-            <p>Entradas e saidas nos ultimos 6 meses.</p>
+  <div class="financial-panels" [attr.aria-busy]="state().status === 'loading'">
+    <section class="metrics-grid" aria-label="Indicadores do mês">
+      @for (metric of metrics(); track metric.label) {
+        <article class="metric-card">
+          <app-icon class="metric-icon" [class]="metric.tone" [name]="metric.icon" [size]="22" />
+          <div class="metric-copy">
+            <h2>{{ metric.label }}</h2>
+            <strong [class.unavailable]="metric.unavailable">{{ metric.value ?? '—' }}</strong>
+            <small>{{ metric.detail }}</small>
+            @if (metric.delta) {
+              <small><b class="delta">{{ metric.delta }}</b> vs. mês anterior</small>
+            }
           </div>
-        </div>
-        <div class="legend">
-          <span><i class="in"></i>Entradas</span>
-          <span><i class="out"></i>Saidas</span>
-          <span><i class="line"></i>Resultado</span>
-        </div>
-      </div>
+        </article>
+      }
+    </section>
 
-      <div class="flow-chart" aria-label="Grafico de fluxo financeiro">
-        <div class="axis">
-          <span>R$ 200.000</span>
-          <span>R$ 150.000</span>
-          <span>R$ 100.000</span>
-          <span>R$ 50.000</span>
-          <span>R$ 0</span>
-        </div>
-        <div class="bars">
-          @for (month of flow; track month.label) {
-            <div class="month">
-              <div class="bar-pair">
-                <span class="bar in" [style.height]="barHeight(month.entradas)"></span>
-                <span class="bar out" [style.height]="barHeight(month.saidas)"></span>
-                <span class="result-dot" [style.bottom]="resultPosition(month.resultado)"></span>
-              </div>
-              <strong>{{ month.label }}</strong>
+    <div class="overview-grid">
+      <article class="panel">
+        <header class="panel-header chart-header">
+          <app-icon class="section-icon green" name="bar-chart-3" [size]="19" />
+          <div class="heading-copy">
+            <h2>Evolução fiscal</h2>
+            <p>Últimos seis meses até o mês selecionado.</p>
+          </div>
+          @if (chart()) {
+            <div class="legend" aria-hidden="true">
+              <span><i class="notes"></i>Notas de saída</span>
+              <span><i class="purchases"></i>Compras</span>
+              <span><i class="difference"></i>Diferença</span>
             </div>
           }
-        </div>
-      </div>
-    </article>
+        </header>
 
-    <aside class="panel month-summary">
-      <div class="panel-header compact">
-        <h2>Resumo do mes</h2>
-        <button type="button">Outubro/2026 <app-icon name="chevron-down" /></button>
-      </div>
-      <div class="summary-row positive">
-        <app-icon name="arrow-down" />
-        <div>
-          <strong>Entradas</strong>
-          <small>214 recebimentos</small>
-        </div>
-        <b>R$ 126.840,00 <small>+ 8,4%</small></b>
-      </div>
-      <div class="summary-row negative">
-        <app-icon name="arrow-up" />
-        <div>
-          <strong>Saidas</strong>
-          <small>156 pagamentos</small>
-        </div>
-        <b>R$ 91.420,00 <small>+ 6,2%</small></b>
-      </div>
-      <div class="summary-row result">
-        <app-icon name="ellipsis" />
-        <div>
-          <strong>Resultado</strong>
-          <small>Saldo operacional</small>
-        </div>
-        <b>R$ 35.420,00 <small>+ 14,8%</small></b>
-      </div>
-    </aside>
-  </section>
-
-  <section class="due-grid">
-    <article class="panel table-panel">
-      <div class="panel-header compact">
-        <h2><app-icon class="section-icon" name="calendar-check" />Proximos recebimentos</h2>
-        <a href="#">Ver todos</a>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Vencimento</th>
-              <th>Cliente</th>
-              <th>Origem</th>
-              <th>Valor</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (title of receivables; track title.origem) {
-              <tr>
-                <td>{{ title.vencimento }}</td>
-                <td>{{ title.nome }}</td>
-                <td>{{ title.origem }}</td>
-                <td>{{ title.valor }}</td>
-                <td><span class="status-pill" [class]="statusClass(title.status)">{{ title.status }}</span></td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    </article>
-
-    <article class="panel table-panel">
-      <div class="panel-header compact">
-        <h2><app-icon class="section-icon danger" name="calendar-x" />Proximos pagamentos</h2>
-        <a href="#">Ver todos</a>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Vencimento</th>
-              <th>Fornecedor</th>
-              <th>Origem</th>
-              <th>Valor</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (title of payables; track title.origem) {
-              <tr>
-                <td>{{ title.vencimento }}</td>
-                <td>{{ title.nome }}</td>
-                <td>{{ title.origem }}</td>
-                <td>{{ title.valor }}</td>
-                <td><span class="status-pill" [class]="statusClass(title.status)">{{ title.status }}</span></td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    </article>
-  </section>
-
-  <section class="bottom-grid">
-    <article class="panel movements-panel">
-      <div class="panel-header compact">
-        <h2><app-icon class="section-icon" name="circle-dollar-sign" />Movimentacoes recentes</h2>
-        <a href="#">Ver todas</a>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Data/Hora</th>
-              <th>Descricao</th>
-              <th>Origem</th>
-              <th>Forma de pagamento</th>
-              <th>Valor</th>
-              <th>Saldo</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (movement of movements; track movement.data + movement.descricao) {
-              <tr>
-                <td>{{ movement.data }}</td>
-                <td>{{ movement.descricao }}</td>
-                <td>{{ movement.origem }}</td>
-                <td>{{ movement.forma }}</td>
-                <td [class.negative-value]="movement.type === 'out'">{{ movement.valor }}</td>
-                <td class="balance-value">{{ movement.saldo }}</td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    </article>
-
-    <aside class="panel accounts-panel">
-      <div class="panel-header compact">
-        <h2><app-icon class="section-icon" name="wallet-cards" />Contas financeiras</h2>
-        <a href="#">Gerenciar</a>
-      </div>
-      <div class="account-list">
-        @for (account of accounts; track account.bank) {
-          <article class="account-row">
-            <app-icon class="account-icon " [name]="account.icon" [size]="20" />
-            <div>
-              <strong>{{ account.bank }}</strong>
-              <small>{{ account.type }}</small>
-            </div>
-            <b>{{ account.balance }}</b>
-          </article>
+        @if (chart(); as plot) {
+          <div class="chart-scroll">
+            <figure class="chart" role="img" [attr.aria-label]="plot.description">
+              <div class="chart-axis" aria-hidden="true">
+                @for (tick of plot.ticks; track tick.position) {
+                  <span [style.bottom.%]="tick.position">{{ tick.label }}</span>
+                }
+              </div>
+              <div class="chart-plot" aria-hidden="true">
+                @for (tick of plot.ticks; track tick.position) {
+                  <span class="grid-line" [style.bottom.%]="tick.position"
+                    [class.zero]="tick.position === plot.baseline"></span>
+                }
+                <div class="bars">
+                  @for (point of plot.points; track point.month) {
+                    <div class="bar-pair" [title]="point.description">
+                      <span class="bar notes" [style.bottom.%]="point.notes.bottom" [style.height.%]="point.notes.height"></span>
+                      <span class="bar purchases" [style.bottom.%]="point.purchases.bottom" [style.height.%]="point.purchases.height"></span>
+                    </div>
+                  }
+                </div>
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
+                  <polyline [attr.points]="plot.line" vector-effect="non-scaling-stroke" />
+                </svg>
+                @for (point of plot.points; track point.month) {
+                  <span class="result-dot" [style.left.%]="point.x" [style.top.%]="point.y" [title]="point.description"></span>
+                }
+              </div>
+              <div class="chart-labels" aria-hidden="true">
+                @for (point of plot.points; track point.month) { <span>{{ point.label }}</span> }
+              </div>
+            </figure>
+          </div>
+        } @else if (data()) {
+          <p class="empty chart-empty">Nenhum documento fiscal nos seis meses considerados.</p>
         }
-      </div>
-    </aside>
-  </section>
+      </article>
+
+      <aside class="panel">
+        <header class="panel-header summary-header">
+          <h2>Resumo do mês</h2>
+          <span>{{ monthLabel() }}</span>
+        </header>
+        @if (summary(); as totals) {
+          <div class="summary-row">
+            <app-icon class="section-icon green" name="receipt-text" [size]="17" />
+            <div><strong>Notas de saída</strong><small>{{ totals.totalSaidas }} {{ totals.totalSaidas === 1 ? 'nota' : 'notas' }}</small></div>
+            <b>{{ formatCurrency(totals.saidas) }}</b>
+          </div>
+          <div class="summary-row">
+            <app-icon class="section-icon rose" name="shopping-cart" [size]="17" />
+            <div><strong>Compras conferidas</strong><small>{{ totals.totalCompras }} {{ totals.totalCompras === 1 ? 'nota' : 'notas' }}</small></div>
+            <b>{{ formatCurrency(totals.compras) }}</b>
+          </div>
+          <div class="summary-row result" [class.negative]="totals.saidas < totals.compras">
+            <app-icon class="section-icon green" name="chart-no-axes-combined" [size]="17" />
+            <div><strong>Diferença fiscal</strong></div>
+            <b>{{ formatCurrency(totals.saidas - totals.compras) }}</b>
+          </div>
+        }
+      </aside>
+    </div>
+
+    <div class="due-grid">
+      @for (item of duePanels; track item.label) {
+        <article class="panel">
+          <header class="panel-header">
+            <app-icon class="section-icon" [class]="item.tone" [name]="item.icon" [size]="18" />
+            <h2>{{ item.label }}</h2>
+            <a class="panel-link" [routerLink]="item.route">Consultar títulos <app-icon name="arrow-right" [size]="13" /></a>
+          </header>
+          <p class="empty">{{ item.detail }}</p>
+        </article>
+      }
+    </div>
+
+    <div class="overview-grid">
+      <article class="panel documents">
+        <header class="panel-header">
+          <app-icon class="section-icon green" name="file-text" [size]="18" />
+          <h2>Documentos recentes</h2>
+          <nav aria-label="Documentos fiscais">
+            <a routerLink="/app/notas">Notas fiscais <app-icon name="arrow-right" [size]="13" /></a>
+            <a routerLink="/app/compras">Compras <app-icon name="arrow-right" [size]="13" /></a>
+          </nav>
+        </header>
+        @if (data(); as report) {
+          @if (report.documentos.length) {
+            <div class="table-wrap">
+              <table aria-label="Documentos mais recentes do mês">
+                <thead><tr>
+                  <th scope="col">Emissão</th>
+                  <th scope="col">Documento</th>
+                  <th scope="col">Cliente ou fornecedor</th>
+                  <th scope="col">Origem</th>
+                  <th scope="col">Valor</th>
+                </tr></thead>
+                <tbody>
+                  @for (document of report.documentos; track document.origem + document.id) {
+                    <tr>
+                      <td><time [attr.datetime]="document.emissao">{{ formatDateTime(document.emissao) }}</time></td>
+                      <td>{{ document.tipo === 'NFCe' ? 'NFC-e' : 'NF-e' }} {{ document.numero }}{{ document.serie ? ' · Série ' + document.serie : '' }}</td>
+                      <td>{{ document.nome?.trim() || '—' }}</td>
+                      <td><span class="origin" [class.purchase]="document.origem === 'compra'">{{ document.origem === 'compra' ? 'Compra' : 'Saída fiscal' }}</span></td>
+                      <td>{{ formatCurrency(document.valor) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <p class="empty">Nenhum documento fiscal no mês selecionado.</p>
+          }
+        }
+      </article>
+
+      <aside class="panel">
+        <header class="panel-header">
+          <app-icon class="section-icon green" name="wallet-cards" [size]="18" />
+          <h2>Contas financeiras</h2>
+        </header>
+        <p class="empty">Sem dados de caixa, contas bancárias ou saldos no sistema.</p>
+      </aside>
+    </div>
+  </div>
 </section>

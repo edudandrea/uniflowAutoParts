@@ -18,6 +18,69 @@ public static class NotaFiscalXml
         return XDocument.Load(reader, LoadOptions.PreserveWhitespace);
     }
 
+    internal static CobrancaFiscal? LerCobranca(string xml, string chave)
+    {
+        var info = LerInfoProducao(xml, chave);
+        if (info is null) return null;
+
+        var parcelas = new List<ParcelaFiscal>();
+        var duplicatas = info.Element(Ns + "cobr")?.Elements(Ns + "dup") ?? [];
+        foreach (var (dup, indice) in duplicatas.Select((dup, i) => (dup, i + 1)))
+        {
+            if (DateOnly.TryParseExact(dup.Element(Ns + "dVenc")?.Value, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var vencimento)
+                && decimal.TryParse(dup.Element(Ns + "vDup")?.Value, NumberStyles.AllowDecimalPoint,
+                    CultureInfo.InvariantCulture, out var valor)
+                && valor > 0 && valor == decimal.Round(valor, 2))
+                parcelas.Add(new(indice, dup.Element(Ns + "nDup")?.Value, vencimento, valor));
+        }
+
+        return new(info.Element(Ns + "ide")?.Element(Ns + "natOp")?.Value.Trim() ?? "", parcelas);
+    }
+
+    internal static decimal LerDinheiroDeclarado(string xml, string chave)
+    {
+        var info = LerInfoProducao(xml, chave);
+        var pagamentos = info?.Element(Ns + "pag")?.Elements(Ns + "detPag") ?? [];
+        var total = 0m;
+        foreach (var detalhe in pagamentos)
+        {
+            if (detalhe.Element(Ns + "tPag")?.Value == "01"
+                && decimal.TryParse(detalhe.Element(Ns + "vPag")?.Value, NumberStyles.AllowDecimalPoint,
+                    CultureInfo.InvariantCulture, out var valor)
+                && valor is > 0 and <= 9_999_999_999_999.99m && valor == decimal.Round(valor, 2))
+                total += valor;
+        }
+        return total;
+    }
+
+    internal static bool TemProtocoloProducao(string xml, string chave) => LerInfoProducao(xml, chave) is not null;
+
+    private static XElement? LerInfoProducao(string xml, string chave)
+    {
+        XDocument documento;
+        try { documento = Ler(xml); }
+        catch (XmlException) { return null; }
+
+        var raiz = documento.Root;
+        if (raiz?.Name != Ns + "nfeProc") return null;
+        var info = raiz.Element(Ns + "NFe")?.Element(Ns + "infNFe");
+        var ide = info?.Element(Ns + "ide");
+        var protocolo = raiz.Element(Ns + "protNFe")?.Element(Ns + "infProt");
+        if (chave.Length != 44 || !chave.All(char.IsAsciiDigit) || info?.Attribute("Id")?.Value != "NFe" + chave
+            || ide?.Element(Ns + "tpAmb")?.Value != "1"
+            || protocolo?.Element(Ns + "tpAmb")?.Value != "1" || protocolo.Element(Ns + "chNFe")?.Value != chave
+            || protocolo.Element(Ns + "cStat")?.Value is not ("100" or "150")
+            || protocolo.Element(Ns + "nProt")?.Value is not { Length: 15 } numeroProtocolo
+            || !numeroProtocolo.All(char.IsAsciiDigit))
+            return null;
+
+        return info;
+    }
+
+    internal sealed record CobrancaFiscal(string Natureza, IReadOnlyList<ParcelaFiscal> Parcelas);
+    internal sealed record ParcelaFiscal(int Indice, string? Numero, DateOnly Vencimento, decimal Valor);
+
     public static NotaFiscal Importar(string xml, int empresaId, string cnpj)
     {
         var doc = Ler(xml);

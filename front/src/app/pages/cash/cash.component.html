@@ -1,0 +1,186 @@
+﻿<section class="cash-page" aria-labelledby="cash-heading">
+  <header class="page-heading">
+    <div class="title">
+      <app-icon class="tile green" name="wallet-cards" [size]="25" />
+      <div>
+        <h1 id="cash-heading">Caixa</h1>
+        <p>Consulte a disponibilidade do caixa e os valores em dinheiro declarados nas notas fiscais.</p>
+      </div>
+    </div>
+
+    <details class="period" #periodDisclosure>
+      <summary [attr.aria-label]="'Período da referência fiscal: ' + periodLabel()">
+        <app-icon name="calendar" [size]="17" />
+        <span>{{ periodLabel() }}</span>
+        <app-icon name="chevron-down" [size]="14" />
+      </summary>
+      <form class="period-panel panel" (submit)="applyPeriod($event, dateStart.value, dateEnd.value, periodDisclosure)">
+        <label>Data inicial <input #dateStart type="date" [value]="period().de" min="2000-01-01" max="2100-12-31" required /></label>
+        <label>Data final <input #dateEnd type="date" [value]="period().ate" min="2000-01-01" max="2100-12-31" required /></label>
+        @if (periodError()) { <p class="error" role="alert">{{ periodError() }}</p> }
+        <button class="action primary" type="submit">Aplicar período</button>
+      </form>
+    </details>
+  </header>
+
+  <section class="metrics" aria-label="Indicadores de caixa">
+    @for (metric of metrics; track metric.label) {
+      <article class="panel metric">
+        <app-icon class="tile" [class]="metric.tone" [name]="metric.icon" [size]="21" />
+        <div>
+          <h2>{{ metric.label }}</h2>
+          <strong>Indisponível</strong>
+          <small>{{ metric.detail }}</small>
+        </div>
+      </article>
+    }
+  </section>
+
+  <div class="source-note">
+    <app-icon name="info" [size]="17" />
+    <p>Os valores abaixo são uma referência fiscal, antes do troco. O livro-caixa e as movimentações efetivas ainda não são registrados no sistema.</p>
+  </div>
+
+  <div class="report" [attr.aria-busy]="state().status === 'loading'">
+    @if (state().status === 'error') {
+      <div class="panel notice error" role="alert">
+        <app-icon name="triangle-alert" [size]="17" />
+        <p>Não foi possível carregar a referência fiscal.</p>
+        <button class="action" type="button" (click)="retry()">Tentar novamente</button>
+      </div>
+    }
+
+    <div class="overview">
+      <article class="panel chart-card">
+        <header class="panel-heading">
+          <app-icon class="tile green small" name="bar-chart-3" [size]="19" />
+          <div class="heading-copy">
+            <h2>Dinheiro declarado por período</h2>
+            <p>Valores agrupados pela data de emissão.</p>
+          </div>
+          @if (chart()) {
+            <div class="legend" aria-hidden="true">
+              <span><i></i>Notas de saída</span>
+              <span><i class="purchase"></i>Compras</span>
+            </div>
+          }
+        </header>
+
+        @if (chart(); as plot) {
+          <div class="chart-scroll">
+            <figure class="chart" role="img" [attr.aria-label]="plot.description">
+              <div class="axis" aria-hidden="true">
+                @for (label of plot.ticks; track $index) { <span [style.top.%]="$index * 25">{{ label }}</span> }
+              </div>
+              <div class="plot" [style.--groups]="plot.groups.length" aria-hidden="true">
+                @for (group of plot.groups; track group.key) {
+                  <div class="pair" [title]="group.description">
+                    <span class="bar sale" [style.height.%]="group.saidaHeight"></span>
+                    <span class="bar purchase" [style.height.%]="group.compraHeight"></span>
+                  </div>
+                }
+              </div>
+              <div class="axis-labels" [style.--groups]="plot.groups.length" aria-hidden="true">
+                @for (group of plot.groups; track group.key) { <span>{{ group.label }}</span> }
+              </div>
+            </figure>
+          </div>
+        } @else if (state().status === 'ready') {
+          <p class="empty">Nenhum documento com valor em dinheiro no período selecionado.</p>
+        } @else if (state().status === 'loading') {
+          <p class="empty" role="status">Carregando documentos fiscais…</p>
+        }
+      </article>
+
+      <aside class="panel summary">
+        <header class="panel-heading"><h2>Resumo fiscal do período</h2></header>
+        @if (summary(); as totals) {
+          <div class="summary-row">
+            <app-icon class="tile green small" name="file-text" [size]="17" />
+            <span>Notas de saída</span><strong>{{ formatCurrency(totals.saida) }}</strong>
+          </div>
+          <div class="summary-row">
+            <app-icon class="tile rose small" name="shopping-cart" [size]="17" />
+            <span>Compras conferidas</span><strong>{{ formatCurrency(totals.compra) }}</strong>
+          </div>
+          <div class="summary-row count">
+            <app-icon class="tile green small" name="receipt-text" [size]="17" />
+            <span>Documentos fiscais</span><strong>{{ totals.count }}</strong>
+          </div>
+        }
+      </aside>
+    </div>
+
+    <section class="panel listing" aria-labelledby="cash-documents">
+      <header class="panel-heading">
+        <app-icon class="tile green small" name="receipt-text" [size]="19" />
+        <div class="heading-copy">
+          <h2 id="cash-documents">Documentos fiscais</h2>
+          <p>Notas com valor declarado na forma de pagamento Dinheiro.</p>
+        </div>
+        <div class="filters">
+          <label class="search">
+            <app-icon name="search" [size]="16" />
+            <input #search type="search" aria-label="Buscar por nota, cliente ou fornecedor" placeholder="Buscar documento…"
+              [value]="query()" (input)="query.set(search.value); page.set(1)" />
+          </label>
+          <select #originSelect aria-label="Filtrar por origem" [value]="origin()" (change)="filterOrigin(originSelect.value)">
+            <option value="">Todas as origens</option>
+            <option value="saida">Notas de saída</option>
+            <option value="compra">Compras conferidas</option>
+          </select>
+          <button class="action" type="button" (click)="exportCsv()" [disabled]="!filtered().length">
+            <app-icon name="download" [size]="16" />Exportar CSV
+          </button>
+        </div>
+      </header>
+
+      <div class="table-scroll" role="region" aria-label="Tabela de documentos fiscais" tabindex="0">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col" [attr.aria-sort]="newestFirst() ? 'descending' : 'ascending'">
+                <button class="sort" type="button" (click)="newestFirst.update(value => !value); page.set(1)">
+                  Emissão <app-icon [name]="newestFirst() ? 'arrow-down' : 'arrow-up'" [size]="13" />
+                </button>
+              </th>
+              <th scope="col">Documento</th>
+              <th scope="col">Cliente ou fornecedor</th>
+              <th scope="col">Origem</th>
+              <th scope="col" class="amount">Valor declarado</th>
+            </tr>
+          </thead>
+          <tbody>
+            @if (state().status === 'ready') {
+              @for (note of rows(); track note.origem + note.id) {
+                <tr>
+                  <td><time [attr.datetime]="note.emissao">{{ formatDateTime(note.emissao) }}</time></td>
+                  <td>{{ documentLabel(note) }}@if (note.serie) { <small>&nbsp;· Série {{ note.serie }}</small> }</td>
+                  <td>{{ note.nome || '—' }}</td>
+                  <td><span class="origin" [class.purchase]="note.origem === 'compra'">{{ originLabels[note.origem] }}</span></td>
+                  <td class="amount">{{ formatCurrency(note.valor) }}</td>
+                </tr>
+              } @empty {
+                <tr><td class="table-empty" colspan="5">Nenhum documento corresponde ao período e aos filtros.</td></tr>
+              }
+            } @else {
+              <tr><td colspan="5" class="table-empty">{{ state().status === 'loading' ? 'Carregando documentos…' : 'Consulta indisponível.' }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (pageCount() > 1) {
+        <nav class="pagination" aria-label="Páginas de documentos fiscais">
+          <button type="button" class="action" [disabled]="currentPage() === 1" (click)="page.set(currentPage() - 1)" aria-label="Página anterior">
+            <app-icon name="chevron-left" [size]="16" />
+          </button>
+          <span>Página {{ currentPage() }} de {{ pageCount() }}</span>
+          <button type="button" class="action" [disabled]="currentPage() >= pageCount()" (click)="page.set(currentPage() + 1)" aria-label="Próxima página">
+            <app-icon name="chevron-right" [size]="16" />
+          </button>
+        </nav>
+      }
+    </section>
+  </div>
+</section>
